@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profit Ladder Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Roboto', sans-serif;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-label {
+            color: #bbbbbb;
+        }
+        .form-control {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #444;
+        }
+        .form-control:focus {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-color: #6200ea;
+            box-shadow: none;
+        }
+        .btn-primary {
+            background-color: #6200ea;
+            border-color: #6200ea;
+        }
+        .btn-primary:hover {
+            background-color: #3700b3;
+            border-color: #3700b3;
+        }
+        #results {
+            margin-top: 30px;
+        }
+        table {
+            width: 100%;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+        th, td {
+            text-align: center;
+            padding: 12px;
+        }
+        th {
+            background-color: #292929;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        td {
+            background-color: #1e1e1e;
+            border: none;
+        }
+        .highlight {
+            background-color: #16c6b2;
+            color: #ffffff;
+            font-weight: bold;
+            border-radius: 8px;
+            padding: 10px;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 4px 10px rgba(42, 157, 143, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1><i class="fas fa-calculator"></i> Profit Ladder Calculator</h1>
+        <form id="profitForm" class="p-3 rounded" style="background-color: #1e1e1e; border: 1px solid #444;">
+            <div class="mb-3">
+                <label for="tickerSymbol" class="form-label">Ticker Symbol</label>
+                <input type="text" class="form-control" id="tickerSymbol" placeholder="Enter ticker symbol (e.g., AAPL)" required>
+            </div>
+            <div class="mb-3">
+                <label for="averagePrice" class="form-label">Average Price</label>
+                <input type="number" step="0.01" class="form-control" id="averagePrice" placeholder="Enter average price" required>
+            </div>
+            <div class="mb-3">
+                <label for="numShares" class="form-label">Number of Shares</label>
+                <input type="number" step="1" class="form-control" id="numShares" placeholder="Enter number of shares" required>
+            </div>
+            <div class="mb-3">
+                <label for="priceStep" class="form-label">Price Step</label>
+                <input type="number" step="0.01" class="form-control" id="priceStep" placeholder="Enter price step (default: 1% of average price)">
+            </div>
+            <div class="mb-3">
+                <label for="levels" class="form-label">Number of Levels</label>
+                <input type="number" class="form-control" id="levels" placeholder="Enter number of levels (default: 5)">
+            </div>
+            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-chart-line"></i> Calculate</button>
+        </form>
+        <div id="results" class="mt-5"></div>
+    </div>
+
+    <script>
+        // Function to fetch query parameters
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                tickerSymbol: params.get('ticker') || '',
+                averagePrice: parseFloat(params.get('avgPrice')) || '',
+                numShares: parseInt(params.get('shares')) || '',
+                priceStep: parseFloat(params.get('step')) || '',
+                levels: parseInt(params.get('levels')) || ''
+            };
+        }
+
+        // Function to set query parameters in the URL
+        function setQueryParams(params) {
+            const url = new URL(window.location.href);
+            Object.keys(params).forEach(key => url.searchParams.set(key, params[key]));
+            window.history.replaceState({}, '', url);
+        }
+
+        // Function to fetch the current price of a ticker
+        async function fetchCurrentPrice(ticker) {
+            const apiKey = "YOUR_ALPHA_VANTAGE_API_KEY"; // Replace with your actual API key
+            try {
+                const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`);
+                const data = await response.json();
+                return parseFloat(data['Global Quote']['05. price']) || null;
+            } 
+            catch (error) {
+                console.error("Error fetching current price:", error);
+                return null;
+            }
+        }
+
+        // Function to calculate the profit ladder
+        function profitLadder(avgPrice, numShares, priceStep, levels, currentPrice) {
+            const ladder = [];
+            let closestLevel = null;
+            let smallestDifference = Infinity;
+
+            for (let i = -levels; i <= levels; i++) {
+                const priceLevel = avgPrice + i * priceStep;
+                if (priceLevel < 0) continue; // Skip negative price levels
+                const profitLoss = (priceLevel - avgPrice) * numShares;
+                const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
+
+                // Check if this level is the closest to the current price
+                const difference = Math.abs(priceLevel - currentPrice);
+                if (difference < smallestDifference) {
+                    smallestDifference = difference;
+                    closestLevel = priceLevel;
+                }
+
+                ladder.push({ priceLevel, profitLoss, percentChange, isCurrent: false });
+            }
+
+            // Mark the closest level as the current price
+            ladder.forEach(row => {
+                row.isCurrent = Math.abs(row.priceLevel - closestLevel) < 0.01;
+            });
+
+            return ladder;
+        }
+
+        // Function to center the highlighted row
+        function centerHighlightedRow() {
+            const highlightedRow = document.querySelector('.highlight');
+            if (highlightedRow) {
+                highlightedRow.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                });
+            }
+        }
+
+        // Preload form fields from query parameters
+        const params = getQueryParams();
+        document.getElementById('tickerSymbol').value = params.tickerSymbol;
+        document.getElementById('averagePrice').value = params.averagePrice;
+        document.getElementById('numShares').value = params.numShares;
+        document.getElementById('priceStep').value = params.priceStep;
+        document.getElementById('levels').value = params.levels;
+
+        // Automatically calculate if all required parameters are present
+        if (params.tickerSymbol && params.averagePrice && params.numShares) {
+            document.getElementById('profitForm').dispatchEvent(new Event('submit'));
+        }
+
+        // Form handling
+        const form = document.getElementById('profitForm');
+        const resultsDiv = document.getElementById('results');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const tickerSymbol = document.getElementById('tickerSymbol').value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById('averagePrice').value);
+            const numShares = parseInt(document.getElementById('numShares').value);
+            const priceStep = parseFloat(document.getElementById('priceStep').value) || avgPrice * 0.01; // Default to 1% of avg price
+            const levels = parseInt(document.getElementById('levels').value) || 5; // Default to 5 levels
+
+            // Update URL with query parameters
+            setQueryParams({ ticker: tickerSymbol, avgPrice, shares: numShares, step: priceStep, levels });
+
+            // Fetch the current price
+            const currentPrice = await fetchCurrentPrice(tickerSymbol);
+            if (!currentPrice) {
+                resultsDiv.innerHTML = `<div class="alert alert-danger">Unable to fetch price for ticker: ${tickerSymbol}</div>`;
+                return;
+            }
+
+            // Calculate profit ladder
+            const results = profitLadder(avgPrice, numShares, priceStep, levels, currentPrice);
+
+            // Render results
+            let html = `<h2>Results for ${tickerSymbol} (Current Price: $${currentPrice.toFixed(2)})</h2>`;
+            html += '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
+            results.forEach(row => {
+                html += `<tr class="${row.isCurrent ? 'highlight' : ''}">
+                    <td>${row.priceLevel.toFixed(2)}</td>
+                    <td>${row.profitLoss.toFixed(2)}</td>
+                    <td>${row.percentChange.toFixed(2)}%</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            resultsDiv.innerHTML = html;
+
+            // Center the highlighted row
+            centerHighlightedRow();
+        });
+    </script>
+</body>
+</html>
