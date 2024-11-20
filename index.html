@@ -186,11 +186,11 @@
 
         // Preload form fields from query parameters
         const params = getQueryParams();
-        document.getElementById('tickerSymbol').value = params.tickerSymbol;
-        document.getElementById('averagePrice').value = params.averagePrice;
-        document.getElementById('numShares').value = params.numShares;
-        document.getElementById('priceStep').value = params.priceStep;
-        document.getElementById('levels').value = params.levels;
+        document.getElementById('tickerSymbol').value = params.tickerSymbol || '';
+        document.getElementById('averagePrice').value = params.averagePrice || '';
+        document.getElementById('numShares').value = params.numShares || '';
+        document.getElementById('priceStep').value = params.priceStep || '';
+        document.getElementById('levels').value = params.levels || '';
 
         async function autoCalculateFromParams() {
             if (params.tickerSymbol && params.averagePrice && params.numShares) {
@@ -221,6 +221,8 @@
                 resultsDiv.innerHTML = html;
 
                 centerHighlightedRow();
+            } else {
+                resultsDiv.innerHTML = '';
             }
         }
 
