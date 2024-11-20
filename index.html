@@ -41,6 +41,9 @@
         }
         #results {
             margin-top: 30px;
+            overflow-y: auto;
+            max-height: 60vh;
+            padding: 10px;
         }
         table {
             width: 100%;
@@ -129,8 +132,7 @@
                 const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`);
                 const data = await response.json();
                 return parseFloat(data['Global Quote']['05. price']) || null;
-            } 
-            catch (error) {
+            } catch (error) {
                 console.error("Error fetching current price:", error);
                 return null;
             }
@@ -144,11 +146,10 @@
 
             for (let i = -levels; i <= levels; i++) {
                 const priceLevel = avgPrice + i * priceStep;
-                if (priceLevel < 0) continue; // Skip negative price levels
+                if (priceLevel < 0) continue;
                 const profitLoss = (priceLevel - avgPrice) * numShares;
                 const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
 
-                // Check if this level is the closest to the current price
                 const difference = Math.abs(priceLevel - currentPrice);
                 if (difference < smallestDifference) {
                     smallestDifference = difference;
@@ -158,7 +159,6 @@
                 ladder.push({ priceLevel, profitLoss, percentChange, isCurrent: false });
             }
 
-            // Mark the closest level as the current price
             ladder.forEach(row => {
                 row.isCurrent = Math.abs(row.priceLevel - closestLevel) < 0.01;
             });
@@ -170,9 +170,16 @@
         function centerHighlightedRow() {
             const highlightedRow = document.querySelector('.highlight');
             if (highlightedRow) {
-                highlightedRow.scrollIntoView({
+                const tableContainer = highlightedRow.closest('#results');
+                const rowOffset = highlightedRow.offsetTop;
+                const containerHeight = tableContainer.offsetHeight;
+                const rowHeight = highlightedRow.offsetHeight;
+
+                const scrollPosition = rowOffset - (containerHeight / 2) + (rowHeight / 2);
+
+                tableContainer.scrollTo({
+                    top: scrollPosition,
                     behavior: 'smooth',
-                    block: 'center',
                 });
             }
         }
@@ -185,26 +192,22 @@
         document.getElementById('priceStep').value = params.priceStep;
         document.getElementById('levels').value = params.levels;
 
-        // Automatically calculate if all required parameters are present
         async function autoCalculateFromParams() {
             if (params.tickerSymbol && params.averagePrice && params.numShares) {
                 const tickerSymbol = params.tickerSymbol;
                 const avgPrice = parseFloat(params.averagePrice);
                 const numShares = parseInt(params.numShares);
-                const priceStep = parseFloat(params.priceStep) || avgPrice * 0.01; // Default to 1% of avg price
-                const levels = parseInt(params.levels) || 5; // Default to 5 levels
+                const priceStep = parseFloat(params.priceStep) || avgPrice * 0.01;
+                const levels = parseInt(params.levels) || 5;
 
-                // Fetch the current price
                 const currentPrice = await fetchCurrentPrice(tickerSymbol);
                 if (!currentPrice) {
                     resultsDiv.innerHTML = `<div class="alert alert-danger">Unable to fetch price for ticker: ${tickerSymbol}</div>`;
                     return;
                 }
 
-                // Calculate profit ladder
                 const results = profitLadder(avgPrice, numShares, priceStep, levels, currentPrice);
 
-                // Render results
                 let html = `<h2>Results for ${tickerSymbol} (Current Price: $${currentPrice.toFixed(2)})</h2>`;
                 html += '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
                 results.forEach(row => {
@@ -217,12 +220,11 @@
                 html += '</tbody></table>';
                 resultsDiv.innerHTML = html;
 
-                // Center the highlighted row
                 centerHighlightedRow();
             }
         }
 
-        // Call autoCalculateFromParams on page load
+        const resultsDiv = document.getElementById('results');
         autoCalculateFromParams();
     </script>
 </body>
