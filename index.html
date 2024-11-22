@@ -15,7 +15,7 @@
         }
         h1 {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         .form-label {
             color: #bbbbbb;
@@ -65,15 +65,6 @@
             background-color: #1e1e1e;
             border: none;
         }
-        .highlight {
-            background-color: #16c6b2;
-            color: #ffffff;
-            font-weight: bold;
-            border-radius: 8px;
-            padding: 10px;
-            transition: all 0.3s ease-in-out;
-            box-shadow: 0 4px 10px rgba(42, 157, 143, 0.5);
-        }
         .tab {
             display: inline-flex;
             align-items: center;
@@ -84,7 +75,10 @@
             background-color: #2c2c2c;
             color: #fff;
             border-radius: 4px;
+            margin-right: 5px;
+            margin-bottom: 5px;
             transition: background-color 0.3s ease;
+            cursor: pointer;
         }
         .tab:hover {
             background-color: #3c3c3c;
@@ -95,7 +89,7 @@
             color: #fff;
             font-size: 14px;
             cursor: pointer;
-            padding: 0 6px;
+            margin-left: 5px;
         }
         .tab .btn-delete:hover {
             color: #ff6f61;
@@ -103,8 +97,9 @@
     </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <div class="container mt-3">
         <h1><i class="fas fa-calculator"></i> Profit Ladder Calculator</h1>
+        <div id="savedPositionsContainer" class="d-flex flex-wrap gap-2 mb-3"></div>
         <form id="profitForm" autocomplete="off" class="p-3 rounded" style="background-color: #1e1e1e; border: 1px solid #444;">
             <div class="mb-3">
                 <label for="tickerSymbol" class="form-label">Ticker Symbol</label>
@@ -126,7 +121,6 @@
                 <label for="levels" class="form-label">Number of Levels</label>
                 <input type="number" class="form-control" id="levels" placeholder="Enter number of levels (default: 5)">
             </div>
-            <div id="savedPositionsContainer" class="d-flex flex-wrap gap-2 mb-3"></div>
             <div class="d-flex gap-2 mb-3">
                 <button type="button" class="btn btn-success" id="savePosition">Save Position</button>
                 <button type="submit" class="btn btn-primary w-100"><i class="fas fa-chart-line"></i> Calculate</button>
@@ -153,6 +147,96 @@
             });
         }
 
+        async function savePosition() {
+            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
+            const numShares = parseInt(document.getElementById("numShares").value);
+            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
+            const levels = parseInt(document.getElementById("levels").value) || 5;
+
+            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
+                alert("Please fill in all required fields to save the position.");
+                return;
+            }
+
+            const position = { id: tickerSymbol, tickerSymbol, avgPrice, numShares, priceStep, levels };
+
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readwrite");
+            const store = transaction.objectStore(storeName);
+            const request = store.put(position);
+
+            request.onsuccess = () => {
+                alert(`Position for ${tickerSymbol} saved successfully.`);
+                loadSavedPositions();
+            };
+
+            request.onerror = (event) => {
+                alert("Failed to save the position. Please try again.");
+                console.error(event.target.error);
+            };
+        }
+
+        async function loadSavedPositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readonly");
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+
+            const container = document.getElementById("savedPositionsContainer");
+            container.innerHTML = ""; // Clear existing tabs
+
+            request.onsuccess = () => {
+                request.result.forEach((position) => {
+                    const tab = document.createElement("div");
+                    tab.className = "tab";
+
+                    const label = document.createElement("span");
+                    label.textContent = position.tickerSymbol;
+
+                    const deleteButton = document.createElement("button");
+                    deleteButton.textContent = "X";
+                    deleteButton.className = "btn-delete";
+                    deleteButton.addEventListener("click", async (event) => {
+                        event.stopPropagation();
+                        await deletePosition(position.id);
+                        alert(`Position ${position.tickerSymbol} deleted successfully.`);
+                        loadSavedPositions();
+                    });
+
+                    tab.appendChild(label);
+                    tab.appendChild(deleteButton);
+
+                    tab.addEventListener("click", () => {
+                        document.getElementById("tickerSymbol").value = position.tickerSymbol;
+                        document.getElementById("averagePrice").value = position.avgPrice;
+                        document.getElementById("numShares").value = position.numShares;
+                        document.getElementById("priceStep").value = position.priceStep;
+                        document.getElementById("levels").value = position.levels;
+                        calculateResults();
+                    });
+
+                    container.appendChild(tab);
+                });
+            };
+
+            request.onerror = (event) => {
+                console.error("Failed to load saved positions:", event.target.error);
+            };
+        }
+
+        async function deletePosition(id) {
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readwrite");
+            const store = transaction.objectStore(storeName);
+            const request = store.delete(id);
+
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
         async function calculateResults() {
             const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
             const avgPrice = parseFloat(document.getElementById("averagePrice").value);
@@ -171,6 +255,7 @@
 
             for (let i = -levels; i <= levels; i++) {
                 const priceLevel = avgPrice + i * priceStep;
+                if (priceLevel < 0) continue;
                 const profitLoss = (priceLevel - avgPrice) * numShares;
                 const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
                 html += `<tr>
@@ -184,33 +269,7 @@
             resultsDiv.innerHTML = html;
         }
 
-        async function loadSavedPositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(storeName, "readonly");
-            const store = transaction.objectStore(storeName);
-            const request = store.getAll();
-
-            const container = document.getElementById("savedPositionsContainer");
-            container.innerHTML = "";
-
-            request.onsuccess = () => {
-                request.result.forEach((position) => {
-                    const tab = document.createElement("div");
-                    tab.className = "tab";
-                    tab.textContent = position.tickerSymbol;
-                    tab.addEventListener("click", () => {
-                        document.getElementById("tickerSymbol").value = position.tickerSymbol;
-                        document.getElementById("averagePrice").value = position.avgPrice;
-                        document.getElementById("numShares").value = position.numShares;
-                        document.getElementById("priceStep").value = position.priceStep;
-                        document.getElementById("levels").value = position.levels;
-                        calculateResults();
-                    });
-                    container.appendChild(tab);
-                });
-            };
-        }
-
+        document.getElementById("savePosition").addEventListener("click", savePosition);
         document.getElementById("profitForm").addEventListener("submit", (event) => {
             event.preventDefault();
             calculateResults();
