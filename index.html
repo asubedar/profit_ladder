@@ -142,101 +142,18 @@
         function openDatabase() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(dbName, 1);
-
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
                     if (!db.objectStoreNames.contains(storeName)) {
                         db.createObjectStore(storeName, { keyPath: "id" });
                     }
                 };
-
                 request.onsuccess = (event) => resolve(event.target.result);
                 request.onerror = (event) => reject(event.target.error);
             });
         }
 
-        async function savePosition(position) {
-            const db = await openDatabase();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(storeName, "readwrite");
-                const store = transaction.objectStore(storeName);
-                const request = store.put(position);
-
-                request.onsuccess = () => resolve();
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        async function getAllPositions() {
-            const db = await openDatabase();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(storeName, "readonly");
-                const store = transaction.objectStore(storeName);
-                const request = store.getAll();
-
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        async function deletePosition(id) {
-            const db = await openDatabase();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(storeName, "readwrite");
-                const store = transaction.objectStore(storeName);
-                const request = store.delete(id);
-
-                request.onsuccess = () => resolve();
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        async function loadSavedPositions() {
-            const positions = await getAllPositions();
-            const container = document.getElementById("savedPositionsContainer");
-            container.innerHTML = ""; // Clear existing tabs
-
-            positions.forEach((position) => {
-                // Create a tab
-                const tab = document.createElement("div");
-                tab.className = "tab p-2 bg-secondary text-white rounded d-flex align-items-center gap-2";
-                tab.style.cursor = "pointer";
-
-                // Tab label
-                const label = document.createElement("span");
-                label.textContent = position.tickerSymbol;
-                label.style.flexGrow = "1";
-
-                // Close button
-                const closeButton = document.createElement("button");
-                closeButton.textContent = "X";
-                closeButton.className = "btn-delete";
-                closeButton.addEventListener("click", async (event) => {
-                    event.stopPropagation(); // Prevent tab click
-                    await deletePosition(position.id);
-                    alert(`Position ${position.tickerSymbol} deleted successfully.`);
-                    loadSavedPositions(); // Refresh tabs
-                });
-
-                // Tab click event
-                tab.addEventListener("click", () => {
-                    document.getElementById("tickerSymbol").value = position.tickerSymbol;
-                    document.getElementById("averagePrice").value = position.avgPrice;
-                    document.getElementById("numShares").value = position.numShares;
-                    document.getElementById("priceStep").value = position.priceStep;
-                    document.getElementById("levels").value = position.levels;
-                });
-
-                // Append label and close button to tab
-                tab.appendChild(label);
-                tab.appendChild(closeButton);
-
-                // Append tab to container
-                container.appendChild(tab);
-            });
-        }
-
-        document.getElementById("savePosition").addEventListener("click", async () => {
+        async function calculateResults() {
             const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
             const avgPrice = parseFloat(document.getElementById("averagePrice").value);
             const numShares = parseInt(document.getElementById("numShares").value);
@@ -244,27 +161,59 @@
             const levels = parseInt(document.getElementById("levels").value) || 5;
 
             if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
-                alert("Please fill in all required fields to save the position.");
+                alert("Please fill in all required fields to calculate.");
                 return;
             }
 
-            const position = {
-                id: tickerSymbol,
-                tickerSymbol,
-                avgPrice,
-                numShares,
-                priceStep,
-                levels,
-            };
+            const resultsDiv = document.getElementById("results");
+            let html = `<h2>Results for ${tickerSymbol}</h2>`;
+            html += '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
 
-            await savePosition(position);
-            alert(`Position for ${tickerSymbol} saved successfully.`);
-            loadSavedPositions();
-        });
+            for (let i = -levels; i <= levels; i++) {
+                const priceLevel = avgPrice + i * priceStep;
+                const profitLoss = (priceLevel - avgPrice) * numShares;
+                const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
+                html += `<tr>
+                    <td>${priceLevel.toFixed(2)}</td>
+                    <td>${profitLoss.toFixed(2)}</td>
+                    <td>${percentChange.toFixed(2)}%</td>
+                </tr>`;
+            }
+
+            html += '</tbody></table>';
+            resultsDiv.innerHTML = html;
+        }
+
+        async function loadSavedPositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readonly");
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+
+            const container = document.getElementById("savedPositionsContainer");
+            container.innerHTML = "";
+
+            request.onsuccess = () => {
+                request.result.forEach((position) => {
+                    const tab = document.createElement("div");
+                    tab.className = "tab";
+                    tab.textContent = position.tickerSymbol;
+                    tab.addEventListener("click", () => {
+                        document.getElementById("tickerSymbol").value = position.tickerSymbol;
+                        document.getElementById("averagePrice").value = position.avgPrice;
+                        document.getElementById("numShares").value = position.numShares;
+                        document.getElementById("priceStep").value = position.priceStep;
+                        document.getElementById("levels").value = position.levels;
+                        calculateResults();
+                    });
+                    container.appendChild(tab);
+                });
+            };
+        }
 
         document.getElementById("profitForm").addEventListener("submit", (event) => {
             event.preventDefault();
-            // Perform calculation logic here (unrelated to saving positions)
+            calculateResults();
         });
 
         loadSavedPositions();
