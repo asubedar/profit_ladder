@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profit Ladder Calculator</title>
+    <title>Profit Ladder</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -17,6 +17,13 @@
             text-align: center;
             margin-bottom: 20px;
         }
+        .form-container {
+            position: sticky;
+            top: 0;
+            background-color: #1e1e1e;
+            padding: 10px;
+            z-index: 999;
+        }
         .form-label {
             color: #bbbbbb;
         }
@@ -24,6 +31,7 @@
             background-color: #1e1e1e;
             color: #ffffff;
             border: 1px solid #444;
+            width: 150px;
         }
         .form-control:focus {
             background-color: #1e1e1e;
@@ -38,6 +46,9 @@
         .btn-primary:hover {
             background-color: #3700b3;
             border-color: #3700b3;
+        }
+        .btn-success {
+            width: 150px;
         }
         #results {
             margin-top: 30px;
@@ -100,32 +111,32 @@
     <div class="container mt-3">
         <h1><i class="fas fa-calculator"></i> Profit Ladder Calculator</h1>
         <div id="savedPositionsContainer" class="d-flex flex-wrap gap-2 mb-3"></div>
-        <form id="profitForm" autocomplete="off" class="p-3 rounded" style="background-color: #1e1e1e; border: 1px solid #444;">
-            <div class="mb-3">
-                <label for="tickerSymbol" class="form-label">Ticker Symbol</label>
-                <input type="text" class="form-control" id="tickerSymbol" placeholder="Enter ticker symbol (e.g., AAPL)" required>
-            </div>
-            <div class="mb-3">
-                <label for="averagePrice" class="form-label">Average Price</label>
-                <input type="number" step="0.01" class="form-control" id="averagePrice" placeholder="Enter average price" required>
-            </div>
-            <div class="mb-3">
-                <label for="numShares" class="form-label">Number of Shares</label>
-                <input type="number" step="1" class="form-control" id="numShares" placeholder="Enter number of shares" required>
-            </div>
-            <div class="mb-3">
-                <label for="priceStep" class="form-label">Price Step</label>
-                <input type="number" step="0.01" class="form-control" id="priceStep" placeholder="Enter price step (default: 1% of average price)">
-            </div>
-            <div class="mb-3">
-                <label for="levels" class="form-label">Number of Levels</label>
-                <input type="number" class="form-control" id="levels" placeholder="Enter number of levels (default: 5)">
-            </div>
-            <div class="d-flex gap-2 mb-3">
+        <div class="form-container">
+            <form id="profitForm" autocomplete="off" class="d-flex align-items-center flex-wrap gap-2">
+                <div class="mb-3">
+                    <label for="tickerSymbol" class="form-label">Ticker Symbol</label>
+                    <input type="text" class="form-control" id="tickerSymbol" placeholder="e.g., AAPL" required>
+                </div>
+                <div class="mb-3">
+                    <label for="averagePrice" class="form-label">Average Price</label>
+                    <input type="number" step="0.01" class="form-control" id="averagePrice" placeholder="Enter price" required>
+                </div>
+                <div class="mb-3">
+                    <label for="numShares" class="form-label">Shares</label>
+                    <input type="number" step="1" class="form-control" id="numShares" placeholder="Enter shares" required>
+                </div>
+                <div class="mb-3">
+                    <label for="priceStep" class="form-label">Price Step</label>
+                    <input type="number" step="0.01" class="form-control" id="priceStep" placeholder="Enter step">
+                </div>
+                <div class="mb-3">
+                    <label for="levels" class="form-label">Levels</label>
+                    <input type="number" class="form-control" id="levels" placeholder="Enter levels">
+                </div>
                 <button type="button" class="btn btn-success" id="savePosition">Save Position</button>
-                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-chart-line"></i> Calculate</button>
-            </div>
-        </form>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-chart-line"></i> Calculate</button>
+            </form>
+        </div>
         <div id="results" class="mt-5"></div>
     </div>
 
