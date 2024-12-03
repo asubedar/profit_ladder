@@ -74,7 +74,8 @@
                 <tbody id="portfolioBody"></tbody>
                 <tfoot>
                     <tr class="totals-row">
-                        <td colspan="4">Totals</td>
+                        <td>Totals</td>
+                        <td colspan="3"></td>
                         <td id="totalCostBasis">0.00</td>
                         <td id="totalValue">0.00</td>
                         <td id="totalProfit">0.00</td>
@@ -241,20 +242,21 @@
                 const row = `
                     <tr>
                         <td>${tickerSymbol}</td>
-                        <td>${avgPrice.toFixed(2)}</td>
-                        <td>${numShares}</td>
-                        <td>${currentPrice.toFixed(2)}</td>
-                        <td>${costBasis.toFixed(2)}</td>
-                        <td>${totalValueForPosition.toFixed(2)}</td>
-                        <td class="${profitClass}">${profit.toFixed(2)}</td>
+                        <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>${numShares.toLocaleString()}</td>
+                        <td>${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>${totalValueForPosition.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
             }
 
-            document.getElementById("totalCostBasis").textContent = totalCostBasis.toFixed(2);
-            document.getElementById("totalValue").textContent = totalValue.toFixed(2);
-            document.getElementById("totalProfit").textContent = totalProfit.toFixed(2);
+            // Update totals row
+            document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         document.getElementById("saveKeys").addEventListener("click", async () => {
