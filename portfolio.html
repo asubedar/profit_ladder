@@ -24,7 +24,7 @@
         }
         th, td {
             padding: 10px;
-            text-align: right; /* Align numbers to the right */
+            text-align: right;
             border-bottom: 1px solid #444;
         }
         th:first-child, td:first-child {
@@ -185,42 +185,96 @@
             return { alpacaKey, alpacaSecret };
         }
 
-        async function fetchCurrentPrice(ticker) {
+        async function getFinnhubKey() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.get("finnhubApiKey");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        async function fetchCurrentPrices(tickers) {
             const { alpacaKey, alpacaSecret } = await getAlpacaKeys();
+            let prices = {};
 
             if (alpacaKey && alpacaSecret) {
                 try {
-                    const response = await fetch(`https://data.alpaca.markets/v2/stocks/${ticker}/quotes/latest`, {
-                        headers: {
-                            "APCA-API-KEY-ID": alpacaKey,
-                            "APCA-API-SECRET-KEY": alpacaSecret
+                    const response = await fetch(
+                        `https://data.alpaca.markets/v2/stocks/quotes?symbols=${tickers.join(",")}`,
+                        {
+                            headers: {
+                                "APCA-API-KEY-ID": alpacaKey,
+                                "APCA-API-SECRET-KEY": alpacaSecret,
+                            },
                         }
-                    });
+                    );
                     const data = await response.json();
-                    console.log(`Alpaca price for ${ticker}:`, data.quote.ap);
-                    return data?.quote?.ap || 0; // `ap` is the ask price
+                    for (const [ticker, quoteData] of Object.entries(data.quotes)) {
+                        prices[ticker] = {
+                            price: quoteData.ap || 0, // Ask price
+                            time: quoteData.t || new Date().toISOString(), // Timestamp
+                        };
+                    }
                 } catch (error) {
-                    console.error(`Error fetching price from Alpaca for ${ticker}:`, error);
+                    console.error("Error fetching prices from Alpaca:", error);
                 }
             }
 
-            const finnhubKey = await getFinnhubKey();
-            if (finnhubKey) {
-                try {
-                    const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${finnhubKey}`);
-                    const data = await response.json();
-                    console.log(`Finnhub price for ${ticker}:`, data.c);
-                    return data?.c || 0; // `c` represents the current price
-                } catch (error) {
-                    console.error(`Error fetching price from Finnhub for ${ticker}:`, error);
+            if (Object.keys(prices).length === 0) {
+                const finnhubKey = await getFinnhubKey();
+                if (finnhubKey) {
+                    for (const ticker of tickers) {
+                        try {
+                            const response = await fetch(
+                                `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${finnhubKey}`
+                            );
+                            const data = await response.json();
+                            prices[ticker] = {
+                                price: data.c || 0,
+                                time: new Date().toISOString(),
+                            };
+                        } catch (error) {
+                            console.error(`Error fetching price for ${ticker} from Finnhub:`, error);
+                        }
+                    }
                 }
             }
 
-            return 0;
+            return prices;
+        }
+
+        async function updatePosition(ticker, lastPrice, lastTime) {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+
+            const position = await new Promise((resolve, reject) => {
+                const request = store.get(ticker);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (position) {
+                position.lastPrice = lastPrice;
+                position.lastTime = lastTime;
+
+                return new Promise((resolve, reject) => {
+                    const request = store.put(position);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject(event.target.error);
+                });
+            }
         }
 
         async function loadPortfolio() {
             const positions = await fetchPositions();
+            const tickers = positions.map((position) => position.tickerSymbol);
+
+            const prices = await fetchCurrentPrices(tickers);
 
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = ""; // Clear the table before rendering
@@ -231,7 +285,10 @@
 
             for (const position of positions) {
                 const { tickerSymbol, avgPrice, numShares } = position;
-                const currentPrice = await fetchCurrentPrice(tickerSymbol);
+                const priceData = prices[tickerSymbol] || { price: 0, time: null };
+                const currentPrice = priceData.price;
+                const lastTime = priceData.time;
+
                 const costBasis = avgPrice * numShares;
                 const totalValueForPosition = currentPrice * numShares;
                 const profit = totalValueForPosition - costBasis;
@@ -254,12 +311,24 @@
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
+
+                // Update the position with the last price and timestamp
+                await updatePosition(tickerSymbol, currentPrice, lastTime);
             }
 
             // Update totals row
-            document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
         }
 
         document.getElementById("saveKeys").addEventListener("click", async () => {
