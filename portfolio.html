@@ -138,7 +138,7 @@
                 request.onerror = (event) => {
                     console.error("Error fetching positions:", event.target.error);
                     reject(event.target.error);
-                };
+                });
             });
         }
 
@@ -213,6 +213,7 @@
                         }
                     );
                     const data = await response.json();
+                    console.log("Alpaca response:", data);
                     for (const [ticker, quoteData] of Object.entries(data.quotes)) {
                         prices[ticker] = {
                             price: quoteData.ap || 0,
@@ -233,6 +234,7 @@
                                 `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${finnhubKey}`
                             );
                             const data = await response.json();
+                            console.log(`Finnhub response for ${ticker}:`, data);
                             prices[ticker] = {
                                 price: data.c || 0,
                                 time: new Date().toISOString(),
@@ -244,6 +246,7 @@
                 }
             }
 
+            console.log("Fetched prices:", prices);
             return prices;
         }
 
@@ -261,6 +264,8 @@
             if (position) {
                 position.lastPrice = lastPrice;
                 position.lastTime = lastTime;
+
+                console.log("Updating position:", position);
 
                 return new Promise((resolve, reject) => {
                     const request = store.put(position);
@@ -289,6 +294,10 @@
                 const currentPrice = priceData.price;
                 const lastTime = priceData.time;
 
+                if (currentPrice > 0) {
+                    await updatePosition(tickerSymbol, currentPrice, lastTime);
+                }
+
                 const costBasis = avgPrice * numShares;
                 const totalValueForPosition = currentPrice * numShares;
                 const profit = totalValueForPosition - costBasis;
@@ -311,8 +320,6 @@
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
-
-                await updatePosition(tickerSymbol, currentPrice, lastTime);
             }
 
             document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
