@@ -59,9 +59,13 @@
         </div>
         <div class="mt-4">
             <h3>Settings</h3>
-            <label for="apiKeyInput">Finnhub API Key:</label>
-            <input type="text" id="apiKeyInput" class="form-control" placeholder="Enter your API key">
-            <button id="saveApiKey" class="btn btn-primary mt-2">Save API Key</button>
+            <label for="alpacaApiKey">Alpaca API Key:</label>
+            <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
+            <label for="alpacaApiSecret" class="mt-2">Alpaca API Secret:</label>
+            <input type="text" id="alpacaApiSecret" class="form-control" placeholder="Enter your Alpaca API Secret">
+            <label for="apiKeyInput" class="mt-2">Finnhub API Key:</label>
+            <input type="text" id="apiKeyInput" class="form-control" placeholder="Enter your Finnhub API Key">
+            <button id="saveKeys" class="btn btn-primary mt-2">Save API Keys</button>
         </div>
     </div>
 
@@ -70,7 +74,6 @@
         const positionsStoreName = "Positions";
         const settingsStoreName = "Settings";
 
-        // Open IndexedDB
         async function openDatabase() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(dbName, 1);
@@ -81,84 +84,104 @@
                     }
                     if (!db.objectStoreNames.contains(settingsStoreName)) {
                         db.createObjectStore(settingsStoreName, { keyPath: "key" });
-                        console.log("Settings store created.");
                     }
+                    console.log("Database initialized with object stores:", Array.from(db.objectStoreNames));
                 };
                 request.onsuccess = (event) => resolve(event.target.result);
                 request.onerror = (event) => reject(event.target.error);
             });
         }
 
-        // Save API Key to IndexedDB
-        async function saveApiKey(apiKey) {
+        async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
             const db = await openDatabase();
             const transaction = db.transaction(settingsStoreName, "readwrite");
             const store = transaction.objectStore(settingsStoreName);
 
-            store.put({ key: "finnhubApiKey", value: apiKey });
+            if (alpacaKey && alpacaSecret) {
+                store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
+                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
+            }
+
+            if (finnhubKey) {
+                store.put({ key: "finnhubApiKey", value: finnhubKey });
+            }
 
             return new Promise((resolve, reject) => {
                 transaction.oncomplete = () => {
-                    console.log("API key saved:", apiKey);
+                    console.log("API keys saved.");
                     resolve();
                 };
                 transaction.onerror = (event) => reject(event.target.error);
             });
         }
 
-        // Retrieve API Key from IndexedDB
-        async function getApiKey() {
+        async function getAlpacaKeys() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            const alpacaKey = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_KEY_ID");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            const alpacaSecret = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_SECRET_KEY");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            return { alpacaKey, alpacaSecret };
+        }
+
+        async function getFinnhubKey() {
             const db = await openDatabase();
             const transaction = db.transaction(settingsStoreName, "readonly");
             const store = transaction.objectStore(settingsStoreName);
 
             return new Promise((resolve, reject) => {
                 const request = store.get("finnhubApiKey");
-                request.onsuccess = (event) => {
-                    const apiKey = event.target.result?.value || "";
-                    console.log("Retrieved API key:", apiKey);
-                    resolve(apiKey);
-                };
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
                 request.onerror = (event) => reject(event.target.error);
             });
         }
 
-        // Fetch all positions from IndexedDB
-        async function fetchPositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => {
-                    console.log("Fetched positions:", event.target.result);
-                    resolve(event.target.result);
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Fetch the current price of a stock
         async function fetchCurrentPrice(ticker) {
-            const apiKey = await getApiKey();
-            if (!apiKey) {
-                console.error("Finnhub API key is missing. Please set it in the settings.");
-                return 0;
+            const { alpacaKey, alpacaSecret } = await getAlpacaKeys();
+
+            if (alpacaKey && alpacaSecret) {
+                try {
+                    const response = await fetch(`https://data.alpaca.markets/v2/stocks/${ticker}/quotes/latest`, {
+                        headers: {
+                            "APCA-API-KEY-ID": alpacaKey,
+                            "APCA-API-SECRET-KEY": alpacaSecret
+                        }
+                    });
+                    const data = await response.json();
+                    console.log(`Alpaca price for ${ticker}:`, data.quote.ap);
+                    return data?.quote?.ap || 0; // `ap` is the ask price
+                } catch (error) {
+                    console.error(`Error fetching price from Alpaca for ${ticker}:`, error);
+                }
             }
 
-            try {
-                const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`);
-                const data = await response.json();
-                console.log(`Price for ${ticker}:`, data.c);
-                return data?.c || 0; // `c` represents the current price
-            } catch (error) {
-                console.error(`Error fetching price for ${ticker}:`, error);
-                return 0;
+            // Fallback to Finnhub
+            const finnhubKey = await getFinnhubKey();
+            if (finnhubKey) {
+                try {
+                    const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${finnhubKey}`);
+                    const data = await response.json();
+                    console.log(`Finnhub price for ${ticker}:`, data.c);
+                    return data?.c || 0; // `c` represents the current price
+                } catch (error) {
+                    console.error(`Error fetching price from Finnhub for ${ticker}:`, error);
+                }
             }
+
+            return 0; // Return 0 if both Alpaca and Finnhub fail
         }
 
-        // Load and render portfolio data
         async function loadPortfolio() {
             const positions = await fetchPositions();
 
@@ -189,29 +212,18 @@
             }
         }
 
-        // Save API Key Button Click
-        document.getElementById("saveApiKey").addEventListener("click", async () => {
-            const apiKeyInput = document.getElementById("apiKeyInput").value.trim();
-            if (apiKeyInput) {
-                await saveApiKey(apiKeyInput);
-                alert("API key saved successfully!");
-            } else {
-                alert("Please enter a valid API key.");
-            }
+        document.getElementById("saveKeys").addEventListener("click", async () => {
+            const alpacaKey = document.getElementById("alpacaApiKey").value.trim();
+            const alpacaSecret = document.getElementById("alpacaApiSecret").value.trim();
+            const finnhubKey = document.getElementById("apiKeyInput").value.trim();
+
+            await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
+            alert("API keys saved successfully!");
         });
 
-        // Initialize the application
         document.addEventListener("DOMContentLoaded", async () => {
             const db = await openDatabase();
             console.log("Available object stores:", Array.from(db.objectStoreNames));
-
-            const apiKey = await getApiKey();
-            if (!apiKey) {
-                console.warn("No API key found. Please set it using the settings.");
-            } else {
-                console.log("Using API key:", apiKey);
-            }
-
             loadPortfolio();
         });
     </script>
