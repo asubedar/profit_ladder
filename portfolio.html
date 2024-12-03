@@ -92,6 +92,24 @@
             });
         }
 
+        async function fetchPositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = (event) => {
+                    console.log("Fetched positions:", event.target.result);
+                    resolve(event.target.result);
+                };
+                request.onerror = (event) => {
+                    console.error("Error fetching positions:", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
         async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
             const db = await openDatabase();
             const transaction = db.transaction(settingsStoreName, "readwrite");
@@ -115,38 +133,6 @@
             });
         }
 
-        async function getAlpacaKeys() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            const alpacaKey = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_KEY_ID");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            const alpacaSecret = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_SECRET_KEY");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            return { alpacaKey, alpacaSecret };
-        }
-
-        async function getFinnhubKey() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("finnhubApiKey");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
         async function fetchCurrentPrice(ticker) {
             const { alpacaKey, alpacaSecret } = await getAlpacaKeys();
 
@@ -166,7 +152,6 @@
                 }
             }
 
-            // Fallback to Finnhub
             const finnhubKey = await getFinnhubKey();
             if (finnhubKey) {
                 try {
@@ -179,7 +164,7 @@
                 }
             }
 
-            return 0; // Return 0 if both Alpaca and Finnhub fail
+            return 0;
         }
 
         async function loadPortfolio() {
