@@ -28,16 +28,16 @@
             border-bottom: 1px solid #444;
         }
         th:first-child, td:first-child {
-            text-align: left; /* Align the first column (Ticker) to the left */
+            text-align: left;
         }
         th {
             background-color: #292929;
         }
         .profit-positive {
-            color: #28a745; /* Green for profit */
+            color: #28a745;
         }
         .profit-negative {
-            color: #dc3545; /* Red for loss */
+            color: #dc3545;
         }
         .settings {
             display: none;
@@ -138,7 +138,7 @@
                 request.onerror = (event) => {
                     console.error("Error fetching positions:", event.target.error);
                     reject(event.target.error);
-                };
+                });
             });
         }
 
@@ -215,8 +215,8 @@
                     const data = await response.json();
                     for (const [ticker, quoteData] of Object.entries(data.quotes)) {
                         prices[ticker] = {
-                            price: quoteData.ap || 0, // Ask price
-                            time: quoteData.t || new Date().toISOString(), // Timestamp
+                            price: quoteData.ap || 0,
+                            time: quoteData.t || new Date().toISOString(),
                         };
                     }
                 } catch (error) {
@@ -285,7 +285,7 @@
 
             for (const position of positions) {
                 const { tickerSymbol, avgPrice, numShares } = position;
-                const priceData = prices[tickerSymbol] || { price: 0, time: null };
+                const priceData = prices[tickerSymbol] || { price: position.lastPrice || 0, time: position.lastTime || "N/A" };
                 const currentPrice = priceData.price;
                 const lastTime = priceData.time;
 
@@ -312,11 +312,9 @@
                 `;
                 portfolioBody.innerHTML += row;
 
-                // Update the position with the last price and timestamp
                 await updatePosition(tickerSymbol, currentPrice, lastTime);
             }
 
-            // Update totals row
             document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
