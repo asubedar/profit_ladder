@@ -346,7 +346,7 @@
 
                 const row = `
                     <tr>
-                        <td>${tickerSymbol}</td>
+                        <td><a href="./?symbol=${tickerSymbol}" class="text-decoration-none text-light">${tickerSymbol}</a></td>
                         <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>${numShares.toLocaleString()}</td>
                         <td>${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
