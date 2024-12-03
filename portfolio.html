@@ -138,7 +138,7 @@
                 request.onerror = (event) => {
                     console.error("Error fetching positions:", event.target.error);
                     reject(event.target.error);
-                });
+                };
             });
         }
 
