@@ -36,6 +36,23 @@
         .profit-negative {
             color: #dc3545; /* Red for loss */
         }
+        .settings {
+            display: none;
+            margin-top: 20px;
+        }
+        .settings-toggle {
+            cursor: pointer;
+            font-size: 20px;
+            text-align: right;
+            margin-bottom: 10px;
+        }
+        .settings-toggle:hover {
+            color: #00bcd4;
+        }
+        .totals-row {
+            font-weight: bold;
+            background-color: #292929;
+        }
     </style>
 </head>
 <body>
@@ -55,9 +72,20 @@
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
+                <tfoot>
+                    <tr class="totals-row">
+                        <td colspan="4">Totals</td>
+                        <td id="totalCostBasis">0.00</td>
+                        <td id="totalValue">0.00</td>
+                        <td id="totalProfit">0.00</td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
-        <div class="mt-4">
+        <div class="settings-toggle text-right">
+            <span id="settingsIcon">⚙️ Settings</span>
+        </div>
+        <div class="settings" id="settings">
             <h3>Settings</h3>
             <label for="alpacaApiKey">Alpaca API Key:</label>
             <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
@@ -193,12 +221,20 @@
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = ""; // Clear the table before rendering
 
+            let totalCostBasis = 0;
+            let totalValue = 0;
+            let totalProfit = 0;
+
             for (const position of positions) {
                 const { tickerSymbol, avgPrice, numShares } = position;
                 const currentPrice = await fetchCurrentPrice(tickerSymbol);
-                const costBasis = (avgPrice * numShares).toFixed(2);
-                const totalValue = (currentPrice * numShares).toFixed(2);
-                const profit = (currentPrice - avgPrice) * numShares;
+                const costBasis = avgPrice * numShares;
+                const totalValueForPosition = currentPrice * numShares;
+                const profit = totalValueForPosition - costBasis;
+
+                totalCostBasis += costBasis;
+                totalValue += totalValueForPosition;
+                totalProfit += profit;
 
                 const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
 
@@ -208,13 +244,17 @@
                         <td>${avgPrice.toFixed(2)}</td>
                         <td>${numShares}</td>
                         <td>${currentPrice.toFixed(2)}</td>
-                        <td>${costBasis}</td>
-                        <td>${totalValue}</td>
+                        <td>${costBasis.toFixed(2)}</td>
+                        <td>${totalValueForPosition.toFixed(2)}</td>
                         <td class="${profitClass}">${profit.toFixed(2)}</td>
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
             }
+
+            document.getElementById("totalCostBasis").textContent = totalCostBasis.toFixed(2);
+            document.getElementById("totalValue").textContent = totalValue.toFixed(2);
+            document.getElementById("totalProfit").textContent = totalProfit.toFixed(2);
         }
 
         document.getElementById("saveKeys").addEventListener("click", async () => {
@@ -224,6 +264,11 @@
 
             await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
             alert("API keys saved successfully!");
+        });
+
+        document.getElementById("settingsIcon").addEventListener("click", () => {
+            const settingsDiv = document.getElementById("settings");
+            settingsDiv.style.display = settingsDiv.style.display === "none" ? "block" : "none";
         });
 
         document.addEventListener("DOMContentLoaded", async () => {
