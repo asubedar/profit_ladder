@@ -3,244 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portfolio Tracker</title>
+    <title>Profit Ladder</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
             background-color: #121212;
             color: #ffffff;
-            font-family: Arial, sans-serif;
+            font-family: 'Roboto', sans-serif;
         }
         h1 {
             text-align: center;
             margin-bottom: 20px;
         }
-        table {
-            width: 100%;
-            margin-top: 20px;
+        .form-container {
+            position: sticky;
+            top: 0;
+            background-color: #1e1e1e;
+            padding: 10px;
+            z-index: 999;
+        }
+        .form-label {
+            color: #bbbbbb;
+        }
+        .form-control {
             background-color: #1e1e1e;
             color: #ffffff;
-            border-collapse: collapse;
+            border: 1px solid #444;
+            width: 150px;
+        }
+        .form-control:focus {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-color: #6200ea;
+            box-shadow: none;
+        }
+        .btn-primary {
+            background-color: #6200ea;
+            border-color: #6200ea;
+        }
+        .btn-primary:hover {
+            background-color: #3700b3;
+            border-color: #3700b3;
+        }
+        .btn-success {
+            width: 150px;
+        }
+        #results {
+            margin-top: 30px;
+            overflow-y: auto;
+            max-height: 60vh;
+            padding: 10px;
+        }
+        table {
+            width: 100%;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-collapse: separate;
+            border-spacing: 0 8px;
         }
         th, td {
-            padding: 10px;
-            text-align: right;
-            border-bottom: 1px solid #444;
-        }
-        th:first-child, td:first-child {
-            text-align: left;
+            text-align: center;
+            padding: 12px;
         }
         th {
             background-color: #292929;
-        }
-        .profit-positive {
-            color: #28a745;
-        }
-        .profit-negative {
-            color: #dc3545;
-        }
-        .highlight-row {
-            background-color: #ffeb3b;
-            color: #000000;
-        }
-        .settings {
-            display: none;
-            margin-top: 20px;
-        }
-        .settings-toggle {
-            cursor: pointer;
-            font-size: 20px;
-            text-align: right;
-            margin-bottom: 10px;
-        }
-        .settings-toggle:hover {
-            color: #00bcd4;
-        }
-        .totals-row {
             font-weight: bold;
-            background-color: #292929;
+            text-transform: uppercase;
+        }
+        td {
+            background-color: #1e1e1e;
+            border: none;
+        }
+        .tab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 100px;
+            padding: 5px 10px;
+            border: 1px solid #444;
+            background-color: #2c2c2c;
+            color: #fff;
+            border-radius: 4px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+        .tab:hover {
+            background-color: #3c3c3c;
+        }
+        .tab .btn-delete {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .tab .btn-delete:hover {
+            color: #ff6f61;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Portfolio Tracker</h1>
-        <div id="portfolio">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ticker</th>
-                        <th>Average Price</th>
-                        <th>Shares</th>
-                        <th>Current Price</th>
-                        <th>Cost Basis</th>
-                        <th>Total Value</th>
-                        <th>Profit</th>
-                    </tr>
-                </thead>
-                <tbody id="portfolioBody"></tbody>
-                <tfoot>
-                    <tr class="totals-row">
-                        <td>Totals</td>
-                        <td colspan="3"></td>
-                        <td id="totalCostBasis">0.00</td>
-                        <td id="totalValue">0.00</td>
-                        <td id="totalProfit">0.00</td>
-                    </tr>
-                </tfoot>
-            </table>
+    <div class="container mt-3">
+        <h1><i class="fas fa-calculator"></i> Profit Ladder Calculator</h1>
+        <div id="savedPositionsContainer" class="d-flex flex-wrap gap-2 mb-3"></div>
+        <div class="form-container">
+            <form id="profitForm" autocomplete="off" class="d-flex align-items-center flex-wrap gap-2">
+                <div class="mb-3">
+                    <label for="tickerSymbol" class="form-label">Ticker Symbol</label>
+                    <input type="text" class="form-control" id="tickerSymbol" placeholder="e.g., AAPL" required>
+                </div>
+                <div class="mb-3">
+                    <label for="averagePrice" class="form-label">Average Price</label>
+                    <input type="number" step="0.01" class="form-control" id="averagePrice" placeholder="Enter price" required>
+                </div>
+                <div class="mb-3">
+                    <label for="numShares" class="form-label">Shares</label>
+                    <input type="number" step="1" class="form-control" id="numShares" placeholder="Enter shares" required>
+                </div>
+                <div class="mb-3">
+                    <label for="priceStep" class="form-label">Price Step</label>
+                    <input type="number" step="0.01" class="form-control" id="priceStep" placeholder="Enter step">
+                </div>
+                <div class="mb-3">
+                    <label for="levels" class="form-label">Levels</label>
+                    <input type="number" class="form-control" id="levels" placeholder="Enter levels">
+                </div>
+                <button type="button" class="btn btn-success" id="savePosition">Save Position</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-chart-line"></i> Calculate</button>
+            </form>
         </div>
-        <div class="settings-toggle text-right">
-            <span id="settingsIcon">⚙️ Settings</span>
-        </div>
-        <div class="settings" id="settings">
-            <h3>Settings</h3>
-            <label for="alpacaApiKey">Alpaca API Key:</label>
-            <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
-            <label for="alpacaApiSecret" class="mt-2">Alpaca API Secret:</label>
-            <input type="text" id="alpacaApiSecret" class="form-control" placeholder="Enter your Alpaca API Secret">
-            <label for="apiKeyInput" class="mt-2">Finnhub API Key:</label>
-            <input type="text" id="apiKeyInput" class="form-control" placeholder="Enter your Finnhub API Key">
-            <button id="saveKeys" class="btn btn-primary mt-2">Save API Keys</button>
-        </div>
+        <div id="results" class="mt-5"></div>
     </div>
 
     <script>
         const dbName = "ProfitLadderDB";
-        const positionsStoreName = "Positions";
-        const settingsStoreName = "Settings";
+        const storeName = "Positions";
 
-        async function openDatabase() {
+        function openDatabase() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(dbName, 1);
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
-                    if (!db.objectStoreNames.contains(positionsStoreName)) {
-                        db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        db.createObjectStore(storeName, { keyPath: "id" });
                     }
-                    if (!db.objectStoreNames.contains(settingsStoreName)) {
-                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
-                    }
-                    console.log("Database initialized with object stores:", Array.from(db.objectStoreNames));
                 };
                 request.onsuccess = (event) => resolve(event.target.result);
                 request.onerror = (event) => reject(event.target.error);
             });
         }
 
-        async function fetchPositions() {
+        async function savePosition() {
+            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
+            const numShares = parseInt(document.getElementById("numShares").value);
+            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
+            const levels = parseInt(document.getElementById("levels").value) || 5;
+
+            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
+                alert("Please fill in all required fields to save the position.");
+                return;
+            }
+
+            const position = { id: tickerSymbol, tickerSymbol, avgPrice, numShares, priceStep, levels };
+
             const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
+            const transaction = db.transaction(storeName, "readwrite");
+            const store = transaction.objectStore(storeName);
+            const request = store.put(position);
+
+            request.onsuccess = () => {
+                alert(`Position for ${tickerSymbol} saved successfully.`);
+                loadSavedPositions();
+            };
+
+            request.onerror = (event) => {
+                alert("Failed to save the position. Please try again.");
+                console.error(event.target.error);
+            };
+        }
+
+        async function loadSavedPositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readonly");
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+
+            const container = document.getElementById("savedPositionsContainer");
+            container.innerHTML = ""; // Clear existing tabs
+
+            request.onsuccess = () => {
+                request.result.forEach((position) => {
+                    const tab = document.createElement("div");
+                    tab.className = "tab";
+
+                    const label = document.createElement("span");
+                    label.textContent = position.tickerSymbol;
+
+                    const deleteButton = document.createElement("button");
+                    deleteButton.textContent = "X";
+                    deleteButton.className = "btn-delete";
+                    deleteButton.addEventListener("click", async (event) => {
+                        event.stopPropagation();
+                        await deletePosition(position.id);
+                        alert(`Position ${position.tickerSymbol} deleted successfully.`);
+                        loadSavedPositions();
+                    });
+
+                    tab.appendChild(label);
+                    tab.appendChild(deleteButton);
+
+                    tab.addEventListener("click", () => {
+                        document.getElementById("tickerSymbol").value = position.tickerSymbol;
+                        document.getElementById("averagePrice").value = position.avgPrice;
+                        document.getElementById("numShares").value = position.numShares;
+                        document.getElementById("priceStep").value = position.priceStep;
+                        document.getElementById("levels").value = position.levels;
+                        calculateResults();
+                    });
+
+                    container.appendChild(tab);
+                });
+            };
+
+            request.onerror = (event) => {
+                console.error("Failed to load saved positions:", event.target.error);
+            };
+        }
+
+        async function deletePosition(id) {
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readwrite");
+            const store = transaction.objectStore(storeName);
+            const request = store.delete(id);
 
             return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => {
-                    console.log("Fetched positions:", event.target.result);
-                    resolve(event.target.result);
-                };
-                request.onerror = (event) => {
-                    console.error("Error fetching positions:", event.target.error);
-                    reject(event.target.error);
-                };
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
             });
         }
 
-        function highlightClosestRow(lastPrice, tableBody) {
-            const rows = tableBody.querySelectorAll("tr");
-            let closestRow = null;
-            let smallestDifference = Infinity;
+        async function calculateResults() {
+            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
+            const numShares = parseInt(document.getElementById("numShares").value);
+            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
+            const levels = parseInt(document.getElementById("levels").value) || 5;
 
-            rows.forEach((row) => {
-                const priceCell = row.querySelector("td:nth-child(4)"); // Assuming price is the 4th column
-                if (priceCell) {
-                    const price = parseFloat(priceCell.textContent.replace(/,/g, ""));
-                    const difference = Math.abs(price - lastPrice);
-
-                    if (difference < smallestDifference) {
-                        smallestDifference = difference;
-                        closestRow = row;
-                    }
-                }
-            });
-
-            if (closestRow) {
-                closestRow.classList.add("highlight-row");
-            }
-        }
-
-        async function loadPortfolio() {
-            const positions = await fetchPositions();
-            const tickers = positions.map((position) => position.tickerSymbol);
-
-            const prices = await fetchCurrentPrices(tickers);
-
-            const portfolioBody = document.getElementById("portfolioBody");
-            portfolioBody.innerHTML = ""; // Clear the table before rendering
-
-            let totalCostBasis = 0;
-            let totalValue = 0;
-            let totalProfit = 0;
-
-            for (const position of positions) {
-                const { tickerSymbol, avgPrice, numShares } = position;
-                const priceData = prices[tickerSymbol] || { price: position.lastPrice || 0, time: position.lastTime || "N/A" };
-                const currentPrice = priceData.price;
-                const lastTime = priceData.time;
-
-                if (currentPrice > 0) {
-                    await updatePosition(tickerSymbol, currentPrice, lastTime);
-                }
-
-                const costBasis = avgPrice * numShares;
-                const totalValueForPosition = currentPrice * numShares;
-                const profit = totalValueForPosition - costBasis;
-
-                totalCostBasis += costBasis;
-                totalValue += totalValueForPosition;
-                totalProfit += profit;
-
-                const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
-
-                const row = `
-                    <tr>
-                        <td>${tickerSymbol}</td>
-                        <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${numShares.toLocaleString()}</td>
-                        <td>${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${totalValueForPosition.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    </tr>
-                `;
-                portfolioBody.innerHTML += row;
+            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
+                alert("Please fill in all required fields to calculate.");
+                return;
             }
 
-            document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-            document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-            document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
+            const resultsDiv = document.getElementById("results");
+            let html = `<h2>Results for ${tickerSymbol}</h2>`;
+            html += '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
 
-            // Highlight the closest row to lastPrice for each position
-            positions.forEach((position) => {
-                const lastPrice = position.lastPrice || 0;
-                highlightClosestRow(lastPrice, portfolioBody);
-            });
+            for (let i = -levels; i <= levels; i++) {
+                const priceLevel = avgPrice + i * priceStep;
+                if (priceLevel < 0) continue;
+                const profitLoss = (priceLevel - avgPrice) * numShares;
+                const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
+                html += `<tr>
+                    <td>${priceLevel.toFixed(2)}</td>
+                    <td>${profitLoss.toFixed(2)}</td>
+                    <td>${percentChange.toFixed(2)}%</td>
+                </tr>`;
+            }
+
+            html += '</tbody></table>';
+            resultsDiv.innerHTML = html;
         }
 
-        document.addEventListener("DOMContentLoaded", async () => {
-            const db = await openDatabase();
-            console.log("Available object stores:", Array.from(db.objectStoreNames));
-            loadPortfolio();
+        document.getElementById("savePosition").addEventListener("click", savePosition);
+        document.getElementById("profitForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            calculateResults();
         });
+
+        loadSavedPositions();
     </script>
 </body>
 </html>
