@@ -30,6 +30,12 @@
         th {
             background-color: #292929;
         }
+        .profit-positive {
+            color: #28a745; /* Green for profit */
+        }
+        .profit-negative {
+            color: #dc3545; /* Red for loss */
+        }
     </style>
 </head>
 <body>
@@ -42,7 +48,10 @@
                         <th>Ticker</th>
                         <th>Average Price</th>
                         <th>Shares</th>
+                        <th>Current Price</th>
+                        <th>Cost Basis</th>
                         <th>Total Value</th>
+                        <th>Profit</th>
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
@@ -74,26 +83,45 @@
             });
         }
 
+        async function fetchCurrentPrice(ticker) {
+            try {
+                const response = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`);
+                const data = await response.json();
+                return data?.quoteResponse?.result[0]?.regularMarketPrice || 0;
+            } catch (error) {
+                console.error(`Error fetching price for ${ticker}:`, error);
+                return 0;
+            }
+        }
+
         async function loadPortfolio() {
             const positions = await fetchPositions();
 
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = ""; // Clear the table before rendering
 
-            positions.forEach((position) => {
+            for (const position of positions) {
                 const { tickerSymbol, avgPrice, numShares } = position;
-                const totalValue = (avgPrice * numShares).toFixed(2);
+                const currentPrice = await fetchCurrentPrice(tickerSymbol);
+                const costBasis = (avgPrice * numShares).toFixed(2);
+                const totalValue = (currentPrice * numShares).toFixed(2);
+                const profit = (currentPrice - avgPrice) * numShares;
+
+                const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
 
                 const row = `
                     <tr>
                         <td>${tickerSymbol}</td>
                         <td>${avgPrice.toFixed(2)}</td>
                         <td>${numShares}</td>
+                        <td>${currentPrice.toFixed(2)}</td>
+                        <td>${costBasis}</td>
                         <td>${totalValue}</td>
+                        <td class="${profitClass}">${profit.toFixed(2)}</td>
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
-            });
+            }
         }
 
         // Load the portfolio on page load
