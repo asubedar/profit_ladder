@@ -24,8 +24,11 @@
         }
         th, td {
             padding: 10px;
-            text-align: center;
+            text-align: right; /* Align numbers to the right */
             border-bottom: 1px solid #444;
+        }
+        th:first-child, td:first-child {
+            text-align: left; /* Align the first column (Ticker) to the left */
         }
         th {
             background-color: #292929;
