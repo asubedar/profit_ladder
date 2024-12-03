@@ -105,6 +105,11 @@
         .tab .btn-delete:hover {
             color: #ff6f61;
         }
+        .highlight-row {
+            background-color: #ffeb3b;
+            color: #000000;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -260,24 +265,54 @@
                 return;
             }
 
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readonly");
+            const store = transaction.objectStore(storeName);
+            const position = await new Promise((resolve, reject) => {
+                const request = store.get(tickerSymbol);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            const lastPrice = position?.lastPrice || avgPrice; // Use lastPrice if available, fallback to avgPrice
+
             const resultsDiv = document.getElementById("results");
             let html = `<h2>Results for ${tickerSymbol}</h2>`;
             html += '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
+
+            let closestRowHtml = "";
+            let smallestDifference = Infinity;
 
             for (let i = -levels; i <= levels; i++) {
                 const priceLevel = avgPrice + i * priceStep;
                 if (priceLevel < 0) continue;
                 const profitLoss = (priceLevel - avgPrice) * numShares;
                 const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
-                html += `<tr>
-                    <td>${priceLevel.toFixed(2)}</td>
-                    <td>${profitLoss.toFixed(2)}</td>
-                    <td>${percentChange.toFixed(2)}%</td>
-                </tr>`;
+
+                const rowHtml = `
+                    <tr data-price-level="${priceLevel}">
+                        <td>${priceLevel.toFixed(2)}</td>
+                        <td>${profitLoss.toFixed(2)}</td>
+                        <td>${percentChange.toFixed(2)}%</td>
+                    </tr>
+                `;
+
+                const difference = Math.abs(priceLevel - lastPrice);
+                if (difference < smallestDifference) {
+                    smallestDifference = difference;
+                    closestRowHtml = rowHtml;
+                }
+
+                html += rowHtml;
             }
 
             html += '</tbody></table>';
             resultsDiv.innerHTML = html;
+
+            // Highlight the closest row
+            const table = resultsDiv.querySelector("table");
+            const closestRow = table.querySelector(`tr[data-price-level="${parseFloat(closestRowHtml.match(/data-price-level="([\d.-]+)"/)[1])}"]`);
+            if (closestRow) closestRow.classList.add("highlight-row");
         }
 
         document.getElementById("savePosition").addEventListener("click", savePosition);
