@@ -70,6 +70,7 @@
         const positionsStoreName = "Positions";
         const settingsStoreName = "Settings";
 
+        // Open IndexedDB
         async function openDatabase() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(dbName, 1);
@@ -87,6 +88,7 @@
             });
         }
 
+        // Save API Key to IndexedDB
         async function saveApiKey(apiKey) {
             const db = await openDatabase();
             const transaction = db.transaction(settingsStoreName, "readwrite");
@@ -95,11 +97,15 @@
             store.put({ key: "finnhubApiKey", value: apiKey });
 
             return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => resolve();
+                transaction.oncomplete = () => {
+                    console.log("API key saved:", apiKey); // Debugging
+                    resolve();
+                };
                 transaction.onerror = (event) => reject(event.target.error);
             });
         }
 
+        // Retrieve API Key from IndexedDB
         async function getApiKey() {
             const db = await openDatabase();
             const transaction = db.transaction(settingsStoreName, "readonly");
@@ -112,6 +118,7 @@
             });
         }
 
+        // Fetch all positions from IndexedDB
         async function fetchPositions() {
             const db = await openDatabase();
             const transaction = db.transaction(positionsStoreName, "readonly");
@@ -119,11 +126,15 @@
 
             return new Promise((resolve, reject) => {
                 const request = store.getAll();
-                request.onsuccess = (event) => resolve(event.target.result);
+                request.onsuccess = (event) => {
+                    console.log("Fetched positions:", event.target.result); // Debugging
+                    resolve(event.target.result);
+                };
                 request.onerror = (event) => reject(event.target.error);
             });
         }
 
+        // Fetch the current price of a stock
         async function fetchCurrentPrice(ticker) {
             const apiKey = await getApiKey();
             if (!apiKey) {
@@ -141,6 +152,7 @@
             }
         }
 
+        // Load and render portfolio data
         async function loadPortfolio() {
             const positions = await fetchPositions();
 
@@ -171,7 +183,7 @@
             }
         }
 
-        // Event listener for saving API key
+        // Save API Key Button Click
         document.getElementById("saveApiKey").addEventListener("click", async () => {
             const apiKeyInput = document.getElementById("apiKeyInput").value.trim();
             if (apiKeyInput) {
@@ -182,7 +194,7 @@
             }
         });
 
-        // Load the portfolio on page load
+        // Initialize the application
         document.addEventListener("DOMContentLoaded", loadPortfolio);
     </script>
 </body>
