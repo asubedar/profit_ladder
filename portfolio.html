@@ -204,7 +204,7 @@
             if (alpacaKey && alpacaSecret) {
                 try {
                     const response = await fetch(
-                        `https://data.alpaca.markets/v2/stocks/quotes?symbols=${tickers.join(",")}`,
+                        `https://data.alpaca.markets/v2/stocks/quotes/latest?symbols=${tickers.join(",")}`,
                         {
                             headers: {
                                 "APCA-API-KEY-ID": alpacaKey,
@@ -214,17 +214,27 @@
                     );
                     const data = await response.json();
                     console.log("Alpaca response:", data);
+
                     for (const [ticker, quoteData] of Object.entries(data.quotes)) {
-                        prices[ticker] = {
-                            price: quoteData.ap || 0,
-                            time: quoteData.t || new Date().toISOString(),
-                        };
+                        if (quoteData) {
+                            prices[ticker] = {
+                                price: quoteData.ap || quoteData.bp || 0, // Prefer ask price, fallback to bid price
+                                time: quoteData.t || new Date().toISOString(), // Use timestamp if available
+                            };
+                        } else {
+                            console.warn(`No valid quote found for ticker: ${ticker}`);
+                            prices[ticker] = {
+                                price: 0,
+                                time: "N/A",
+                            };
+                        }
                     }
                 } catch (error) {
                     console.error("Error fetching prices from Alpaca:", error);
                 }
             }
 
+            // Fallback to Finnhub if Alpaca fetch failed or incomplete
             if (Object.keys(prices).length === 0) {
                 const finnhubKey = await getFinnhubKey();
                 if (finnhubKey) {
@@ -237,7 +247,7 @@
                             console.log(`Finnhub response for ${ticker}:`, data);
                             prices[ticker] = {
                                 price: data.c || 0,
-                                time: new Date().toISOString(),
+                                time: new Date().toISOString(), // Finnhub doesn't provide exact timestamps
                             };
                         } catch (error) {
                             console.error(`Error fetching price for ${ticker} from Finnhub:`, error);
