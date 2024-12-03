@@ -116,7 +116,7 @@
 </head>
 <body>
     <div class="container mt-3">
-        <h1><i class="fas fa-calculator"></i> Profit Ladder Calculator</h1>
+        <h1><i class="fas fa-calculator"></i> Profit Ladder</h1>
         <div id="savedPositionsContainer" class="d-flex flex-wrap gap-2 mb-3"></div>
         <div class="form-container">
             <form id="profitForm" autocomplete="off" class="d-flex align-items-center flex-wrap gap-2">
@@ -163,6 +163,44 @@
                 request.onsuccess = (event) => resolve(event.target.result);
                 request.onerror = (event) => reject(event.target.error);
             });
+        }
+
+        // Function to get query parameters
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Function to load position based on query parameter
+        async function loadPositionFromQuery() {
+            const symbol = getQueryParam("symbol")?.toUpperCase();
+            if (!symbol) return;
+
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readonly");
+            const store = transaction.objectStore(storeName);
+            const request = store.get(symbol);
+
+            request.onsuccess = (event) => {
+                const position = event.target.result;
+                if (position) {
+                    // Prefill the form with the saved position
+                    document.getElementById("tickerSymbol").value = position.tickerSymbol;
+                    document.getElementById("averagePrice").value = position.avgPrice;
+                    document.getElementById("numShares").value = position.numShares;
+                    document.getElementById("priceStep").value = position.priceStep;
+                    document.getElementById("levels").value = position.levels;
+
+                    // Automatically calculate results
+                    calculateResults();
+                } else {
+                    alert(`No saved position found for symbol: ${symbol}`);
+                }
+            };
+
+            request.onerror = (event) => {
+                console.error("Error loading position from query:", event.target.error);
+            };
         }
 
         async function savePosition() {
@@ -334,7 +372,12 @@
             calculateResults();
         });
 
-        loadSavedPositions();
+        document.addEventListener("DOMContentLoaded", async () => {
+            const db = await openDatabase();
+            console.log("Available object stores:", Array.from(db.objectStoreNames));
+            loadSavedPositions();
+            loadPositionFromQuery(); // Load position based on the 'symbol' query parameter
+        });
     </script>
 </body>
 </html>
