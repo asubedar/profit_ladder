@@ -240,7 +240,190 @@
             }
         }
 
-        // ... other functions like loadPortfolio, startAutoRefresh, etc., remain the same
+        async function loadPortfolio() {
+            const positions = await fetchPositions();
+            const tickers = positions.map((position) => position.tickerSymbol);
+            const prices = await fetchCurrentPrices(tickers);
+
+            const portfolioBody = document.getElementById("portfolioBody");
+            portfolioBody.innerHTML = "";
+
+            let totalCostBasis = 0;
+            let totalValue = 0;
+            let totalProfit = 0;
+
+            for (const position of positions) {
+                const { tickerSymbol, avgPrice, numShares } = position;
+                const priceData = prices[tickerSymbol] || { price: position.lastPrice || 0, time: position.lastTime || "N/A" };
+                const currentPrice = priceData.price;
+                const lastTime = priceData.time;
+
+                if (currentPrice > 0) {
+                    await updatePosition(tickerSymbol, currentPrice, lastTime);
+                }
+
+                const costBasis = avgPrice * numShares;
+                const totalValueForPosition = currentPrice * numShares;
+                const profit = totalValueForPosition - costBasis;
+
+                totalCostBasis += costBasis;
+                totalValue += totalValueForPosition;
+                totalProfit += profit;
+
+                const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
+
+                const row = `
+                    <tr>
+                        <td><a href="./?symbol=${tickerSymbol}" class="text-decoration-none text-light">${tickerSymbol}</a></td>
+                        <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>${numShares.toLocaleString()}</td>
+                        <td>${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>${totalValueForPosition.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                `;
+                portfolioBody.innerHTML += row;
+            }
+
+            document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
+        async function fetchPositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        async function updatePosition(tickerSymbol, currentPrice, lastTime) {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+
+            const position = await new Promise((resolve, reject) => {
+                const request = store.get(tickerSymbol);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (position) {
+                position.lastPrice = currentPrice;
+                position.lastTime = lastTime;
+                store.put(position);
+            }
+        }
+
+        async function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, 1);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(positionsStoreName)) {
+                        db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
+                    }
+                    if (!db.objectStoreNames.contains(settingsStoreName)) {
+                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
+                    }
+                };
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        async function startAutoRefresh() {
+            const interval = await getRefreshInterval();
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+            }
+
+            if (interval > 0) {
+                refreshIntervalId = setInterval(async () => {
+                    console.log("Auto-refreshing prices...");
+                    await loadPortfolio();
+                }, interval * 1000);
+            }
+        }
+
+        async function getRefreshInterval() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.get("refreshInterval");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+
+            refreshButtons.forEach((button) => {
+                button.addEventListener("click", async (event) => {
+                    const selectedInterval = parseInt(event.target.getAttribute("data-interval"));
+                    await saveRefreshInterval(selectedInterval);
+
+                    refreshButtons.forEach((btn) => btn.classList.remove("btn-primary"));
+                    event.target.classList.add("btn-primary");
+
+                    startAutoRefresh();
+                });
+            });
+
+            await loadSavedRefreshInterval();
+            await loadPortfolio();
+            await startAutoRefresh();
+        });
+
+        async function saveRefreshInterval(interval) {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+
+            store.put({ key: "refreshInterval", value: interval });
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    console.log("Refresh interval saved successfully!");
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error("Failed to save refresh interval.", event.target.error);
+                    reject(event.target.error);
+                });
+            });
+        }
+
+        async function loadSavedRefreshInterval() {
+            const interval = await getRefreshInterval();
+            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+
+            refreshButtons.forEach((button) => {
+                if (parseInt(button.getAttribute("data-interval")) === interval) {
+                    button.classList.add("btn-primary");
+                } else {
+                    button.classList.remove("btn-primary");
+                }
+            });
+        }
     </script>
 </body>
 </html>
