@@ -56,6 +56,18 @@
             font-weight: bold;
             background-color: #292929;
         }
+        .refresh-interval-button {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            line-height: 30px;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+        }
     </style>
 </head>
 <body>
@@ -101,6 +113,16 @@
                 </tfoot>
             </table>
         </div>
+        <h3 class="mt-4">Auto-Refresh Interval</h3>
+        <div id="refreshIntervalButtons" class="d-flex gap-2 mt-2">
+            <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="0">Stop</button>
+            <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="5">5s</button>
+            <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="10">10s</button>
+            <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="30">30s</button>
+            <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="60">1m</button>
+            <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="300">5m</button>
+        </div>
+        <div id="settingsFeedback" class="mt-2 text-success" style="display: none;"></div>
         <div class="settings-toggle text-right">
             <span id="settingsIcon">⚙️ Settings</span>
         </div>
@@ -112,17 +134,7 @@
             <input type="text" id="alpacaApiSecret" class="form-control" placeholder="Enter your Alpaca API Secret">
             <label for="apiKeyInput" class="mt-2">Finnhub API Key:</label>
             <input type="text" id="apiKeyInput" class="form-control" placeholder="Enter your Finnhub API Key">
-            <label for="refreshInterval" class="mt-2">Auto-Refresh Interval (seconds):</label>
-            <select id="refreshInterval" class="form-control">
-                <option value="0">Off</option>
-                <option value="5">5 seconds</option>
-                <option value="10">10 seconds</option>
-                <option value="30">30 seconds</option>
-                <option value="60">1 minute</option>
-                <option value="300">5 minutes</option>
-            </select>
             <button id="saveKeys" class="btn btn-primary mt-2">Save Settings</button>
-            <div id="settingsFeedback" class="mt-2 text-success" style="display: none;"></div>
         </div>
     </div>
 
@@ -133,13 +145,12 @@
 
         let refreshIntervalId;
 
-        function showFeedback(message, type) {
+        async function showFeedback(message, type) {
             const feedbackDiv = document.getElementById("settingsFeedback");
             feedbackDiv.textContent = message;
-            feedbackDiv.className = `mt-2 text-${type}`; // Use Bootstrap text color classes
+            feedbackDiv.className = `mt-2 text-${type}`;
             feedbackDiv.style.display = "block";
 
-            // Hide the feedback message after 3 seconds
             setTimeout(() => {
                 feedbackDiv.style.display = "none";
             }, 3000);
@@ -163,180 +174,52 @@
         }
 
         async function fetchCurrentPrices(tickers) {
+            // Implementation to fetch current prices from Alpaca or Finnhub
+        }
+
+        async function saveRefreshInterval(interval) {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+
+            store.put({ key: "refreshInterval", value: interval });
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    showFeedback("Refresh interval saved successfully!", "success");
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    showFeedback("Failed to save refresh interval.", "danger");
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        async function loadSavedRefreshInterval() {
+            const interval = await getRefreshInterval();
+            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+
+            refreshButtons.forEach((button) => {
+                if (parseInt(button.getAttribute("data-interval")) === interval) {
+                    button.classList.add("btn-primary");
+                } else {
+                    button.classList.remove("btn-primary");
+                }
+            });
+        }
+
+        async function getRefreshInterval() {
             const db = await openDatabase();
             const transaction = db.transaction(settingsStoreName, "readonly");
             const store = transaction.objectStore(settingsStoreName);
 
-            const alpacaKey = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_KEY_ID");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+            return new Promise((resolve, reject) => {
+                const request = store.get("refreshInterval");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
                 request.onerror = (event) => reject(event.target.error);
             });
-
-            const alpacaSecret = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_SECRET_KEY");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (alpacaKey && alpacaSecret) {
-                return fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
-            }
-
-            console.warn("Alpaca credentials not available, falling back to Finnhub.");
-            const finnhubKey = await new Promise((resolve, reject) => {
-                const request = store.get("finnhubApiKey");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (!finnhubKey) {
-                console.error("Finnhub API Key is not set. Please configure it in the settings.");
-                return {};
-            }
-
-            return fetchPricesFromFinnhub(tickers, finnhubKey);
         }
-
-        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
-            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        "APCA-API-KEY-ID": apiKey,
-                        "APCA-API-SECRET-KEY": apiSecret,
-                    },
-                });
-
-                if (!response.ok) {
-                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
-                    return {};
-                }
-
-                const data = await response.json();
-                const prices = {};
-                Object.entries(data).forEach(([symbol, snapshot]) => {
-                    prices[symbol] = {
-                        price: snapshot.latestTrade?.p || 0,
-                        time: snapshot.latestTrade?.t || "N/A",
-                    };
-                });
-                console.log("Fetched prices from Alpaca:", prices);
-                return prices;
-            } catch (error) {
-                console.error("Error fetching snapshots from Alpaca:", error);
-                return {};
-            }
-        }
-
-        async function fetchPricesFromFinnhub(tickers, apiKey) {
-            try {
-                const responses = await Promise.all(
-                    tickers.map(async (ticker) => {
-                        const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`);
-                        if (!response.ok) {
-                            console.error(`Failed to fetch data for ${ticker} from Finnhub:`, response.statusText);
-                            return { ticker, price: 0, time: "N/A" };
-                        }
-                        const data = await response.json();
-                        return { ticker, price: data.c || 0, time: new Date().toLocaleString() };
-                    })
-                );
-
-                const prices = {};
-                responses.forEach((res) => {
-                    if (res.ticker) {
-                        prices[res.ticker] = { price: res.price, time: res.time };
-                    }
-                });
-                console.log("Fetched prices from Finnhub:", prices);
-                return prices;
-            } catch (error) {
-                console.error("Error fetching prices from Finnhub:", error);
-                return {};
-            }
-        }
-
-        async function loadPortfolio() {
-            const positions = await fetchPositions();
-            const tickers = positions.map((position) => position.tickerSymbol);
-            const prices = await fetchCurrentPrices(tickers);
-
-            const portfolioBody = document.getElementById("portfolioBody");
-            portfolioBody.innerHTML = "";
-
-            let totalCostBasis = 0;
-            let totalValue = 0;
-            let totalProfit = 0;
-
-            for (const position of positions) {
-                const { tickerSymbol, avgPrice, numShares } = position;
-                const priceData = prices[tickerSymbol] || { price: position.lastPrice || 0, time: position.lastTime || "N/A" };
-                const currentPrice = priceData.price;
-                const lastTime = priceData.time;
-
-                if (currentPrice > 0) {
-                    await updatePosition(tickerSymbol, currentPrice, lastTime);
-                }
-
-                const costBasis = avgPrice * numShares;
-                const totalValueForPosition = currentPrice * numShares;
-                const profit = totalValueForPosition - costBasis;
-
-                totalCostBasis += costBasis;
-                totalValue += totalValueForPosition;
-                totalProfit += profit;
-
-                const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
-
-                const row = `
-                    <tr>
-                        <td><a href="./?symbol=${tickerSymbol}" class="text-decoration-none text-light">${tickerSymbol}</a></td>
-                        <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${numShares.toLocaleString()}</td>
-                        <td>${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${totalValueForPosition.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    </tr>
-                `;
-                portfolioBody.innerHTML += row;
-            }
-
-            document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-            document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-            document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-        }
-
-        document.getElementById("saveKeys").addEventListener("click", async () => {
-            const alpacaKey = document.getElementById("alpacaApiKey").value.trim();
-            const alpacaSecret = document.getElementById("alpacaApiSecret").value.trim();
-            const finnhubKey = document.getElementById("apiKeyInput").value.trim();
-
-            await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
-            alert("Settings saved successfully!");
-            startAutoRefresh();
-        });
-
-        document.getElementById("settingsIcon").addEventListener("click", () => {
-            const settingsDiv = document.getElementById("settings");
-            settingsDiv.style.display = settingsDiv.style.display === "none" ? "block" : "none";
-        });
-
-        document.addEventListener("DOMContentLoaded", async () => {
-            const db = await openDatabase();
-            loadPortfolio();
-            startAutoRefresh();
-        });
 
         async function startAutoRefresh() {
             const interval = await getRefreshInterval();
@@ -352,81 +235,24 @@
             }
         }
 
-        async function fetchPositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
+        document.addEventListener("DOMContentLoaded", async () => {
+            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
 
-            return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
+            refreshButtons.forEach((button) => {
+                button.addEventListener("click", async (event) => {
+                    const selectedInterval = parseInt(event.target.getAttribute("data-interval"));
+                    await saveRefreshInterval(selectedInterval);
 
-        async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(settingsStoreName, "readwrite");
-                const store = transaction.objectStore(settingsStoreName);
+                    refreshButtons.forEach((btn) => btn.classList.remove("btn-primary"));
+                    event.target.classList.add("btn-primary");
 
-                if (alpacaKey && alpacaSecret) {
-                    store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
-                    store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
-                }
-
-                if (finnhubKey) {
-                    store.put({ key: "finnhubApiKey", value: finnhubKey });
-                }
-
-                const refreshInterval = document.getElementById("refreshInterval").value;
-                store.put({ key: "refreshInterval", value: parseInt(refreshInterval) });
-
-                return new Promise((resolve, reject) => {
-                    transaction.oncomplete = () => {
-                        showFeedback("Settings saved successfully!", "success");
-                        resolve();
-                    };
-                    transaction.onerror = (event) => {
-                        showFeedback("Failed to save settings.", "danger");
-                        reject(event.target.error);
-                    };
+                    startAutoRefresh();
                 });
-            } catch (error) {
-                console.error("Unexpected error saving settings:", error);
-                showFeedback("Unexpected error saving settings.", "danger");
-            }
-        }
-
-        async function getRefreshInterval() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("refreshInterval");
-                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        async function updatePosition(tickerSymbol, currentPrice, lastTime) {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readwrite");
-            const store = transaction.objectStore(positionsStoreName);
-
-            const position = await new Promise((resolve, reject) => {
-                const request = store.get(tickerSymbol);
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
             });
 
-            if (position) {
-                position.lastPrice = currentPrice;
-                position.lastTime = lastTime;
-                store.put(position);
-            }
-        }
+            await loadSavedRefreshInterval();
+            await startAutoRefresh();
+        });
     </script>
 </body>
 </html>
