@@ -122,6 +122,7 @@
                 <option value="300">5 minutes</option>
             </select>
             <button id="saveKeys" class="btn btn-primary mt-2">Save Settings</button>
+            <div id="settingsFeedback" class="mt-2 text-success" style="display: none;"></div>
         </div>
     </div>
 
@@ -131,6 +132,18 @@
         const settingsStoreName = "Settings";
 
         let refreshIntervalId;
+
+        function showFeedback(message, type) {
+            const feedbackDiv = document.getElementById("settingsFeedback");
+            feedbackDiv.textContent = message;
+            feedbackDiv.className = `mt-2 text-${type}`; // Use Bootstrap text color classes
+            feedbackDiv.style.display = "block";
+
+            // Hide the feedback message after 3 seconds
+            setTimeout(() => {
+                feedbackDiv.style.display = "none";
+            }, 3000);
+        }
 
         async function openDatabase() {
             return new Promise((resolve, reject) => {
@@ -352,26 +365,37 @@
         }
 
         async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
 
-            if (alpacaKey && alpacaSecret) {
-                store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
-                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
+                if (alpacaKey && alpacaSecret) {
+                    store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
+                    store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
+                }
+
+                if (finnhubKey) {
+                    store.put({ key: "finnhubApiKey", value: finnhubKey });
+                }
+
+                const refreshInterval = document.getElementById("refreshInterval").value;
+                store.put({ key: "refreshInterval", value: parseInt(refreshInterval) });
+
+                return new Promise((resolve, reject) => {
+                    transaction.oncomplete = () => {
+                        showFeedback("Settings saved successfully!", "success");
+                        resolve();
+                    };
+                    transaction.onerror = (event) => {
+                        showFeedback("Failed to save settings.", "danger");
+                        reject(event.target.error);
+                    };
+                });
+            } catch (error) {
+                console.error("Unexpected error saving settings:", error);
+                showFeedback("Unexpected error saving settings.", "danger");
             }
-
-            if (finnhubKey) {
-                store.put({ key: "finnhubApiKey", value: finnhubKey });
-            }
-
-            const refreshInterval = document.getElementById("refreshInterval").value;
-            store.put({ key: "refreshInterval", value: parseInt(refreshInterval) });
-
-            return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => resolve();
-                transaction.onerror = (event) => reject(event.target.error);
-            });
         }
 
         async function getRefreshInterval() {
