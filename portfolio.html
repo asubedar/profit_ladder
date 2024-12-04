@@ -408,7 +408,7 @@
                 transaction.onerror = (event) => {
                     console.error("Failed to save refresh interval.", event.target.error);
                     reject(event.target.error);
-                });
+                };
             });
         }
 
