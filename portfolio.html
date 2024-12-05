@@ -374,6 +374,18 @@
         }
 
         document.addEventListener("DOMContentLoaded", async () => {
+            // Toggle the settings visibility
+            const settingsIcon = document.getElementById("settingsIcon");
+            const settingsSection = document.getElementById("settings");
+
+            settingsIcon.addEventListener("click", () => {
+                if (settingsSection.style.display === "none" || !settingsSection.style.display) {
+                    settingsSection.style.display = "block";
+                } else {
+                    settingsSection.style.display = "none";
+                }
+            });
+            
             const refreshButtons = document.querySelectorAll(".refresh-interval-button");
 
             refreshButtons.forEach((button) => {
