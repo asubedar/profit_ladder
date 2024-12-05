@@ -332,7 +332,7 @@
 
         async function openDatabase() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 1);
+                const request = indexedDB.open(dbName, 2); // Increment version to 2
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
 
