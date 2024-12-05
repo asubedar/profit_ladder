@@ -335,15 +335,28 @@
                 const request = indexedDB.open(dbName, 1);
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
+
                     if (!db.objectStoreNames.contains(positionsStoreName)) {
                         db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
+                        appendDebugLog("Created 'Positions' object store.");
                     }
+
                     if (!db.objectStoreNames.contains(settingsStoreName)) {
                         db.createObjectStore(settingsStoreName, { keyPath: "key" });
+                        appendDebugLog("Created 'Settings' object store.");
                     }
                 };
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    appendDebugLog(`Database opened successfully. Available stores: ${Array.from(db.objectStoreNames)}`);
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    appendDebugLog(`Database open failed: ${event.target.error}`);
+                    reject(event.target.error);
+                };
             });
         }
 
@@ -426,21 +439,33 @@
             const transaction = db.transaction(settingsStoreName, "readwrite");
             const store = transaction.objectStore(settingsStoreName);
 
+            appendDebugLog("Saving API keys...");
+
             if (alpacaKey) {
                 store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
+                appendDebugLog(`Alpaca Key saved: ${alpacaKey}`);
             }
 
             if (alpacaSecret) {
                 store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
+                appendDebugLog("Alpaca Secret saved.");
             }
 
             if (finnhubKey) {
                 store.put({ key: "finnhubApiKey", value: finnhubKey });
+                appendDebugLog("Finnhub Key saved.");
             }
 
             return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => resolve();
-                transaction.onerror = (event) => reject(event.target.error);
+                transaction.oncomplete = () => {
+                    appendDebugLog("Settings saved successfully.");
+                    resolve();
+                };
+
+                transaction.onerror = (event) => {
+                    appendDebugLog(`Failed to save settings: ${event.target.error}`);
+                    reject(event.target.error);
+                };
             });
         }
 
@@ -487,6 +512,14 @@
                 }
             });
         }
+
+        function appendDebugLog(message) {
+            const debugDiv = document.getElementById("debugLogs");
+            const log = document.createElement("div");
+            log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            debugDiv.appendChild(log);
+        }
     </script>
+    <div id="debugLogs" style="margin-top: 20px; color: #ff6f61; font-family: monospace;"></div>
 </body>
 </html>
