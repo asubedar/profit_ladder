@@ -168,15 +168,32 @@
 
         function openDatabase() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 1);
+                const request = indexedDB.open(dbName, 2); // Ensure version matches `portfolio.html`
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
+
                     if (!db.objectStoreNames.contains(storeName)) {
                         db.createObjectStore(storeName, { keyPath: "id" });
+                        appendDebugLog("Created 'Positions' object store in index.html.");
+                    }
+
+                    if (!db.objectStoreNames.contains("Settings")) {
+                        db.createObjectStore("Settings", { keyPath: "key" });
+                        appendDebugLog("Created 'Settings' object store in index.html.");
                     }
                 };
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    appendDebugLog("Database opened successfully in index.html.");
+                    appendDebugLog(`Available stores: ${Array.from(db.objectStoreNames)}`);
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    appendDebugLog(`Failed to open database in index.html: ${event.target.error}`);
+                    reject(event.target.error);
+                };
             });
         }
 
@@ -189,8 +206,12 @@
         // Function to load position based on query parameter
         async function loadPositionFromQuery() {
             const symbol = getQueryParam("symbol")?.toUpperCase();
-            if (!symbol) return;
+            if (!symbol) {
+                appendDebugLog("No symbol provided in query parameters.");
+                return;
+            }
 
+            appendDebugLog(`Loading position for symbol: ${symbol}`);
             const db = await openDatabase();
             const transaction = db.transaction(storeName, "readonly");
             const store = transaction.objectStore(storeName);
@@ -199,22 +220,22 @@
             request.onsuccess = (event) => {
                 const position = event.target.result;
                 if (position) {
-                    // Prefill the form with the saved position
+                    appendDebugLog(`Position found for ${symbol}: ${JSON.stringify(position)}`);
                     document.getElementById("tickerSymbol").value = position.tickerSymbol;
                     document.getElementById("averagePrice").value = position.avgPrice;
                     document.getElementById("numShares").value = position.numShares;
                     document.getElementById("priceStep").value = position.priceStep;
                     document.getElementById("levels").value = position.levels;
 
-                    // Automatically calculate results
                     calculateResults();
                 } else {
+                    appendDebugLog(`No saved position found for symbol: ${symbol}`);
                     alert(`No saved position found for symbol: ${symbol}`);
                 }
             };
 
             request.onerror = (event) => {
-                console.error("Error loading position from query:", event.target.error);
+                appendDebugLog(`Error loading position for symbol ${symbol}: ${event.target.error}`);
             };
         }
 
@@ -227,6 +248,7 @@
 
             if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
                 alert("Please fill in all required fields to save the position.");
+                appendDebugLog("Failed to save position: Missing or invalid fields.");
                 return;
             }
 
@@ -238,13 +260,14 @@
             const request = store.put(position);
 
             request.onsuccess = () => {
+                appendDebugLog(`Position saved: ${JSON.stringify(position)}`);
                 alert(`Position for ${tickerSymbol} saved successfully.`);
                 loadSavedPositions();
             };
 
             request.onerror = (event) => {
+                appendDebugLog(`Failed to save position for ${tickerSymbol}: ${event.target.error}`);
                 alert("Failed to save the position. Please try again.");
-                console.error(event.target.error);
             };
         }
 
@@ -393,6 +416,14 @@
             loadSavedPositions();
             loadPositionFromQuery(); // Load position based on the 'symbol' query parameter
         });
+
+        function appendDebugLog(message) {
+            const debugDiv = document.getElementById("debugLogs");
+            const log = document.createElement("div");
+            log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            debugDiv.appendChild(log);
+        }
     </script>
+    <div id="debugLogs" style="margin-top: 20px; color: #ff6f61; font-family: monospace;"></div>
 </body>
 </html>
