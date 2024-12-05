@@ -400,10 +400,61 @@
                 });
             });
 
+            // Add event listener for the Save Settings button
+            const saveKeysButton = document.getElementById("saveKeys");
+            saveKeysButton.addEventListener("click", async () => {
+                const alpacaKey = document.getElementById("alpacaApiKey").value;
+                const alpacaSecret = document.getElementById("alpacaApiSecret").value;
+                const finnhubKey = document.getElementById("apiKeyInput").value;
+
+                try {
+                    await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
+                    showFeedback("Settings saved successfully!", "success");
+                } catch (error) {
+                    console.error("Failed to save settings:", error);
+                    showFeedback("Failed to save settings.", "danger");
+                }
+            });
+
             await loadSavedRefreshInterval();
             await loadPortfolio();
             await startAutoRefresh();
         });
+
+        async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+
+            if (alpacaKey) {
+                store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
+            }
+
+            if (alpacaSecret) {
+                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
+            }
+
+            if (finnhubKey) {
+                store.put({ key: "finnhubApiKey", value: finnhubKey });
+            }
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        function showFeedback(message, type) {
+            const feedbackDiv = document.getElementById("settingsFeedback");
+            feedbackDiv.textContent = message;
+            feedbackDiv.className = `mt-2 text-${type}`; // Use Bootstrap text color classes
+            feedbackDiv.style.display = "block";
+
+            // Hide the feedback message after 3 seconds
+            setTimeout(() => {
+                feedbackDiv.style.display = "none";
+            }, 3000);
+        }
 
         async function saveRefreshInterval(interval) {
             const db = await openDatabase();
