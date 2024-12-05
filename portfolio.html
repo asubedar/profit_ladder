@@ -349,7 +349,7 @@
 
                 request.onsuccess = (event) => {
                     const db = event.target.result;
-                    appendDebugLog(`Database opened successfully. Available stores: ${Array.from(db.objectStoreNames)}`);
+                    //appendDebugLog(`Database opened successfully. Available stores: ${Array.from(db.objectStoreNames)}`);
                     resolve(db);
                 };
 
