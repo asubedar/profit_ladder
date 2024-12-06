@@ -577,10 +577,39 @@
         });
 
         document.addEventListener("DOMContentLoaded", async () => {
-            const db = await openDatabase();
-            console.log("Available object stores:", Array.from(db.objectStoreNames));
+            const saveJsonUrlButton = document.getElementById("saveJsonUrl");
+            if (saveJsonUrlButton) {
+                saveJsonUrlButton.addEventListener("click", async () => {
+                    const url = document.getElementById("jsonUrl").value.trim();
+                    if (!url) {
+                        appendDebugLog("No URL provided to save.");
+                        alert("Please provide a URL.");
+                        return;
+                    }
+
+                    const db = await openDatabase();
+                    const transaction = db.transaction("Settings", "readwrite");
+                    const store = transaction.objectStore("Settings");
+
+                    const request = store.put({ key: "jsonImportUrl", value: url });
+
+                    request.onsuccess = () => {
+                        appendDebugLog(`JSON Import URL saved: ${url}`);
+                        alert("JSON Import URL saved successfully.");
+                    };
+
+                    request.onerror = (event) => {
+                        appendDebugLog(`Failed to save JSON Import URL: ${event.target.error}`);
+                        alert("Failed to save JSON Import URL.");
+                    };
+                });
+            } else {
+                console.error("Save URL button not found in the DOM.");
+            }
+
+            // Other DOMContentLoaded tasks
             loadSavedPositions();
-            loadPositionFromQuery(); // Load position based on the 'symbol' query parameter
+            loadPositionFromQuery();
         });
 
         function appendDebugLog(message) {
