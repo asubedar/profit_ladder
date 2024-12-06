@@ -161,6 +161,9 @@
         </div>
         <div id="results" class="mt-5"></div>
     </div>
+    <div class="mb-3">
+        <button id="exportToFile" class="btn btn-outline-light">Export to JSON File</button>
+    </div>
 
     <script>
         const dbName = "ProfitLadderDB";
@@ -408,6 +411,35 @@
         document.getElementById("profitForm").addEventListener("submit", (event) => {
             event.preventDefault();
             calculateResults();
+        });
+
+        document.getElementById("exportToFile").addEventListener("click", async () => {
+            const db = await openDatabase();
+            const transaction = db.transaction(storeName, "readonly");
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const positions = request.result;
+                const json = JSON.stringify(positions, null, 2);
+
+                // Create a downloadable file
+                const blob = new Blob([json], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "positions.json";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                appendDebugLog("Positions exported successfully to JSON file.");
+                alert("Positions exported successfully. You can now upload this file to any service.");
+            };
+
+            request.onerror = (event) => {
+                appendDebugLog("Error exporting positions:", event.target.error);
+            };
         });
 
         document.addEventListener("DOMContentLoaded", async () => {
