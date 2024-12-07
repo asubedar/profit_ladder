@@ -400,7 +400,9 @@
             const rows = table.querySelectorAll("tr[data-price-level]");
             rows.forEach((row) => {
                 const priceLevel = parseFloat(row.getAttribute("data-price-level"));
-                if (priceLevel === parseFloat(closestRowHtml.match(/data-price-level="([\d.-]+)"/)[1])) {
+                const regex = /data-price-level="([\d.-]+)"/;
+                const match = closestRowHtml.match(regex);
+                if (match && priceLevel === parseFloat(match[1])) {
                     row.classList.add("highlight-row");
                     closestRowElement = row;
                 }
@@ -443,7 +445,8 @@
             };
 
             request.onerror = (event) => {
-                appendDebugLog("Error exporting positions:", event.target.error);
+                appendDebugLog(`Error exporting positions: ${event.target.error}`);
+                alert("Failed to export positions.");
             };
         });
 
@@ -527,37 +530,8 @@
         });
 
         document.addEventListener("DOMContentLoaded", async () => {
-            const saveJsonUrlButton = document.getElementById("saveJsonUrl");
-            if (saveJsonUrlButton) {
-                saveJsonUrlButton.addEventListener("click", async () => {
-                    const url = document.getElementById("jsonUrl").value.trim();
-                    if (!url) {
-                        appendDebugLog("No URL provided to save.");
-                        alert("Please provide a URL.");
-                        return;
-                    }
-
-                    const db = await openDatabase();
-                    const transaction = db.transaction("Settings", "readwrite");
-                    const store = transaction.objectStore("Settings");
-
-                    const request = store.put({ key: "jsonImportUrl", value: url });
-
-                    request.onsuccess = () => {
-                        appendDebugLog(`JSON Import URL saved: ${url}`);
-                        alert("JSON Import URL saved successfully.");
-                    };
-
-                    request.onerror = (event) => {
-                        appendDebugLog(`Failed to save JSON Import URL: ${event.target.error}`);
-                        alert("Failed to save JSON Import URL.");
-                    };
-                });
-            } else {
-                console.error("Save URL button not found in the DOM.");
-            }
-
-            // Other DOMContentLoaded tasks
+            // Removed the obsolete "Save URL" button handling
+            // Only load saved positions and handle query parameters
             loadSavedPositions();
             loadPositionFromQuery();
         });
