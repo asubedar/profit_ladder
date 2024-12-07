@@ -167,10 +167,8 @@
     <div class="mb-3">
         <label for="jsonUrl" class="form-label">JSON Import URL</label>
         <input type="url" class="form-control" id="jsonUrl" placeholder="Enter URL for JSON data">
-        <button id="saveJsonUrl" class="btn btn-outline-light mt-2">Save URL</button>
+        <button id="importButton" class="btn btn-outline-light mt-2">Import</button>
     </div>
-    <button id="importFromUrl" class="btn btn-outline-light">Import from URL</button>
-    <button id="importFromSavedUrl" class="btn btn-outline-light">Import from Saved URL</button>
     <div id="debugLogs" style="margin-top: 20px; color: #ff6f61; font-family: monospace;"></div>
     <script>
         const dbName = "ProfitLadderDB";
@@ -449,132 +447,83 @@
             };
         });
 
-        document.getElementById("importFromUrl").addEventListener("click", async () => {
-            const url = document.getElementById("jsonUrl").value.trim();
-            if (!url) {
-                appendDebugLog("No URL provided for import.");
-                alert("Please provide a URL.");
+        document.getElementById("importButton").addEventListener("click", async () => {
+            const urlField = document.getElementById("jsonUrl");
+            const enteredUrl = urlField.value.trim();
+
+            const db = await openDatabase();
+            const settingsTransaction = db.transaction("Settings", "readwrite");
+            const settingsStore = settingsTransaction.objectStore("Settings");
+
+            // Get the currently saved URL if any
+            const savedUrl = await new Promise((resolve) => {
+                const req = settingsStore.get("jsonImportUrl");
+                req.onsuccess = () => resolve(req.result?.value || null);
+                req.onerror = () => resolve(null);
+            });
+
+            let finalUrl = enteredUrl || savedUrl;
+
+            if (!finalUrl) {
+                appendDebugLog("No URL provided and no saved URL found.");
+                alert("Please provide a JSON Import URL or have one saved before importing.");
                 return;
             }
 
-            try {
-                const response = await fetch(url);
-                if (response.ok) {
-                    const positions = await response.json();
-
-                    if (!Array.isArray(positions)) {
-                        throw new Error("Invalid JSON format. Expected an array.");
-                    }
-
-                    const db = await openDatabase();
-                    const transaction = db.transaction(storeName, "readwrite");
-                    const store = transaction.objectStore(storeName);
-
-                    positions.forEach((position) => {
-                        store.put(position);
-                    });
-
-                    transaction.oncomplete = () => {
-                        appendDebugLog("Positions imported successfully from URL.");
-                        alert("Positions imported successfully.");
-                        loadSavedPositions();
+            // If a new URL is entered and it's different from saved, update the stored URL
+            if (enteredUrl && enteredUrl !== savedUrl) {
+                await new Promise((resolve, reject) => {
+                    const putRequest = settingsStore.put({ key: "jsonImportUrl", value: enteredUrl });
+                    putRequest.onsuccess = () => {
+                        appendDebugLog(`New JSON Import URL saved: ${enteredUrl}`);
+                        resolve();
                     };
-
-                    transaction.onerror = (event) => {
-                        appendDebugLog(`Failed to import positions: ${event.target.error}`);
-                        alert("Failed to import positions.");
+                    putRequest.onerror = (event) => {
+                        appendDebugLog(`Failed to save new JSON Import URL: ${event.target.error}`);
+                        alert("Failed to save the new JSON Import URL.");
+                        reject(event.target.error);
                     };
-                } else {
-                    appendDebugLog(`Failed to fetch positions from URL: ${response.statusText}`);
-                    alert("Failed to fetch positions from URL.");
-                }
-            } catch (error) {
-                appendDebugLog(`Error importing positions: ${error.message}`);
-                alert("Error importing positions. Please check the URL.");
+                });
+                finalUrl = enteredUrl; // Use the newly saved URL
             }
-        });
 
-        document.getElementById("importFromSavedUrl").addEventListener("click", async () => {
-            const db = await openDatabase();
-            const transaction = db.transaction("Settings", "readonly");
-            const store = transaction.objectStore("Settings");
-
-            const request = store.get("jsonImportUrl");
-
-            request.onsuccess = async () => {
-                const savedUrl = request.result?.value;
-                if (!savedUrl) {
-                    appendDebugLog("No saved JSON Import URL found.");
-                    alert("No saved JSON Import URL found. Please save a URL first.");
+            // Now attempt to import from finalUrl
+            try {
+                const response = await fetch(finalUrl);
+                if (!response.ok) {
+                    appendDebugLog(`Failed to fetch positions from URL: ${response.statusText}`);
+                    alert("Failed to fetch positions from the given URL.");
                     return;
                 }
 
-                appendDebugLog(`Using saved URL: ${savedUrl}`);
-                try {
-                    const response = await fetch(savedUrl);
-                    if (response.ok) {
-                        const positions = await response.json();
-
-                        if (!Array.isArray(positions)) {
-                            throw new Error("Invalid JSON format. Expected an array.");
-                        }
-
-                        const db = await openDatabase();
-                        const transaction = db.transaction(storeName, "readwrite");
-                        const store = transaction.objectStore(storeName);
-
-                        positions.forEach((position) => {
-                            store.put(position);
-                        });
-
-                        transaction.oncomplete = () => {
-                            appendDebugLog("Positions imported successfully from saved URL.");
-                            alert("Positions imported successfully.");
-                            loadSavedPositions();
-                        };
-
-                        transaction.onerror = (event) => {
-                            appendDebugLog(`Failed to import positions: ${event.target.error}`);
-                            alert("Failed to import positions.");
-                        };
-                    } else {
-                        appendDebugLog(`Failed to fetch positions from URL: ${response.statusText}`);
-                        alert("Failed to fetch positions from URL.");
-                    }
-                } catch (error) {
-                    appendDebugLog(`Error importing positions: ${error.message}`);
-                    alert("Error importing positions. Please check the URL.");
+                const positions = await response.json();
+                if (!Array.isArray(positions)) {
+                    throw new Error("Invalid JSON format. Expected an array of positions.");
                 }
-            };
 
-            request.onerror = (event) => {
-                appendDebugLog(`Error fetching saved JSON Import URL: ${event.target.error}`);
-            };
-        });
+                // Store positions in IndexedDB
+                const positionsTransaction = db.transaction(storeName, "readwrite");
+                const positionsStore = positionsTransaction.objectStore(storeName);
 
-        document.getElementById("saveJsonUrl").addEventListener("click", async () => {
-            const url = document.getElementById("jsonUrl").value.trim();
-            if (!url) {
-                appendDebugLog("No URL provided to save.");
-                alert("Please provide a URL.");
-                return;
+                positions.forEach((position) => {
+                    positionsStore.put(position);
+                });
+
+                positionsTransaction.oncomplete = () => {
+                    appendDebugLog("Positions imported successfully.");
+                    alert("Positions imported successfully.");
+                    loadSavedPositions();
+                };
+
+                positionsTransaction.onerror = (event) => {
+                    appendDebugLog(`Failed to import positions: ${event.target.error}`);
+                    alert("Failed to import positions.");
+                };
+
+            } catch (error) {
+                appendDebugLog(`Error importing positions: ${error.message}`);
+                alert("Error importing positions. Please check the URL and try again.");
             }
-
-            const db = await openDatabase();
-            const transaction = db.transaction("Settings", "readwrite");
-            const store = transaction.objectStore("Settings");
-
-            const request = store.put({ key: "jsonImportUrl", value: url });
-
-            request.onsuccess = () => {
-                appendDebugLog(`JSON Import URL saved: ${url}`);
-                alert("JSON Import URL saved successfully.");
-            };
-
-            request.onerror = (event) => {
-                appendDebugLog(`Failed to save JSON Import URL: ${event.target.error}`);
-                alert("Failed to save JSON Import URL.");
-            };
         });
 
         document.addEventListener("DOMContentLoaded", async () => {
