@@ -32,6 +32,18 @@
         }
         th {
             background-color: #292929;
+            cursor: pointer;
+        }
+        th:hover {
+            text-decoration: underline;
+        }
+        .sort-arrow {
+            margin-left: 5px;
+            display: none;
+        }
+        th.sorted-asc .sort-arrow.asc,
+        th.sorted-desc .sort-arrow.desc {
+            display: inline-block;
         }
         .profit-positive {
             color: #28a745;
@@ -68,6 +80,13 @@
             color: #fff;
             border: none;
         }
+        .filter-container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .filter-checkbox {
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -87,17 +106,21 @@
         </div>
     </nav>
     <div class="container">
+        <div class="filter-container">
+            <input type="text" id="filterInput" class="form-control" placeholder="Filter by ticker...">
+            <div id="filterCheckboxes" class="mt-2"></div>
+        </div>
         <div id="portfolio">
-            <table>
+            <table id="portfolioTable">
                 <thead>
                     <tr>
-                        <th>Ticker</th>
-                        <th>Average Price</th>
-                        <th>Shares</th>
-                        <th>Current Price</th>
-                        <th>Cost Basis</th>
-                        <th>Total Value</th>
-                        <th>Profit</th>
+                        <th data-sort-type="string">Ticker<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number">Average Price<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number">Shares<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number">Current Price<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number">Cost Basis<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number">Total Value<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number">Profit<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
@@ -143,6 +166,10 @@
         const settingsStoreName = "Settings";
 
         let refreshIntervalId;
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        let allPositions = [];
+        let selectedTickers = [];
 
         async function fetchCurrentPrices(tickers) {
             const db = await openDatabase();
@@ -240,10 +267,17 @@
         }
 
         async function loadPortfolio() {
-            const positions = await fetchPositions();
-            const tickers = positions.map((position) => position.tickerSymbol);
-            const prices = await fetchCurrentPrices(tickers);
+            allPositions = await fetchPositions();
+            const uniqueTickers = [...new Set(allPositions.map((p) => p.tickerSymbol))];
+            selectedTickers = selectedTickers.length === 0 ? uniqueTickers : selectedTickers;
+            generateFilterCheckboxes(uniqueTickers);
+            renderPortfolio();
+        }
 
+        function renderPortfolio() {
+            const filteredPositions = filterPositions(allPositions, selectedTickers);
+            const tickers = filteredPositions.map((position) => position.tickerSymbol);
+            const prices = {}; // Removed await, will be handled in the loop
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = "";
 
@@ -251,11 +285,25 @@
             let totalValue = 0;
             let totalProfit = 0;
 
-            for (const position of positions) {
+            // Sort data if a sort column is selected
+            if (sortColumn !== null) {
+                filteredPositions.sort((a, b) => {
+                    const aVal = sortColumn === 'tickerSymbol' ? a[sortColumn] : parseFloat(a[sortColumn]);
+                    const bVal = sortColumn === 'tickerSymbol' ? b[sortColumn] : parseFloat(b[sortColumn]);
+
+                    if (sortDirection === 'asc') {
+                        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                    } else {
+                        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                    }
+                });
+            }
+
+            const fetchPricePromises = filteredPositions.map(async (position) => {
                 const { tickerSymbol, avgPrice, numShares } = position;
-                const priceData = prices[tickerSymbol] || { price: position.lastPrice || 0, time: position.lastTime || "N/A" };
-                const currentPrice = priceData.price;
-                const lastTime = priceData.time;
+                const priceData = await fetchCurrentPrices([tickerSymbol]);
+                const currentPrice = priceData[tickerSymbol]?.price || position.lastPrice || 0;
+                const lastTime = priceData[tickerSymbol]?.time || position.lastTime || "N/A";
 
                 if (currentPrice > 0) {
                     await updatePosition(tickerSymbol, currentPrice, lastTime);
@@ -283,19 +331,21 @@
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
-            }
+            });
 
-            document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-            document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-            document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+            Promise.all(fetchPricePromises).then(() => {
+                document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+                document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+                document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
             });
         }
 
@@ -368,7 +418,7 @@
             if (interval > 0) {
                 refreshIntervalId = setInterval(async () => {
                     console.log("Auto-refreshing prices...");
-                    await loadPortfolio();
+                    await renderPortfolio();
                 }, interval * 1000);
             }
         }
@@ -382,6 +432,45 @@
                 const request = store.get("refreshInterval");
                 request.onsuccess = (event) => resolve(event.target.result?.value || 0);
                 request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        function generateFilterCheckboxes(uniqueTickers) {
+            const filterCheckboxes = document.getElementById("filterCheckboxes");
+            filterCheckboxes.innerHTML = "";
+
+            uniqueTickers.forEach((ticker) => {
+                const isChecked = selectedTickers.includes(ticker);
+                const checkbox = document.createElement("div");
+                checkbox.className = "form-check form-check-inline filter-checkbox";
+                checkbox.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" ${isChecked ? "checked" : ""}>
+                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
+                `;
+
+                checkbox.addEventListener("change", () => {
+                    const ticker = checkbox.querySelector("input").value;
+                    if (checkbox.querySelector("input").checked) {
+                        if (!selectedTickers.includes(ticker)) {
+                            selectedTickers.push(ticker);
+                        }
+                    } else {
+                        selectedTickers = selectedTickers.filter((t) => t !== ticker);
+                    }
+                    renderPortfolio();
+                });
+
+                filterCheckboxes.appendChild(checkbox);
+            });
+        }
+
+        function filterPositions(positions, selectedTickers) {
+            const filterInput = document.getElementById("filterInput");
+            const filterText = filterInput.value.toLowerCase();
+            return positions.filter((position) => {
+                const tickerMatches = position.tickerSymbol.toLowerCase().includes(filterText);
+                const isSelected = selectedTickers.includes(position.tickerSymbol);
+                return tickerMatches && isSelected;
             });
         }
 
@@ -427,6 +516,55 @@
                     showFeedback("Failed to save settings.", "danger");
                 }
             });
+
+            // Add sorting event listeners to table headers
+            const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
+            tableHeaders.forEach((header) => {
+                header.addEventListener("click", () => {
+                    const newSortColumn = header.getAttribute("data-sort-key");
+                    const sortType = header.getAttribute("data-sort-type");
+
+                    if (sortColumn === newSortColumn) {
+                        // Toggle sort direction if clicking on the same column
+                        sortDirection = sortDirection === "asc" ? "desc" : "asc";
+                    } else {
+                        // Set new sort column and default to ascending
+                        sortColumn = newSortColumn;
+                        sortDirection = "asc";
+                    }
+
+                    // Update sort arrow visibility
+                    tableHeaders.forEach((h) => {
+                        h.classList.remove("sorted-asc", "sorted-desc");
+                    });
+                    header.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
+
+                    // Re-load the portfolio with sorting
+                    renderPortfolio();
+                });
+            });
+
+            // Set data-sort-key attributes for table headers
+            const headerMapping = {
+                "Ticker": "tickerSymbol",
+                "Average Price": "avgPrice",
+                "Shares": "numShares",
+                "Current Price": "lastPrice", // Assuming you want to sort by the last fetched price
+                "Cost Basis": "costBasis",
+                "Total Value": "totalValue",
+                "Profit": "profit"
+            };
+
+            tableHeaders.forEach((header) => {
+                const headerText = header.textContent.trim();
+                if (headerMapping[headerText]) {
+                    header.setAttribute("data-sort-key", headerMapping[headerText]);
+                }
+            });
+
+            // Add event listener for the filter input
+            const filterInput = document.getElementById("filterInput");
+            filterInput.addEventListener("input", renderPortfolio);
 
             await loadSavedRefreshInterval();
             await loadPortfolio();
