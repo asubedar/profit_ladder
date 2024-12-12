@@ -114,13 +114,13 @@
             <table id="portfolioTable">
                 <thead>
                     <tr>
-                        <th data-sort-type="string">Ticker<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number">Average Price<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number">Shares<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number">Current Price<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number">Cost Basis<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number">Total Value<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number">Profit<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="string" data-sort-key="tickerSymbol">Ticker<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number" data-sort-key="avgPrice">Average Price<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number" data-sort-key="numShares">Shares<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number" data-sort-key="lastPrice">Current Price<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number" data-sort-key="costBasis">Cost Basis<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number" data-sort-key="totalValue">Total Value<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number" data-sort-key="profit">Profit<span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
@@ -276,8 +276,6 @@
 
         function renderPortfolio() {
             const filteredPositions = filterPositions(allPositions, selectedTickers);
-            const tickers = filteredPositions.map((position) => position.tickerSymbol);
-            const prices = {}; // Removed await, will be handled in the loop
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = "";
 
@@ -285,55 +283,61 @@
             let totalValue = 0;
             let totalProfit = 0;
 
-            // Sort data if a sort column is selected
-            if (sortColumn !== null) {
-                filteredPositions.sort((a, b) => {
-                    const aVal = sortColumn === 'tickerSymbol' ? a[sortColumn] : parseFloat(a[sortColumn]);
-                    const bVal = sortColumn === 'tickerSymbol' ? b[sortColumn] : parseFloat(b[sortColumn]);
-
-                    if (sortDirection === 'asc') {
-                        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-                    } else {
-                        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-                    }
-                });
-            }
-
-            const fetchPricePromises = filteredPositions.map(async (position) => {
-                const { tickerSymbol, avgPrice, numShares } = position;
-                const priceData = await fetchCurrentPrices([tickerSymbol]);
-                const currentPrice = priceData[tickerSymbol]?.price || position.lastPrice || 0;
-                const lastTime = priceData[tickerSymbol]?.time || position.lastTime || "N/A";
+            const pricedPositions = filteredPositions.map(async (position) => {
+                const priceData = await fetchCurrentPrices([position.tickerSymbol]);
+                const currentPrice = priceData[position.tickerSymbol]?.price || position.lastPrice || 0;
+                const lastTime = priceData[position.tickerSymbol]?.time || position.lastTime || "N/A";
 
                 if (currentPrice > 0) {
-                    await updatePosition(tickerSymbol, currentPrice, lastTime);
+                    await updatePosition(position.tickerSymbol, currentPrice, lastTime);
+                    position.lastPrice = currentPrice;
+                    position.lastTime = lastTime;
                 }
 
-                const costBasis = avgPrice * numShares;
-                const totalValueForPosition = currentPrice * numShares;
+                const costBasis = position.avgPrice * position.numShares;
+                const totalValueForPosition = currentPrice * position.numShares;
                 const profit = totalValueForPosition - costBasis;
 
                 totalCostBasis += costBasis;
                 totalValue += totalValueForPosition;
                 totalProfit += profit;
 
-                const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
-
-                const row = `
-                    <tr>
-                        <td><a href="./?symbol=${tickerSymbol}" class="text-decoration-none text-light">${tickerSymbol}</a></td>
-                        <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${numShares.toLocaleString()}</td>
-                        <td>${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${totalValueForPosition.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    </tr>
-                `;
-                portfolioBody.innerHTML += row;
+                return { ...position, costBasis, totalValue: totalValueForPosition, profit };
             });
+            
+            // Sort data if a sort column is selected
+            Promise.all(pricedPositions).then((positionsWithValues) => {
+                if (sortColumn !== null) {
+                    positionsWithValues.sort((a, b) => {
+                        const aVal = sortColumn === 'tickerSymbol' ? a[sortColumn] : parseFloat(a[sortColumn]);
+                        const bVal = sortColumn === 'tickerSymbol' ? b[sortColumn] : parseFloat(b[sortColumn]);
 
-            Promise.all(fetchPricePromises).then(() => {
+                        if (sortDirection === 'asc') {
+                            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                        } else {
+                            return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                        }
+                    });
+                }
+
+                positionsWithValues.forEach((position) => {
+                    const { tickerSymbol, avgPrice, numShares, lastPrice, costBasis, totalValue, profit } = position;
+                    const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
+
+                    const row = `
+                        <tr>
+                            <td><a href="./?symbol=${tickerSymbol}" class="text-decoration-none text-light">${tickerSymbol}</a></td>
+                            <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td>${numShares.toLocaleString()}</td>
+                            <td>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        </tr>
+                    `;
+                    portfolioBody.innerHTML += row;
+                });
+
                 document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -542,24 +546,6 @@
                     // Re-load the portfolio with sorting
                     renderPortfolio();
                 });
-            });
-
-            // Set data-sort-key attributes for table headers
-            const headerMapping = {
-                "Ticker": "tickerSymbol",
-                "Average Price": "avgPrice",
-                "Shares": "numShares",
-                "Current Price": "lastPrice", // Assuming you want to sort by the last fetched price
-                "Cost Basis": "costBasis",
-                "Total Value": "totalValue",
-                "Profit": "profit"
-            };
-
-            tableHeaders.forEach((header) => {
-                const headerText = header.textContent.trim();
-                if (headerMapping[headerText]) {
-                    header.setAttribute("data-sort-key", headerMapping[headerText]);
-                }
             });
 
             // Add event listener for the filter input
