@@ -826,10 +826,10 @@
             const sortableColumns = document.getElementById("sortableColumns");
             const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
             const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-        
+
             // Make the list sortable using plain JavaScript
             let draggedItem = null;
-        
+
             sortableColumns.addEventListener("dragstart", (event) => {
                 draggedItem = event.target;
                 event.dataTransfer.effectAllowed = "move";
@@ -838,14 +838,14 @@
                     draggedItem.style.opacity = "0.5";
                 }, 0);
             });
-        
+
             sortableColumns.addEventListener("dragover", (event) => {
                 event.preventDefault();
                 const targetItem = event.target.closest(".column-item");
                 if (targetItem) {
                     const bounding = targetItem.getBoundingClientRect();
                     const offset = bounding.y + bounding.height / 2;
-        
+
                     if (event.clientY - offset > 0) {
                         targetItem.style.borderBottom = "2px solid white";
                         targetItem.style.borderTop = "";
@@ -855,7 +855,7 @@
                     }
                 }
             });
-        
+
             sortableColumns.addEventListener("dragleave", (event) => {
                 const targetItem = event.target.closest(".column-item");
                 if (targetItem) {
@@ -863,13 +863,18 @@
                     targetItem.style.borderBottom = "";
                 }
             });
-        
+
             sortableColumns.addEventListener("drop", async (event) => {
                 event.preventDefault();
                 const targetItem = event.target.closest(".column-item");
                 if (draggedItem && targetItem) {
                     if (draggedItem !== targetItem) {
-                        sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
+                        // Move the dragged item before or after the target item based on drop position
+                        if (targetItem.style.borderBottom === "2px solid white") {
+                            sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
+                        } else {
+                            sortableColumns.insertBefore(draggedItem, targetItem);
+                        }
                         await updateVisibleColumns();
                         updateTableColumns();
                         renderPortfolio();
@@ -880,7 +885,7 @@
                     draggedItem = null;
                 }
             });
-        
+
             // Add change event listeners to checkboxes
             columnCheckboxes.forEach((checkbox) => {
                 checkbox.addEventListener("change", async () => {
@@ -945,12 +950,12 @@
         function updateCheckboxes() {
             const columnCheckboxes = document.querySelectorAll("#sortableColumns .column-checkbox");
             const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-        
+
             // Update checkbox checked state
             columnCheckboxes.forEach((checkbox) => {
                 checkbox.checked = visibleColumns.includes(checkbox.value);
             });
-        
+
             // Update the order of li elements to match visibleColumns
             const sortableColumns = document.getElementById("sortableColumns");
             visibleColumns.forEach(columnKey => {
@@ -1003,21 +1008,21 @@
         }
 
         async function updateVisibleColumns() {
-            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
+            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
             const newVisibleColumns = [];
-        
-            columnCheckboxes.forEach((checkbox) => {
+
+            columnItems.forEach((item) => {
+                const checkbox = item.querySelector(".column-checkbox");
                 if (checkbox.checked) {
                     newVisibleColumns.push(checkbox.value);
                 }
             });
-        
+
             visibleColumns = newVisibleColumns;
-        
+
             await saveVisibleColumns();
             updateCheckboxes();
             updateTableColumns();
-            renderPortfolio();
         }
     </script>
     <div id="debugLogs" style="margin-top: 20px; color: #ff6f61; font-family: monospace;"></div>
