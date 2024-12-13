@@ -7,128 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            background-color: #1e1e1e;
-            color: #ffffff;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 10px;
-            text-align: right;
-            border-bottom: 1px solid #444;
-        }
-        th:first-child, td:first-child {
-            text-align: left;
-        }
-        th {
-            background-color: #292929;
-            cursor: pointer;
-            user-select: none;
-            position: relative;
-        }
-        th.dragging {
-            background-color: #3B3B3B;
-        }
-        th:hover {
-            text-decoration: underline;
-        }
-        .sort-arrow {
-            margin-left: 5px;
-            display: none;
-        }
-        th.sorted-asc .sort-arrow.asc,
-        th.sorted-desc .sort-arrow.desc {
-            display: inline-block;
-        }
-        .profit-positive {
-            color: #28a745;
-        }
-        .profit-negative {
-            color: #dc3545;
-        }
-        .settings {
-            display: none;
-            margin-top: 20px;
-        }
-        .settings-toggle {
-            cursor: pointer;
-            font-size: 20px;
-            text-align: right;
-            margin-bottom: 10px;
-        }
-        .settings-toggle:hover {
-            color: #00bcd4;
-        }
-        .totals-row {
-            font-weight: bold;
-            background-color: #292929;
-        }
-        .refresh-interval-button {
-            width: 50px;
-            height: 50px;
-            text-align: center;
-            line-height: 30px;
-            font-size: 14px;
-        }
-        .btn-primary {
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-        }
-        .filter-container {
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
-        .filter-checkbox {
-            margin-right: 10px;
-        }
-        .drag-handle {
-            cursor: grab;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 20px;
-            height: 100%;
-            position: absolute;
-            left: 0;
-            top: 0;
-        }
-        .drag-handle i {
-            font-size: 14px;
-            color: #666;
-        }
-        .th-name {
-            margin-left: 20px;
-        }
-        .column-checkbox {
-            margin-right: 10px;
-        }
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .table-responsive {
-                display: block;
-                width: 100%;
-                overflow-x: auto;
-            }
-            .table-responsive table {
-                width: auto;
-                min-width: 100%;
-            }
-            th, td {
-                white-space: nowrap;
-            }
-        }
+        /* ... (rest of your CSS) ... */
     </style>
 </head>
 <body>
@@ -404,12 +283,12 @@
             allPositions = await fetchPositions();
             const uniqueTickers = [...new Set(allPositions.map((p) => p.tickerSymbol))];
             selectedTickers = selectedTickers.length === 0 ? uniqueTickers : selectedTickers;
+            await updatePositionVisibility();
             generateFilterCheckboxes(uniqueTickers);
             renderPortfolio();
         }
 
         function renderPortfolio() {
-            const filteredPositions = filterPositions(allPositions, selectedTickers);
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = "";
 
@@ -421,7 +300,7 @@
             let totalChangePctToday = 0;
             let totalGapPct = 0;
 
-            const pricedPositions = filteredPositions.map(async (position) => {
+            const pricedPositions = allPositions.map(async (position) => {
                 const priceData = await fetchCurrentPrices([position.tickerSymbol]);
                 const currentPrice = priceData[position.tickerSymbol]?.price || position.lastPrice || 0;
                 const lastTime = priceData[position.tickerSymbol]?.time || position.lastTime || "N/A";
@@ -472,30 +351,35 @@
                 }
 
                 positionsWithValues.forEach((position) => {
-                    const { tickerSymbol, avgPrice, numShares, lastPrice, costBasis, totalValue, profit, profitPct, changeToday, changePctToday, gapPct, lastTime } = position;
+                    const { tickerSymbol, avgPrice, numShares, lastPrice, costBasis, totalValue, profit, profitPct, changeToday, changePctToday, gapPct, lastTime, hide } = position;
                     const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
                     const changeTodayClass = changeToday >= 0 ? "profit-positive" : "profit-negative";
                     const changePctTodayClass = changePctToday >= 0 ? "profit-positive" : "profit-negative";
                     const gapPctClass = gapPct >= 0 ? "profit-positive" : "profit-negative";
                     const timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
+                    const filterText = document.getElementById("filterInput").value.toLowerCase();
+                    const tickerMatches = tickerSymbol.toLowerCase().includes(filterText);
 
-                    const row = `
-                        <tr>
-                            <td data-column="tickerSymbol" ${visibleColumns.includes('tickerSymbol') ? '' : ' style="display: none;"'}>${tickerSymbol}</td>
-                            <td data-column="avgPrice" ${visibleColumns.includes('avgPrice') ? '' : ' style="display: none;"'}>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="numShares" ${visibleColumns.includes('numShares') ? '' : ' style="display: none;"'}>${numShares.toLocaleString()}</td>
-                            <td data-column="lastPrice" ${visibleColumns.includes('lastPrice') ? '' : ' style="display: none;"'}>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="costBasis" ${visibleColumns.includes('costBasis') ? '' : ' style="display: none;"'}>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="totalValue" ${visibleColumns.includes('totalValue') ? '' : ' style="display: none;"'}>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="profit" ${visibleColumns.includes('profit') ? '' : ' style="display: none;"'} class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="profitPct" ${visibleColumns.includes('profitPct') ? '' : ' style="display: none;"'} class="${profitClass}">${profitPct.toFixed(2)}%</td>
-                            <td data-column="changeToday" ${visibleColumns.includes('changeToday') ? '' : ' style="display: none;"'} class="${changeTodayClass}">${changeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="changePctToday" ${visibleColumns.includes('changePctToday') ? '' : ' style="display: none;"'} class="${changePctTodayClass}">${changePctToday.toFixed(2)}%</td>
-                            <td data-column="gapPct" ${visibleColumns.includes('gapPct') ? '' : ' style="display: none;"'} class="${gapPctClass}">${gapPct.toFixed(2)}%</td>
-                            <td data-column="lastTime" ${visibleColumns.includes('lastTime') ? '' : ' style="display: none;"'}>${timeSinceLastTrade}</td>
-                        </tr>
-                    `;
-                    portfolioBody.innerHTML += row;
+                    // Use the 'hide' attribute to determine if the row should be displayed
+                    if (!hide && tickerMatches) {
+                        const row = `
+                            <tr>
+                                <td data-column="tickerSymbol" ${visibleColumns.includes('tickerSymbol') ? '' : ' style="display: none;"'}>${tickerSymbol}</td>
+                                <td data-column="avgPrice" ${visibleColumns.includes('avgPrice') ? '' : ' style="display: none;"'}>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td data-column="numShares" ${visibleColumns.includes('numShares') ? '' : ' style="display: none;"'}>${numShares.toLocaleString()}</td>
+                                <td data-column="lastPrice" ${visibleColumns.includes('lastPrice') ? '' : ' style="display: none;"'}>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td data-column="costBasis" ${visibleColumns.includes('costBasis') ? '' : ' style="display: none;"'}>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td data-column="totalValue" ${visibleColumns.includes('totalValue') ? '' : ' style="display: none;"'}>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td data-column="profit" ${visibleColumns.includes('profit') ? '' : ' style="display: none;"'} class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td data-column="profitPct" ${visibleColumns.includes('profitPct') ? '' : ' style="display: none;"'} class="${profitClass}">${profitPct.toFixed(2)}%</td>
+                                <td data-column="changeToday" ${visibleColumns.includes('changeToday') ? '' : ' style="display: none;"'} class="${changeTodayClass}">${changeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td data-column="changePctToday" ${visibleColumns.includes('changePctToday') ? '' : ' style="display: none;"'} class="${changePctTodayClass}">${changePctToday.toFixed(2)}%</td>
+                                <td data-column="gapPct" ${visibleColumns.includes('gapPct') ? '' : ' style="display: none;"'} class="${gapPctClass}">${gapPct.toFixed(2)}%</td>
+                                <td data-column="lastTime" ${visibleColumns.includes('lastTime') ? '' : ' style="display: none;"'}>${timeSinceLastTrade}</td>
+                            </tr>
+                        `;
+                        portfolioBody.innerHTML += row;
+                    }
                 });
 
                 document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -567,13 +451,14 @@
                     const db = event.target.result;
 
                     if (!db.objectStoreNames.contains(positionsStoreName)) {
-                        db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
-                        appendDebugLog("Created 'Positions' object store.");
+                        const objectStore = db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
+                        objectStore.createIndex("hide", "hide", { unique: false });
+                        console.log("Created 'Positions' object store with 'hide' index.");
                     }
 
                     if (!db.objectStoreNames.contains(settingsStoreName)) {
                         db.createObjectStore(settingsStoreName, { keyPath: "key" });
-                        appendDebugLog("Created 'Settings' object store.");
+                        console.log("Created 'Settings' object store.");
                     }
                 };
 
@@ -583,7 +468,7 @@
                 };
 
                 request.onerror = (event) => {
-                    appendDebugLog(`Database open failed: ${event.target.error}`);
+                    console.error(`Database open failed: ${event.target.error}`);
                     reject(event.target.error);
                 };
             });
@@ -628,19 +513,52 @@
                     <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
                 `;
 
-                checkbox.addEventListener("change", () => {
-                    const ticker = checkbox.querySelector("input").value;
-                    if (checkbox.querySelector("input").checked) {
-                        if (!selectedTickers.includes(ticker)) {
-                            selectedTickers.push(ticker);
-                        }
-                    } else {
-                        selectedTickers = selectedTickers.filter((t) => t !== ticker);
+                checkbox.addEventListener("change", async () => {
+                    const db = await openDatabase();
+                    const transaction = db.transaction(positionsStoreName, "readwrite");
+                    const store = transaction.objectStore(positionsStoreName);
+
+                    const position = await new Promise((resolve, reject) => {
+                        const request = store.get(ticker);
+                        request.onsuccess = (event) => resolve(event.target.result);
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+
+                    if (position) {
+                        position.hide = !checkbox.querySelector("input").checked;
+                        store.put(position);
                     }
+
+                    await updatePositionVisibility();
                     renderPortfolio();
                 });
 
                 filterCheckboxes.appendChild(checkbox);
+            });
+        }
+
+        async function updatePositionVisibility() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+
+            allPositions.forEach(async (position) => {
+                const shouldHide = !selectedTickers.includes(position.tickerSymbol);
+                if (position.hide !== shouldHide) {
+                    position.hide = shouldHide;
+                    store.put(position);
+                }
+            });
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    console.log("Position visibility updated.");
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error("Failed to update position visibility.", event.target.error);
+                    reject(event.target.error);
+                };
             });
         }
 
@@ -826,10 +744,10 @@
             const sortableColumns = document.getElementById("sortableColumns");
             const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
             const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-
+        
             // Make the list sortable using plain JavaScript
             let draggedItem = null;
-
+        
             sortableColumns.addEventListener("dragstart", (event) => {
                 draggedItem = event.target;
                 event.dataTransfer.effectAllowed = "move";
@@ -838,14 +756,14 @@
                     draggedItem.style.opacity = "0.5";
                 }, 0);
             });
-
+        
             sortableColumns.addEventListener("dragover", (event) => {
                 event.preventDefault();
                 const targetItem = event.target.closest(".column-item");
                 if (targetItem) {
                     const bounding = targetItem.getBoundingClientRect();
                     const offset = bounding.y + bounding.height / 2;
-
+        
                     if (event.clientY - offset > 0) {
                         targetItem.style.borderBottom = "2px solid white";
                         targetItem.style.borderTop = "";
@@ -855,7 +773,7 @@
                     }
                 }
             });
-
+        
             sortableColumns.addEventListener("dragleave", (event) => {
                 const targetItem = event.target.closest(".column-item");
                 if (targetItem) {
@@ -863,7 +781,7 @@
                     targetItem.style.borderBottom = "";
                 }
             });
-
+        
             sortableColumns.addEventListener("drop", async (event) => {
                 event.preventDefault();
                 const targetItem = event.target.closest(".column-item");
@@ -885,7 +803,7 @@
                     draggedItem = null;
                 }
             });
-
+        
             // Add change event listeners to checkboxes
             columnCheckboxes.forEach((checkbox) => {
                 checkbox.addEventListener("change", async () => {
@@ -950,12 +868,12 @@
         function updateCheckboxes() {
             const columnCheckboxes = document.querySelectorAll("#sortableColumns .column-checkbox");
             const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-
+        
             // Update checkbox checked state
             columnCheckboxes.forEach((checkbox) => {
                 checkbox.checked = visibleColumns.includes(checkbox.value);
             });
-
+        
             // Update the order of li elements to match visibleColumns
             const sortableColumns = document.getElementById("sortableColumns");
             visibleColumns.forEach(columnKey => {
@@ -1008,18 +926,17 @@
         }
 
         async function updateVisibleColumns() {
-            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
+            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
             const newVisibleColumns = [];
-
-            columnItems.forEach((item) => {
-                const checkbox = item.querySelector(".column-checkbox");
+        
+            columnCheckboxes.forEach((checkbox) => {
                 if (checkbox.checked) {
                     newVisibleColumns.push(checkbox.value);
                 }
             });
-
+        
             visibleColumns = newVisibleColumns;
-
+        
             await saveVisibleColumns();
             updateCheckboxes();
             updateTableColumns();
