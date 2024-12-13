@@ -156,19 +156,18 @@
             <table id="portfolioTable">
                 <thead>
                     <tr>
-                        <!-- Draggable handles are added inside the th elements -->
-                        <th data-sort-type="string" data-sort-key="tickerSymbol" data-col-index="0"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Ticker</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="avgPrice" data-col-index="1"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Average Price</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="numShares" data-col-index="2"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Shares</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="lastPrice" data-col-index="3"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Current Price</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="costBasis" data-col-index="4"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Cost Basis</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="totalValue" data-col-index="5"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Total Value</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="profit" data-col-index="6"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Profit</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="profitPct" data-col-index="7"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Profit %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="changeToday" data-col-index="8"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Change Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="changePctToday" data-col-index="9"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Change % Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="number" data-sort-key="gapPct" data-col-index="10"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Gap %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="string" data-sort-key="lastTime" data-col-index="11"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Time Since Last Trade</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="tickerSymbol" data-sort-type="string" data-sort-key="tickerSymbol" data-col-index="0"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Ticker</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="avgPrice" data-sort-type="number" data-sort-key="avgPrice" data-col-index="1"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Average Price</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="numShares" data-sort-type="number" data-sort-key="numShares" data-col-index="2"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Shares</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="lastPrice" data-sort-type="number" data-sort-key="lastPrice" data-col-index="3"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Current Price</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="costBasis" data-sort-type="number" data-sort-key="costBasis" data-col-index="4"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Cost Basis</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="totalValue" data-sort-type="number" data-sort-key="totalValue" data-col-index="5"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Total Value</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="profit" data-sort-type="number" data-sort-key="profit" data-col-index="6"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Profit</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="profitPct" data-sort-type="number" data-sort-key="profitPct" data-col-index="7"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Profit %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="changeToday" data-sort-type="number" data-sort-key="changeToday" data-col-index="8"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Change Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="changePctToday" data-sort-type="number" data-sort-key="changePctToday" data-col-index="9"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Change % Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="gapPct" data-sort-type="number" data-sort-key="gapPct" data-col-index="10"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Gap %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="lastTime" data-sort-type="string" data-sort-key="lastTime" data-col-index="11"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Time Since Last Trade</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
@@ -479,19 +478,19 @@
                     const timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
 
                     const row = `
-                        <tr data-ticker="${tickerSymbol}">
-                            <td${visibleColumns.includes('tickerSymbol') ? '' : ' style="display: none;"'}>${tickerSymbol}</td>
-                            <td${visibleColumns.includes('avgPrice') ? '' : ' style="display: none;"'}>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td${visibleColumns.includes('numShares') ? '' : ' style="display: none;"'}>${numShares.toLocaleString()}</td>
-                            <td${visibleColumns.includes('lastPrice') ? '' : ' style="display: none;"'}>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td${visibleColumns.includes('costBasis') ? '' : ' style="display: none;"'}>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td${visibleColumns.includes('totalValue') ? '' : ' style="display: none;"'}>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td${visibleColumns.includes('profit') ? '' : ' style="display: none;"'} class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td${visibleColumns.includes('profitPct') ? '' : ' style="display: none;"'} class="${profitClass}">${profitPct.toFixed(2)}%</td>
-                            <td${visibleColumns.includes('changeToday') ? '' : ' style="display: none;"'} class="${changeTodayClass}">${changeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td${visibleColumns.includes('changePctToday') ? '' : ' style="display: none;"'} class="${changePctTodayClass}">${changePctToday.toFixed(2)}%</td>
-                            <td${visibleColumns.includes('gapPct') ? '' : ' style="display: none;"'} class="${gapPctClass}">${gapPct.toFixed(2)}%</td>
-                            <td${visibleColumns.includes('lastTime') ? '' : ' style="display: none;"'}>${timeSinceLastTrade}</td>
+                        <tr>
+                            <td data-column="tickerSymbol" ${visibleColumns.includes('tickerSymbol') ? '' : ' style="display: none;"'}>${tickerSymbol}</td>
+                            <td data-column="avgPrice" ${visibleColumns.includes('avgPrice') ? '' : ' style="display: none;"'}>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td data-column="numShares" ${visibleColumns.includes('numShares') ? '' : ' style="display: none;"'}>${numShares.toLocaleString()}</td>
+                            <td data-column="lastPrice" ${visibleColumns.includes('lastPrice') ? '' : ' style="display: none;"'}>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td data-column="costBasis" ${visibleColumns.includes('costBasis') ? '' : ' style="display: none;"'}>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td data-column="totalValue" ${visibleColumns.includes('totalValue') ? '' : ' style="display: none;"'}>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td data-column="profit" ${visibleColumns.includes('profit') ? '' : ' style="display: none;"'} class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td data-column="profitPct" ${visibleColumns.includes('profitPct') ? '' : ' style="display: none;"'} class="${profitClass}">${profitPct.toFixed(2)}%</td>
+                            <td data-column="changeToday" ${visibleColumns.includes('changeToday') ? '' : ' style="display: none;"'} class="${changeTodayClass}">${changeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td data-column="changePctToday" ${visibleColumns.includes('changePctToday') ? '' : ' style="display: none;"'} class="${changePctTodayClass}">${changePctToday.toFixed(2)}%</td>
+                            <td data-column="gapPct" ${visibleColumns.includes('gapPct') ? '' : ' style="display: none;"'} class="${gapPctClass}">${gapPct.toFixed(2)}%</td>
+                            <td data-column="lastTime" ${visibleColumns.includes('lastTime') ? '' : ' style="display: none;"'}>${timeSinceLastTrade}</td>
                         </tr>
                     `;
                     portfolioBody.innerHTML += row;
@@ -609,7 +608,7 @@
 
             return new Promise((resolve, reject) => {
                 const request = store.get("refreshInterval");
-                                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
                 request.onerror = (event) => reject(event.target.error);
             });
         }
@@ -729,8 +728,9 @@
                     renderPortfolio();
                 });
 
-                header.addEventListener("dragstart", () => {
+                header.addEventListener("dragstart", (event) => {
                     draggedHeader = header;
+                    event.dataTransfer.setData('text', ''); // Required for dragging in Firefox
                     header.classList.add("dragging");
                 });
             
@@ -748,6 +748,7 @@
                         const targetHeader = event.target.closest("th");
                         if (targetHeader) {
                             reorderColumns(draggedHeader, targetHeader);
+                            updateVisibleColumnsAfterDrag();
                         }
                         draggedHeader = null;
                     }
@@ -770,17 +771,18 @@
             const headerRow = table.querySelector("thead tr");
             const bodyRows = table.querySelectorAll("tbody tr");
             const footerRow = table.querySelector("tfoot tr");
-
+        
+            // Get the indexes of the dragged and target headers
             const draggedIndex = Array.from(headerRow.children).indexOf(draggedHeader);
             const targetIndex = Array.from(headerRow.children).indexOf(targetHeader);
-
+        
             // Reorder headers
             if (draggedIndex < targetIndex) {
                 headerRow.insertBefore(draggedHeader, targetHeader.nextElementSibling);
             } else {
                 headerRow.insertBefore(draggedHeader, targetHeader);
             }
-
+        
             // Reorder footer cells
             if (footerRow) {
                 const footerCells = Array.from(footerRow.children);
@@ -792,7 +794,7 @@
                     footerRow.insertBefore(draggedFooterCell, targetFooterCell);
                 }
             }
-
+        
             // Reorder cells in each body row
             bodyRows.forEach((row) => {
                 const cells = Array.from(row.children);
@@ -965,29 +967,57 @@
             const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
             const bodyRows = document.querySelectorAll("#portfolioTable tbody tr");
             const footerRow = document.querySelector("#portfolioTable tfoot tr");
-
-            tableHeaders.forEach((header) => {
+            const headerMap = {};
+        
+            // Create a map of header keys to their corresponding elements
+            tableHeaders.forEach(header => {
+                const headerKey = header.getAttribute("data-sort-key");
+                headerMap[headerKey] = header;
+            });
+        
+            // Update visibility of table headers based on visibleColumns
+            tableHeaders.forEach(header => {
                 const headerKey = header.getAttribute("data-sort-key");
                 header.style.display = visibleColumns.includes(headerKey) ? "" : "none";
             });
-
-            bodyRows.forEach((row) => {
+        
+            // Update visibility of table cells in each row based on visibleColumns
+            bodyRows.forEach(row => {
                 const cells = row.querySelectorAll("td");
                 cells.forEach((cell, index) => {
-                    const columnKey = Object.keys(row.dataset)[index]; // Get data attribute keys
-                    cell.style.display = visibleColumns.includes(columnKey) ? "" : "none";
+                    // Use the headerMap to find the corresponding header key
+                    const headerKey = Object.keys(headerMap)[index];
+                    if (headerKey) {
+                        cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
+                    }
                 });
             });
-
-            // Update footer cells
+        
+            // Update visibility of footer cells based on visibleColumns
             const footerCells = footerRow.querySelectorAll("td");
             footerCells.forEach((cell, index) => {
-                // Assuming the order of footer cells corresponds to header keys
+                // Skip the first cell in the footer row (Totals label)
                 if (index > 0 && index <= tableHeaders.length) {
-                    const headerKey = tableHeaders[index-1].getAttribute("data-sort-key");
+                    const headerKey = tableHeaders[index - 1].getAttribute("data-sort-key");
                     cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
                 }
             });
+        }
+
+        function updateVisibleColumnsAfterDrag() {
+            const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
+            const newVisibleColumns = [];
+
+            tableHeaders.forEach((header) => {
+                const headerKey = header.getAttribute("data-sort-key");
+                if (visibleColumns.includes(headerKey)) {
+                    newVisibleColumns.push(headerKey);
+                }
+            });
+
+            visibleColumns = newVisibleColumns;
+            saveVisibleColumns();
+            updateCheckboxes();
         }
     </script>
     <div id="debugLogs" style="margin-top: 20px; color: #ff6f61; font-family: monospace;"></div>
