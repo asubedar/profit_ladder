@@ -37,6 +37,9 @@
             user-select: none;
             position: relative;
         }
+        th.dragging {
+            background-color: #3B3B3B;
+        }
         th:hover {
             text-decoration: underline;
         }
@@ -354,7 +357,7 @@
                 const prevClosePrice = priceData[position.tickerSymbol]?.prevClose || 0;
 
                 if (currentPrice > 0) {
-                    await updatePosition(position.tickerSymbol, currentPrice, lastTime, openPrice);
+                    await updatePosition(position.tickerSymbol, currentPrice, lastTime, openPrice, prevClosePrice);
                     position.lastPrice = currentPrice;
                     position.lastTime = lastTime;
                     position.openPrice = openPrice;
@@ -377,6 +380,22 @@
 
             Promise.all(pricedPositions).then((positionsWithValues) => {
                 totalProfitPct = totalCostBasis !== 0 ? (totalProfit / totalCostBasis) * 100 : 0;
+                totalChangeToday = positionsWithValues.reduce((sum, pos) => sum + pos.changeToday, 0);
+                totalChangePctToday = positionsWithValues.length > 0 ? positionsWithValues.reduce((sum, pos) => sum + pos.changePctToday, 0) / positionsWithValues.length : 0;
+
+                // Sort data if a sort column is selected
+                if (sortColumn !== null) {
+                    positionsWithValues.sort((a, b) => {
+                        const aVal = sortColumn === 'tickerSymbol' || sortColumn === 'lastTime' ? a[sortColumn] : parseFloat(a[sortColumn]);
+                        const bVal = sortColumn === 'tickerSymbol' || sortColumn === 'lastTime' ? b[sortColumn] : parseFloat(b[sortColumn]);
+
+                        if (sortDirection === 'asc') {
+                            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                        } else {
+                            return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                        }
+                    });
+                }
 
                 positionsWithValues.forEach((position) => {
                     const { tickerSymbol, avgPrice, numShares, lastPrice, costBasis, totalValue, profit, profitPct, changeToday, changePctToday, lastTime } = position;
@@ -604,7 +623,6 @@
             // Add sorting and dragging event listeners to table headers
             const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
             let draggedHeader = null;
-            let draggedOverHeader = null;
 
             tableHeaders.forEach((header) => {
                 header.addEventListener("click", (event) => {
@@ -631,47 +649,32 @@
                     });
                     header.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
 
-                    // Sort the positions based on the selected column
-                    allPositions.sort((a, b) => {
-                        let aVal = a[sortColumn];
-                        let bVal = b[sortColumn];
-
-                        // Convert to appropriate type for comparison
-                        if (sortType === "number") {
-                            aVal = parseFloat(aVal);
-                            bVal = parseFloat(bVal);
-                        }
-
-                        // Perform the comparison
-                        if (aVal < bVal) {
-                            return sortDirection === "asc" ? -1 : 1;
-                        }
-                        if (aVal > bVal) {
-                            return sortDirection === "asc" ? 1 : -1;
-                        }
-                        return 0;
-                    });
-
                     // Re-render the portfolio
                     renderPortfolio();
                 });
 
-                header.addEventListener("dragstart", (event) => {
+                header.addEventListener("dragstart", () => {
                     draggedHeader = header;
+                    header.classList.add("dragging");
+                });
+            
+                header.addEventListener("dragend", () => {
+                    header.classList.remove("dragging");
                 });
 
                 header.addEventListener("dragover", (event) => {
                     event.preventDefault(); // Necessary to allow a drop
-                    draggedOverHeader = header;
                 });
 
                 header.addEventListener("drop", (event) => {
                     event.preventDefault();
-                    if (draggedHeader && draggedOverHeader && draggedHeader !== draggedOverHeader) {
-                        reorderColumns(draggedHeader, draggedOverHeader);
+                    if (draggedHeader) {
+                        const targetHeader = event.target.closest("th");
+                        if (targetHeader) {
+                            reorderColumns(draggedHeader, targetHeader);
+                        }
+                        draggedHeader = null;
                     }
-                    draggedHeader = null;
-                    draggedOverHeader = null;
                 });
             });
 
@@ -689,29 +692,36 @@
             const headerRow = table.querySelector("thead tr");
             const bodyRows = table.querySelectorAll("tbody tr");
             const footerRow = table.querySelector("tfoot tr");
+
             const draggedIndex = Array.from(headerRow.children).indexOf(draggedHeader);
             const targetIndex = Array.from(headerRow.children).indexOf(targetHeader);
 
             // Reorder headers
             if (draggedIndex < targetIndex) {
-                headerRow.insertBefore(draggedHeader, targetHeader.nextSibling);
-                if (footerRow) {
-                    footerRow.insertBefore(footerRow.children[draggedIndex], footerRow.children[targetIndex].nextSibling);
-                }
+                headerRow.insertBefore(draggedHeader, targetHeader.nextElementSibling);
             } else {
                 headerRow.insertBefore(draggedHeader, targetHeader);
-                if (footerRow) {
-                    footerRow.insertBefore(footerRow.children[draggedIndex], footerRow.children[targetIndex]);
+            }
+
+            // Reorder footer cells
+            if (footerRow) {
+                const footerCells = Array.from(footerRow.children);
+                const draggedFooterCell = footerCells[draggedIndex];
+                const targetFooterCell = footerCells[targetIndex];
+                if (draggedIndex < targetIndex) {
+                    footerRow.insertBefore(draggedFooterCell, targetFooterCell.nextElementSibling);
+                } else {
+                    footerRow.insertBefore(draggedFooterCell, targetFooterCell);
                 }
             }
 
-            // Reorder cells in each body row
-            bodyRows.forEach((row) => {
+                        // Reorder cells in each body row
+                        bodyRows.forEach((row) => {
                 const cells = Array.from(row.children);
                 const draggedCell = cells[draggedIndex];
                 const targetCell = cells[targetIndex];
                 if (draggedIndex < targetIndex) {
-                    row.insertBefore(draggedCell, targetCell.nextSibling);
+                    row.insertBefore(draggedCell, targetCell.nextElementSibling);
                 } else {
                     row.insertBefore(draggedCell, targetCell);
                 }
