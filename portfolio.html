@@ -111,6 +111,9 @@
         .th-name {
             margin-left: 20px;
         }
+        .column-checkbox {
+            margin-right: 10px;
+        }
         /* Mobile responsiveness */
         @media (max-width: 768px) {
             .table-responsive {
@@ -164,7 +167,8 @@
                         <th data-sort-type="number" data-sort-key="profitPct" data-col-index="7"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Profit %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
                         <th data-sort-type="number" data-sort-key="changeToday" data-col-index="8"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Change Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
                         <th data-sort-type="number" data-sort-key="changePctToday" data-col-index="9"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Change % Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-sort-type="string" data-sort-key="lastTime" data-col-index="10"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Time Since Last Trade</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="number" data-sort-key="gapPct" data-col-index="10"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Gap %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-sort-type="string" data-sort-key="lastTime" data-col-index="11"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><span class="th-name">Time Since Last Trade</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
@@ -178,6 +182,7 @@
                         <td id="totalProfitPct">0.00</td>
                         <td id="totalChangeToday">0.00</td>
                         <td id="totalChangePctToday">0.00</td>
+                        <td id="totalGapPct">0.00</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -198,6 +203,57 @@
         </div>
         <div class="settings" id="settings">
             <h3>Settings</h3>
+            <div id="columnCustomization" class="mb-3">
+                <h4>Customize Columns</h4>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-tickerSymbol" value="tickerSymbol" checked>
+                    <label class="form-check-label text-light" for="checkbox-tickerSymbol">Ticker</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-avgPrice" value="avgPrice" checked>
+                    <label class="form-check-label text-light" for="checkbox-avgPrice">Average Price</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-numShares" value="numShares" checked>
+                    <label class="form-check-label text-light" for="checkbox-numShares">Shares</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-lastPrice" value="lastPrice" checked>
+                    <label class="form-check-label text-light" for="checkbox-lastPrice">Current Price</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-costBasis" value="costBasis" checked>
+                    <label class="form-check-label text-light" for="checkbox-costBasis">Cost Basis</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-totalValue" value="totalValue" checked>
+                    <label class="form-check-label text-light" for="checkbox-totalValue">Total Value</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-profit" value="profit" checked>
+                    <label class="form-check-label text-light" for="checkbox-profit">Profit</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-profitPct" value="profitPct" checked>
+                    <label class="form-check-label text-light" for="checkbox-profitPct">Profit %</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-changeToday" value="changeToday" checked>
+                    <label class="form-check-label text-light" for="checkbox-changeToday">Change Today</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-changePctToday" value="changePctToday" checked>
+                    <label class="form-check-label text-light" for="checkbox-changePctToday">Change % Today</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-gapPct" value="gapPct" checked>
+                    <label class="form-check-label text-light" for="checkbox-gapPct">Gap %</label>
+                </div>
+                <div class="form-check form-check-inline column-checkbox">
+                    <input class="form-check-input" type="checkbox" id="checkbox-lastTime" value="lastTime" checked>
+                    <label class="form-check-label text-light" for="checkbox-lastTime">Time Since Last Trade</label>
+                </div>
+            </div>
             <label for="alpacaApiKey">Alpaca API Key:</label>
             <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
             <label for="alpacaApiSecret" class="mt-2">Alpaca API Secret:</label>
@@ -218,6 +274,20 @@
         let sortDirection = 'asc';
         let allPositions = [];
         let selectedTickers = [];
+        let visibleColumns = [
+            "tickerSymbol",
+            "avgPrice",
+            "numShares",
+            "lastPrice",
+            "costBasis",
+            "totalValue",
+            "profit",
+            "profitPct",
+            "changeToday",
+            "changePctToday",
+            "gapPct",
+            "lastTime"
+        ];
 
         async function fetchCurrentPrices(tickers) {
             const db = await openDatabase();
@@ -348,6 +418,7 @@
             let totalProfitPct = 0;
             let totalChangeToday = 0;
             let totalChangePctToday = 0;
+            let totalGapPct = 0;
 
             const pricedPositions = filteredPositions.map(async (position) => {
                 const priceData = await fetchCurrentPrices([position.tickerSymbol]);
@@ -370,18 +441,20 @@
                 const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
                 const changeToday = currentPrice - position.openPrice;
                 const changePctToday = position.openPrice !== 0 ? ((currentPrice - position.openPrice) / position.openPrice) * 100 : 0;
+                const gapPct = position.prevClosePrice !== 0 ? ((position.openPrice - position.prevClosePrice) / position.prevClosePrice) * 100 : 0;
 
                 totalCostBasis += costBasis;
                 totalValue += totalValueForPosition;
                 totalProfit += profit;
 
-                return { ...position, costBasis, totalValue: totalValueForPosition, profit, profitPct, changeToday, changePctToday };
+                return { ...position, costBasis, totalValue: totalValueForPosition, profit, profitPct, changeToday, changePctToday, gapPct };
             });
 
             Promise.all(pricedPositions).then((positionsWithValues) => {
                 totalProfitPct = totalCostBasis !== 0 ? (totalProfit / totalCostBasis) * 100 : 0;
                 totalChangeToday = positionsWithValues.reduce((sum, pos) => sum + pos.changeToday, 0);
                 totalChangePctToday = positionsWithValues.length > 0 ? positionsWithValues.reduce((sum, pos) => sum + pos.changePctToday, 0) / positionsWithValues.length : 0;
+                totalGapPct = positionsWithValues.length > 0 ? positionsWithValues.reduce((sum, pos) => sum + pos.gapPct, 0) / positionsWithValues.length : 0;
 
                 // Sort data if a sort column is selected
                 if (sortColumn !== null) {
@@ -398,25 +471,27 @@
                 }
 
                 positionsWithValues.forEach((position) => {
-                    const { tickerSymbol, avgPrice, numShares, lastPrice, costBasis, totalValue, profit, profitPct, changeToday, changePctToday, lastTime } = position;
+                    const { tickerSymbol, avgPrice, numShares, lastPrice, costBasis, totalValue, profit, profitPct, changeToday, changePctToday, gapPct, lastTime } = position;
                     const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
                     const changeTodayClass = changeToday >= 0 ? "profit-positive" : "profit-negative";
                     const changePctTodayClass = changePctToday >= 0 ? "profit-positive" : "profit-negative";
+                    const gapPctClass = gapPct >= 0 ? "profit-positive" : "profit-negative";
                     const timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
 
                     const row = `
-                        <tr>
-                            <td><a href="./?symbol=${tickerSymbol}" class="text-decoration-none text-light">${tickerSymbol}</a></td>
-                            <td>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td>${numShares.toLocaleString()}</td>
-                            <td>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td class="${profitClass}">${profitPct.toFixed(2)}%</td>
-                            <td class="${changeTodayClass}">${changeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td class="${changePctTodayClass}">${changePctToday.toFixed(2)}%</td>
-                            <td>${timeSinceLastTrade}</td>
+                        <tr data-ticker="${tickerSymbol}">
+                            <td${visibleColumns.includes('tickerSymbol') ? '' : ' style="display: none;"'}>${tickerSymbol}</td>
+                            <td${visibleColumns.includes('avgPrice') ? '' : ' style="display: none;"'}>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td${visibleColumns.includes('numShares') ? '' : ' style="display: none;"'}>${numShares.toLocaleString()}</td>
+                            <td${visibleColumns.includes('lastPrice') ? '' : ' style="display: none;"'}>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td${visibleColumns.includes('costBasis') ? '' : ' style="display: none;"'}>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td${visibleColumns.includes('totalValue') ? '' : ' style="display: none;"'}>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td${visibleColumns.includes('profit') ? '' : ' style="display: none;"'} class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td${visibleColumns.includes('profitPct') ? '' : ' style="display: none;"'} class="${profitClass}">${profitPct.toFixed(2)}%</td>
+                            <td${visibleColumns.includes('changeToday') ? '' : ' style="display: none;"'} class="${changeTodayClass}">${changeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td${visibleColumns.includes('changePctToday') ? '' : ' style="display: none;"'} class="${changePctTodayClass}">${changePctToday.toFixed(2)}%</td>
+                            <td${visibleColumns.includes('gapPct') ? '' : ' style="display: none;"'} class="${gapPctClass}">${gapPct.toFixed(2)}%</td>
+                            <td${visibleColumns.includes('lastTime') ? '' : ' style="display: none;"'}>${timeSinceLastTrade}</td>
                         </tr>
                     `;
                     portfolioBody.innerHTML += row;
@@ -428,6 +503,7 @@
                 document.getElementById("totalProfitPct").textContent = totalProfitPct.toFixed(2) + "%";
                 document.getElementById("totalChangeToday").textContent = totalChangeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 document.getElementById("totalChangePctToday").textContent = totalChangePctToday.toFixed(2) + "%";
+                document.getElementById("totalGapPct").textContent = totalGapPct.toFixed(2) + "%";
             });
         }
 
@@ -533,7 +609,7 @@
 
             return new Promise((resolve, reject) => {
                 const request = store.get("refreshInterval");
-                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
                 request.onerror = (event) => reject(event.target.error);
             });
         }
@@ -682,9 +758,11 @@
             const filterInput = document.getElementById("filterInput");
             filterInput.addEventListener("input", renderPortfolio);
 
+            await loadSavedVisibleColumns();
             await loadSavedRefreshInterval();
             await loadPortfolio();
             await startAutoRefresh();
+            setupColumnCustomization();
         });
 
         function reorderColumns(draggedHeader, targetHeader) {
@@ -715,8 +793,8 @@
                 }
             }
 
-                        // Reorder cells in each body row
-                        bodyRows.forEach((row) => {
+            // Reorder cells in each body row
+            bodyRows.forEach((row) => {
                 const cells = Array.from(row.children);
                 const draggedCell = cells[draggedIndex];
                 const targetCell = cells[targetIndex];
@@ -812,6 +890,104 @@
             const log = document.createElement("div");
             log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             debugDiv.appendChild(log);
+        }
+
+        function setupColumnCustomization() {
+            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox input");
+
+            columnCheckboxes.forEach((checkbox) => {
+                checkbox.addEventListener("change", async () => {
+                    const columnKey = checkbox.value;
+                    if (checkbox.checked) {
+                        if (!visibleColumns.includes(columnKey)) {
+                            visibleColumns.push(columnKey);
+                        }
+                    } else {
+                        visibleColumns = visibleColumns.filter((key) => key !== columnKey);
+                    }
+                    await saveVisibleColumns();
+                    updateTableColumns();
+                    renderPortfolio();
+                });
+            });
+        }
+
+        async function saveVisibleColumns() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+
+            store.put({ key: "visibleColumns", value: visibleColumns });
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    console.log("Visible columns saved successfully!");
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error("Failed to save visible columns.", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        async function loadSavedVisibleColumns() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.get("visibleColumns");
+                request.onsuccess = (event) => {
+                    const savedVisibleColumns = event.target.result?.value;
+                    if (savedVisibleColumns) {
+                        visibleColumns = savedVisibleColumns;
+                        updateCheckboxes();
+                    }
+                    resolve();
+                };
+                request.onerror = (event) => {
+                    console.error("Failed to load visible columns.", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        function updateCheckboxes() {
+            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox input");
+
+            columnCheckboxes.forEach((checkbox) => {
+                checkbox.checked = visibleColumns.includes(checkbox.value);
+            });
+        }
+
+        function updateTableColumns() {
+            const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
+            const bodyRows = document.querySelectorAll("#portfolioTable tbody tr");
+            const footerRow = document.querySelector("#portfolioTable tfoot tr");
+
+            tableHeaders.forEach((header) => {
+                const headerKey = header.getAttribute("data-sort-key");
+                header.style.display = visibleColumns.includes(headerKey) ? "" : "none";
+            });
+
+            bodyRows.forEach((row) => {
+                const cells = row.querySelectorAll("td");
+                cells.forEach((cell, index) => {
+                    const columnKey = Object.keys(row.dataset)[index]; // Get data attribute keys
+                    cell.style.display = visibleColumns.includes(columnKey) ? "" : "none";
+                });
+            });
+
+            // Update footer cells
+            const footerCells = footerRow.querySelectorAll("td");
+            footerCells.forEach((cell, index) => {
+                // Assuming the order of footer cells corresponds to header keys
+                if (index > 0 && index <= tableHeaders.length) {
+                    const headerKey = tableHeaders[index-1].getAttribute("data-sort-key");
+                    cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
+                }
+            });
         }
     </script>
     <div id="debugLogs" style="margin-top: 20px; color: #ff6f61; font-family: monospace;"></div>
