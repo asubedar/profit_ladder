@@ -336,15 +336,7 @@
 
                 // Add Event Listener for Checkbox Change
                 li.querySelector('.column-checkbox').addEventListener('change', (e) => {
-                    const columnKey = e.target.value;
-                    if (e.target.checked) {
-                        if (!visibleColumns.includes(columnKey)) {
-                            visibleColumns.push(columnKey);
-                        }
-                    } else {
-                        visibleColumns = visibleColumns.filter(col => col !== columnKey);
-                    }
-                    sortPositions(); // Re-sort after column visibility change
+                    updateVisibleColumns();
                     renderPortfolio();
                 });
 
@@ -392,20 +384,24 @@
                 }
 
                 if (dragSrcEl !== this) {
-                    // Swap the dragged element with the drop target
-                    this.parentNode.removeChild(dragSrcEl);
+                    // Remove the dragged element
+                    dragSrcEl.parentNode.removeChild(dragSrcEl);
+                    // Get the dropped element's HTML
                     const dropHTML = e.dataTransfer.getData('text/html');
+                    // Insert the dragged element before the drop target
                     this.insertAdjacentHTML('beforebegin', dropHTML);
+                    // Get the newly inserted element
                     const dropElem = this.previousSibling;
+                    // Re-attach the event listeners
                     addDnDHandlers(dropElem);
                     
-                    // Remove the original dragged element
+                    // Remove the original drop target
                     this.parentNode.removeChild(this);
-                    // Re-append the drop target
+                    // Re-append the drop target after the dragged element
                     this.parentNode.insertBefore(this, dropElem.nextSibling);
                     
                     // Update visibleColumns based on new order
-                    updateVisibleColumnsOrder();
+                    updateVisibleColumns();
                     renderPortfolio();
                 }
                 return false;
@@ -434,13 +430,15 @@
             });
         }
 
-        // Function to Update Visible Columns Order After Drag-and-Drop
-        function updateVisibleColumnsOrder() {
+        // Function to Update Visible Columns Order and Visibility Based on Column Settings
+        function updateVisibleColumns() {
             const sortableColumns = document.getElementById("sortableColumns");
             const columnItems = sortableColumns.querySelectorAll('.column-item');
-            visibleColumns = Array.from(columnItems).map(item => item.getAttribute('data-column'));
-            console.log("Updated visibleColumns order:", visibleColumns);
-            appendDebugLog("Updated visibleColumns order.");
+            visibleColumns = Array.from(columnItems)
+                .filter(item => item.querySelector('.column-checkbox').checked)
+                .map(item => item.getAttribute('data-column'));
+            console.log("Updated visibleColumns:", visibleColumns);
+            appendDebugLog("Updated visibleColumns.");
         }
 
         // Function to Load Portfolio Data
@@ -475,6 +473,7 @@
             selectedTickers = selectedTickers.length === 0 ? uniqueTickers : selectedTickers;
             generateFilterCheckboxes(uniqueTickers);
             sortPositions(); // Sort after adding calculated fields
+            updateVisibleColumns(); // Ensure visibleColumns is up-to-date
             renderPortfolio();
         }
 
@@ -522,6 +521,13 @@
                     sortPositions();
                     renderPortfolio();
                 });
+
+                // Update sorted class
+                if (sortColumn === columnKey) {
+                    header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                } else {
+                    header.classList.remove('sorted-asc', 'sorted-desc');
+                }
 
                 portfolioHeaders.appendChild(header);
             });
@@ -1071,6 +1077,9 @@
             loadPortfolio();
             startAutoRefresh();
         });
+
+        // Optional: Function to Handle Sorting with Keyboard Accessibility (Enhancement)
+        // You can implement additional features as needed
 
     </script>
 </body>
