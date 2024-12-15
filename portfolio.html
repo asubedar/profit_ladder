@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portfolio Tracker</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         body {
@@ -142,6 +144,7 @@
     </style>
 </head>
 <body>
+    <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="./"><i class="fas fa-calculator"></i> Profit Ladder</a>
@@ -157,11 +160,16 @@
             </div>
         </div>
     </nav>
+
+    <!-- Main Container -->
     <div class="container">
+        <!-- Filter Section -->
         <div class="filter-container">
             <input type="text" id="filterInput" class="form-control" placeholder="Filter by ticker...">
             <div id="filterCheckboxes" class="mt-2"></div>
         </div>
+
+        <!-- Portfolio Table -->
         <div class="table-responsive">
             <table id="portfolioTable">
                 <thead>
@@ -245,6 +253,8 @@
                 </tfoot>
             </table>
         </div>
+
+        <!-- Auto-Refresh Interval Section -->
         <h3 class="mt-4">Auto-Refresh Interval</h3>
         <div id="refreshIntervalButtons" class="d-flex gap-2 mt-2">
             <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="0">Stop</button>
@@ -255,886 +265,980 @@
             <button class="btn btn-outline-light btn-sm refresh-interval-button" data-interval="300">5m</button>
         </div>
         <div id="settingsFeedback" class="mt-2 text-success" style="display: none;"></div>
+
+        <!-- Settings Toggle -->
         <div class="settings-toggle text-right">
             <span id="settingsIcon">⚙️ Settings</span>
         </div>
+
+        <!-- Settings Section -->
         <div class="settings" id="settings">
             <h3>Settings</h3>
+            <!-- Column Customization -->
             <div id="columnCustomization" class="mb-3">
                 <h4>Customize Columns</h4>
-                <ul id="sortableColumns" style="list-style-type: none; padding: 0;">
-                    <li class="column-item" data-column="tickerSymbol">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-tickerSymbol" value="tickerSymbol" checked>
+                <ul id="sortableColumns" class="list-group">
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="tickerSymbol" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-tickerSymbol" value="tickerSymbol" checked>
                         <label class="form-check-label text-light" for="checkbox-tickerSymbol">Ticker</label>
                     </li>
-                    <li class="column-item" data-column="avgPrice">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-avgPrice" value="avgPrice" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="avgPrice" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-avgPrice" value="avgPrice" checked>
                         <label class="form-check-label text-light" for="checkbox-avgPrice">Average Price</label>
                     </li>
-                    <li class="column-item" data-column="numShares">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-numShares" value="numShares" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="numShares" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-numShares" value="numShares" checked>
                         <label class="form-check-label text-light" for="checkbox-numShares">Shares</label>
                     </li>
-                    <li class="column-item" data-column="lastPrice">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-lastPrice" value="lastPrice" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="lastPrice" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-lastPrice" value="lastPrice" checked>
                         <label class="form-check-label text-light" for="checkbox-lastPrice">Current Price</label>
                     </li>
-                    <li class="column-item" data-column="costBasis">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-costBasis" value="costBasis" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="costBasis" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-costBasis" value="costBasis" checked>
                         <label class="form-check-label text-light" for="checkbox-costBasis">Cost Basis</label>
                     </li>
-                    <li class="column-item" data-column="totalValue">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-totalValue" value="totalValue" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="totalValue" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-totalValue" value="totalValue" checked>
                         <label class="form-check-label text-light" for="checkbox-totalValue">Total Value</label>
                     </li>
-                    <li class="column-item" data-column="profit">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-profit" value="profit" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="profit" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-profit" value="profit" checked>
                         <label class="form-check-label text-light" for="checkbox-profit">Profit</label>
                     </li>
-                    <li class="column-item" data-column="profitPct">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-profitPct" value="profitPct" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="profitPct" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-profitPct" value="profitPct" checked>
                         <label class="form-check-label text-light" for="checkbox-profitPct">Profit %</label>
                     </li>
-                    <li class="column-item" data-column="changeToday">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-changeToday" value="changeToday" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="changeToday" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-changeToday" value="changeToday" checked>
                         <label class="form-check-label text-light" for="checkbox-changeToday">Change Today</label>
                     </li>
-                    <li class="column-item" data-column="changePctToday">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-changePctToday" value="changePctToday" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="changePctToday" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-changePctToday" value="changePctToday" checked>
                         <label class="form-check-label text-light" for="checkbox-changePctToday">Change % Today</label>
                     </li>
-                    <li class="column-item" data-column="gapPct">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-gapPct" value="gapPct" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="gapPct" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-gapPct" value="gapPct" checked>
                         <label class="form-check-label text-light" for="checkbox-gapPct">Gap %</label>
                     </li>
-                    <li class="column-item" data-column="lastTime">
-                        <input class="form-check-input column-checkbox" type="checkbox" id="checkbox-lastTime" value="lastTime" checked>
+                    <li class="column-item list-group-item d-flex align-items-center" data-column="lastTime" draggable="true">
+                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-lastTime" value="lastTime" checked>
                         <label class="form-check-label text-light" for="checkbox-lastTime">Time Since Last Trade</label>
                     </li>
                 </ul>
             </div>
-            <label for="alpacaApiKey">Alpaca API Key:</label>
-            <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
-            <label for="alpacaApiSecret" class="mt-2">Alpaca API Secret:</label>
-            <input type="text" id="alpacaApiSecret" class="form-control" placeholder="Enter your Alpaca API Secret">
-            <label for="apiKeyInput" class="mt-2">Finnhub API Key:</label>
-            <input type="text" id="apiKeyInput" class="form-control" placeholder="Enter your Finnhub API Key">
-            <button id="saveKeys" class="btn btn-primary mt-2">Save Settings</button>
+
+            <!-- API Keys Section -->
+            <div class="mb-3">
+                <label for="alpacaApiKey" class="form-label">Alpaca API Key:</label>
+                <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
+            </div>
+            <div class="mb-3">
+                <label for="alpacaApiSecret" class="form-label">Alpaca API Secret:</label>
+                <input type="text" id="alpacaApiSecret" class="form-control" placeholder="Enter your Alpaca API Secret">
+            </div>
+            <div class="mb-3">
+                <label for="finnhubApiKey" class="form-label">Finnhub API Key:</label>
+                <input type="text" id="finnhubApiKey" class="form-control" placeholder="Enter your Finnhub API Key">
+            </div>
+            <button id="saveKeys" class="btn btn-primary">Save Settings</button>
         </div>
+
         <!-- Debug Logs Section (Optional) -->
         <div id="debugLogs"></div>
-    </div>
 
-    <script>
-        const dbName = "ProfitLadderDB";
-        const positionsStoreName = "Positions";
-        const settingsStoreName = "Settings";
+        <!-- Bootstrap JS and Dependencies -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Main JavaScript -->
+        <script>
+            // Database Configuration
+            const dbName = "ProfitLadderDB";
+            const positionsStoreName = "Positions";
+            const settingsStoreName = "Settings";
 
-        let refreshIntervalId;
-        let sortColumn = null;
-        let sortDirection = 'asc';
-        let allPositions = [];
-        let selectedTickers = [];
-        let visibleColumns = [
-            "tickerSymbol",
-            "avgPrice",
-            "numShares",
-            "lastPrice",
-            "costBasis",
-            "totalValue",
-            "profit",
-            "profitPct",
-            "changeToday",
-            "changePctToday",
-            "gapPct",
-            "lastTime"
-        ];
+            // State Variables
+            let refreshIntervalId;
+            let sortColumn = null;
+            let sortDirection = 'asc';
+            let allPositions = [];
+            let selectedTickers = [];
+            let visibleColumns = [
+                "tickerSymbol",
+                "avgPrice",
+                "numShares",
+                "lastPrice",
+                "costBasis",
+                "totalValue",
+                "profit",
+                "profitPct",
+                "changeToday",
+                "changePctToday",
+                "gapPct",
+                "lastTime"
+            ];
 
-        async function fetchCurrentPrices(tickers) {
-            if (!tickers || tickers.length === 0) {
-                return {};
-            }
+            // Function to Open IndexedDB
+            async function openDatabase() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(dbName, 2);
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
 
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
+                        if (!db.objectStoreNames.contains(positionsStoreName)) {
+                            db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
+                            appendDebugLog("Created 'Positions' object store.");
+                        }
 
-            const alpacaKey = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_KEY_ID");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
+                        if (!db.objectStoreNames.contains(settingsStoreName)) {
+                            db.createObjectStore(settingsStoreName, { keyPath: "key" });
+                            appendDebugLog("Created 'Settings' object store.");
+                        }
+                    };
 
-            const alpacaSecret = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_SECRET_KEY");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
+                    request.onsuccess = (event) => {
+                        const db = event.target.result;
+                        resolve(db);
+                    };
 
-            if (alpacaKey && alpacaSecret) {
-                return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
-            }
-
-            console.warn("Alpaca credentials not available, falling back to Finnhub.");
-            const finnhubKey = await new Promise((resolve, reject) => {
-                const request = store.get("finnhubApiKey");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (!finnhubKey) {
-                console.error("Finnhub API Key is not set. Please configure it in the settings.");
-                return {};
-            }
-
-            return await fetchPricesFromFinnhub(tickers, finnhubKey);
-        }
-
-        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
-            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        "APCA-API-KEY-ID": apiKey,
-                        "APCA-API-SECRET-KEY": apiSecret,
-                    },
+                    request.onerror = (event) => {
+                        appendDebugLog(`Database open failed: ${event.target.error}`);
+                        reject(event.target.error);
+                    };
                 });
+            }
 
-                if (!response.ok) {
-                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
+            // Function to Fetch Current Prices
+            async function fetchCurrentPrices(tickers) {
+                if (!tickers || tickers.length === 0) {
                     return {};
                 }
 
-                const data = await response.json();
-                const prices = {};
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readonly");
+                const store = transaction.objectStore(settingsStoreName);
 
-                for (const [symbol, snapshot] of Object.entries(data)) {
-                    prices[symbol] = {
-                        price: snapshot.latestTrade?.p || 0,
-                        time: snapshot.latestTrade?.t || "N/A",
-                        open: snapshot.dailyBar?.o || 0,
-                        prevClose: snapshot.prevDailyBar?.c || 0,
-                    };
+                const alpacaKey = await new Promise((resolve, reject) => {
+                    const request = store.get("APCA_API_KEY_ID");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                const alpacaSecret = await new Promise((resolve, reject) => {
+                    const request = store.get("APCA_API_SECRET_KEY");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                if (alpacaKey && alpacaSecret) {
+                    return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
                 }
 
-                console.log("Fetched prices from Alpaca:", prices);
-                return prices;
-            } catch (error) {
-                console.error("Error fetching snapshots from Alpaca:", error);
-                return {};
-            }
-        }
-
-        async function fetchPricesFromFinnhub(tickers, apiKey) {
-            try {
-                const responses = await Promise.all(
-                    tickers.map(async (ticker) => {
-                        const [quoteResponse, prevCloseResponse] = await Promise.all([
-                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
-                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
-                        ]);
-
-                        if (!quoteResponse.ok) {
-                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
-                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
-                        }
-                        const quoteData = await quoteResponse.json();
-
-                        let prevClose = 0;
-                        if (!prevCloseResponse.ok) {
-                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
-                        } else {
-                            const prevCloseData = await prevCloseResponse.json();
-                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
-                        }
-
-                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
-                    })
-                );
-
-                const prices = {};
-                responses.forEach((res) => {
-                    if (res.ticker) {
-                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
-                    }
-                });
-                console.log("Fetched prices from Finnhub:", prices);
-                return prices;
-            } catch (error) {
-                console.error("Error fetching prices from Finnhub:", error);
-                return {};
-            }
-        }
-
-        async function loadPortfolio() {
-            allPositions = await fetchPositions();
-            // Calculate and append additional fields to each position
-            allPositions = allPositions.map(position => {
-                const currentPrice = position.lastPrice || 0;
-                const costBasis = position.avgPrice * position.numShares;
-                const totalValue = currentPrice * position.numShares;
-                const profit = totalValue - costBasis;
-                const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
-                const changeToday = position.changeToday || 0;
-                const changePctToday = position.changePctToday || 0;
-                const gapPct = position.gapPct || 0;
-                const timeSinceLastTrade = position.lastTime || "N/A";
-
-                return {
-                    ...position,
-                    costBasis,
-                    totalValue,
-                    profit,
-                    profitPct,
-                    changeToday,
-                    changePctToday,
-                    gapPct,
-                    timeSinceLastTrade
-                };
-            });
-
-            const uniqueTickers = [...new Set(allPositions.map((p) => p.tickerSymbol))];
-            selectedTickers = selectedTickers.length === 0 ? uniqueTickers : selectedTickers;
-            generateFilterCheckboxes(uniqueTickers);
-            sortPositions(); // Sort after adding calculated fields
-            renderPortfolio();
-        }
-
-        async function renderPortfolio() {
-            const filteredPositions = filterPositions(allPositions, selectedTickers);
-            const portfolioBody = document.getElementById("portfolioBody");
-            portfolioBody.innerHTML = "";
-
-            if (filteredPositions.length === 0) {
-                portfolioBody.innerHTML = `<tr><td colspan="12" class="text-center">No positions to display.</td></tr>`;
-                return;
-            }
-
-            // Collect all unique tickers
-            const uniqueTickers = [...new Set(filteredPositions.map((p) => p.tickerSymbol))];
-
-            // Fetch batched prices for all symbols
-            const priceData = await fetchCurrentPrices(uniqueTickers);
-            console.log("Price Data:", priceData); // Debug log
-
-            let totalCostBasis = 0;
-            let totalValue = 0;
-            let totalProfit = 0;
-            let totalProfitPct = 0;
-            let totalChangeToday = 0;
-            let totalChangePctToday = 0;
-            let totalGapPct = 0;
-
-            filteredPositions.forEach((position) => {
-                const priceInfo = priceData[position.tickerSymbol] || {};
-                const currentPrice = priceInfo.price || position.lastPrice || 0;
-                const lastTime = priceInfo.time || "N/A";
-                const openPrice = priceInfo.open || position.openPrice || 0;
-                const prevClosePrice = priceInfo.prevClose || position.prevClosePrice || 0;
-
-                // Update calculated fields
-                position.costBasis = position.avgPrice * position.numShares;
-                position.totalValue = currentPrice * position.numShares;
-                position.profit = position.totalValue - position.costBasis;
-                position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
-                position.changeToday = currentPrice - prevClosePrice;
-                position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
-                position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
-                position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
-
-                // Accumulate totals
-                totalCostBasis += position.costBasis;
-                totalValue += position.totalValue;
-                totalProfit += position.profit;
-                totalProfitPct += position.profitPct;
-                totalChangeToday += position.changeToday;
-                totalChangePctToday += position.changePctToday;
-                totalGapPct += position.gapPct;
-
-                const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
-
-                const row = `
-                    <tr>
-                        <td>${position.tickerSymbol}</td>
-                        <td>${position.avgPrice.toFixed(2)}</td>
-                        <td>${position.numShares}</td>
-                        <td>${currentPrice.toFixed(2)}</td>
-                        <td>${position.costBasis.toFixed(2)}</td>
-                        <td>${position.totalValue.toFixed(2)}</td>
-                        <td class="${profitClass}">${position.profit.toFixed(2)}</td>
-                        <td>${position.profitPct.toFixed(2)}%</td>
-                        <td>${position.changeToday.toFixed(2)}</td>
-                        <td>${position.changePctToday.toFixed(2)}%</td>
-                        <td>${position.gapPct.toFixed(2)}%</td>
-                        <td>${position.timeSinceLastTrade}</td>
-                    </tr>
-                `;
-                portfolioBody.innerHTML += row;
-            });
-
-            // Calculate average profit percentage
-            const averageProfitPct = filteredPositions.length > 0 ? (totalProfitPct / filteredPositions.length) : 0;
-
-            // Calculate total profit percentage based on total cost basis
-            totalProfitPct = totalCostBasis !== 0 ? (totalProfit / totalCostBasis) * 100 : 0;
-
-            // Update totals in the footer
-            document.getElementById("totalCostBasis").textContent = totalCostBasis.toFixed(2);
-            document.getElementById("totalValue").textContent = totalValue.toFixed(2);
-            document.getElementById("totalProfit").textContent = totalProfit.toFixed(2);
-            document.getElementById("totalProfitPct").textContent = totalProfitPct.toFixed(2) + "%";
-            document.getElementById("totalChangeToday").textContent = totalChangeToday.toFixed(2);
-            document.getElementById("totalChangePctToday").textContent = totalChangePctToday.toFixed(2) + "%";
-            document.getElementById("totalGapPct").textContent = totalGapPct.toFixed(2) + "%";
-        }
-
-        function calculateTimeSinceLastTrade(lastTradeTime) {
-            if (lastTradeTime === "N/A") return "N/A";
-            const lastTradeDate = new Date(lastTradeTime);
-            const now = new Date();
-            const diffInSeconds = Math.round((now - lastTradeDate) / 1000);
-
-            if (diffInSeconds < 60) {
-                return `${diffInSeconds}s ago`;
-            } else if (diffInSeconds < 3600) {
-                const minutes = Math.round(diffInSeconds / 60);
-                return `${minutes}m ago`;
-            } else if (diffInSeconds < 86400) {
-                const hours = Math.round(diffInSeconds / 3600);
-                return `${hours}h ago`;
-            } else {
-                const days = Math.round(diffInSeconds / 86400);
-                return `${days}d ago`;
-            }
-        }
-
-        async function fetchPositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        async function updatePosition(tickerSymbol, currentPrice, lastTime, openPrice, prevClosePrice) {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readwrite");
-            const store = transaction.objectStore(positionsStoreName);
-
-            const position = await new Promise((resolve, reject) => {
-                const request = store.get(tickerSymbol);
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (position) {
-                position.lastPrice = currentPrice;
-                position.lastTime = lastTime;
-                position.openPrice = openPrice;
-                position.prevClosePrice = prevClosePrice;
-                store.put(position);
-            }
-        }
-
-        async function openDatabase() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 2);
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-
-                    if (!db.objectStoreNames.contains(positionsStoreName)) {
-                        db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
-                        appendDebugLog("Created 'Positions' object store.");
-                    }
-
-                    if (!db.objectStoreNames.contains(settingsStoreName)) {
-                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
-                        appendDebugLog("Created 'Settings' object store.");
-                    }
-                };
-
-                request.onsuccess = (event) => {
-                    const db = event.target.result;
-                    resolve(db);
-                };
-
-                request.onerror = (event) => {
-                    appendDebugLog(`Database open failed: ${event.target.error}`);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        async function startAutoRefresh() {
-            const interval = await getRefreshInterval();
-            if (refreshIntervalId) {
-                clearInterval(refreshIntervalId);
-            }
-
-            if (interval > 0) {
-                refreshIntervalId = setInterval(async () => {
-                    console.log("Auto-refreshing prices...");
-                    await loadPortfolio(); // Changed to loadPortfolio to recalculate and sort
-                }, interval * 1000);
-            }
-        }
-
-        async function getRefreshInterval() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("refreshInterval");
-                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        function generateFilterCheckboxes(uniqueTickers) {
-            const filterCheckboxes = document.getElementById("filterCheckboxes");
-            filterCheckboxes.innerHTML = "";
-
-            uniqueTickers.forEach((ticker) => {
-                const isChecked = selectedTickers.includes(ticker);
-                const checkbox = document.createElement("div");
-                checkbox.className = "form-check form-check-inline filter-checkbox";
-                checkbox.innerHTML = `
-                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" ${isChecked ? "checked" : ""}>
-                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
-                `;
-
-                checkbox.addEventListener("change", () => {
-                    const ticker = checkbox.querySelector("input").value;
-                    if (checkbox.querySelector("input").checked) {
-                        if (!selectedTickers.includes(ticker)) {
-                            selectedTickers.push(ticker);
-                        }
-                    } else {
-                        selectedTickers = selectedTickers.filter((t) => t !== ticker);
-                    }
-                    sortPositions(); // Re-sort after filter change
-                    renderPortfolio();
+                console.warn("Alpaca credentials not available, falling back to Finnhub.");
+                const finnhubKey = await new Promise((resolve, reject) => {
+                    const request = store.get("finnhubApiKey");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                    request.onerror = (event) => reject(event.target.error);
                 });
 
-                filterCheckboxes.appendChild(checkbox);
-            });
-        }
-
-        function filterPositions(positions, selectedTickers) {
-            const filterInput = document.getElementById("filterInput");
-            const filterText = filterInput.value.toLowerCase();
-            return positions.filter((position) => {
-                const tickerMatches = position.tickerSymbol.toLowerCase().includes(filterText);
-                const isSelected = selectedTickers.includes(position.tickerSymbol);
-                return tickerMatches && isSelected;
-            });
-        }
-
-        document.addEventListener("DOMContentLoaded", async () => {
-            const settingsIcon = document.getElementById("settingsIcon");
-            const settingsSection = document.getElementById("settings");
-
-            settingsIcon.addEventListener("click", () => {
-                if (settingsSection.style.display === "none" || !settingsSection.style.display) {
-                    settingsSection.style.display = "block";
-                } else {
-                    settingsSection.style.display = "none";
+                if (!finnhubKey) {
+                    console.error("Finnhub API Key is not set. Please configure it in the settings.");
+                    return {};
                 }
-            });
 
-            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+                return await fetchPricesFromFinnhub(tickers, finnhubKey);
+            }
 
-            refreshButtons.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    const selectedInterval = parseInt(event.target.getAttribute("data-interval"));
-                    await saveRefreshInterval(selectedInterval);
-
-                    refreshButtons.forEach((btn) => btn.classList.remove("btn-primary"));
-                    event.target.classList.add("btn-primary");
-
-                    startAutoRefresh();
-                });
-            });
-
-            const saveKeysButton = document.getElementById("saveKeys");
-            saveKeysButton.addEventListener("click", async () => {
-                const alpacaKey = document.getElementById("alpacaApiKey").value;
-                const alpacaSecret = document.getElementById("alpacaApiSecret").value;
-                const finnhubKey = document.getElementById("apiKeyInput").value;
-
+            // Fetch Prices from Alpaca
+            async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
+                const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
                 try {
-                    await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
-                    showFeedback("Settings saved successfully!", "success");
-                } catch (error) {
-                    console.error("Failed to save settings:", error);
-                    showFeedback("Failed to save settings.", "danger");
-                }
-            });
+                    const response = await fetch(url, {
+                        headers: {
+                            "APCA-API-KEY-ID": apiKey,
+                            "APCA-API-SECRET-KEY": apiSecret,
+                        },
+                    });
 
-            const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
-
-            tableHeaders.forEach((header) => {
-                header.addEventListener("click", (event) => {
-                    const newSortColumn = header.getAttribute("data-sort-key");
-                    const sortType = header.getAttribute("data-sort-type");
-
-                    if (sortColumn === newSortColumn) {
-                        sortDirection = sortDirection === "asc" ? "desc" : "asc";
-                    } else {
-                        sortColumn = newSortColumn;
-                        sortDirection = "asc";
+                    if (!response.ok) {
+                        console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
+                        return {};
                     }
 
-                    tableHeaders.forEach((h) => {
-                        h.classList.remove("sorted-asc", "sorted-desc");
-                    });
-                    header.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
+                    const data = await response.json();
+                    const prices = {};
 
-                    sortPositions();
-                    renderPortfolio();
-                });
-            });
+                    for (const [symbol, snapshot] of Object.entries(data)) {
+                        prices[symbol] = {
+                            price: snapshot.latestTrade?.p || 0,
+                            time: snapshot.latestTrade?.t || "N/A",
+                            open: snapshot.dailyBar?.o || 0,
+                            prevClose: snapshot.prevDailyBar?.c || 0,
+                        };
+                    }
 
-            const filterInput = document.getElementById("filterInput");
-            filterInput.addEventListener("input", () => {
-                sortPositions(); // Re-sort when filter changes
-                renderPortfolio();
-            });
-
-            await loadSavedVisibleColumns();
-            await loadSavedRefreshInterval();
-            await loadPortfolio();
-            await startAutoRefresh();
-            setupColumnCustomization();
-        });
-
-        async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
-
-            appendDebugLog("Saving API keys...");
-
-            if (alpacaKey) {
-                store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
-                appendDebugLog(`Alpaca Key saved: ${alpacaKey}`);
-            }
-
-            if (alpacaSecret) {
-                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
-                appendDebugLog("Alpaca Secret saved.");
-            }
-
-            if (finnhubKey) {
-                store.put({ key: "finnhubApiKey", value: finnhubKey });
-                appendDebugLog("Finnhub Key saved.");
-            }
-
-            return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => {
-                    appendDebugLog("Settings saved successfully.");
-                    resolve();
-                };
-
-                transaction.onerror = (event) => {
-                    appendDebugLog(`Failed to save settings: ${event.target.error}`);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        function showFeedback(message, type) {
-            const feedbackDiv = document.getElementById("settingsFeedback");
-            feedbackDiv.textContent = message;
-            feedbackDiv.className = `mt-2 text-${type}`;
-            feedbackDiv.style.display = "block";
-
-            setTimeout(() => {
-                feedbackDiv.style.display = "none";
-            }, 3000);
-        }
-
-        async function saveRefreshInterval(interval) {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
-
-            store.put({ key: "refreshInterval", value: interval });
-
-            return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => {
-                    console.log("Refresh interval saved successfully!");
-                    resolve();
-                };
-                transaction.onerror = (event) => {
-                    console.error("Failed to save refresh interval.", event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        async function loadSavedRefreshInterval() {
-            const interval = await getRefreshInterval();
-            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
-
-            refreshButtons.forEach((button) => {
-                if (parseInt(button.getAttribute("data-interval")) === interval) {
-                    button.classList.add("btn-primary");
-                } else {
-                    button.classList.remove("btn-primary");
+                    console.log("Fetched prices from Alpaca:", prices);
+                    return prices;
+                } catch (error) {
+                    console.error("Error fetching snapshots from Alpaca:", error);
+                    return {};
                 }
-            });
-        }
+            }
 
-        function appendDebugLog(message) {
-            const debugDiv = document.getElementById("debugLogs");
-            const log = document.createElement("div");
-            log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            debugDiv.appendChild(log);
-            debugDiv.style.display = "block"; // Make sure it's visible if needed
-        }
+            // Fetch Prices from Finnhub
+            async function fetchPricesFromFinnhub(tickers, apiKey) {
+                try {
+                    const responses = await Promise.all(
+                        tickers.map(async (ticker) => {
+                            const [quoteResponse, prevCloseResponse] = await Promise.all([
+                                fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
+                                fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
+                            ]);
 
-        function setupColumnCustomization() {
-            const sortableColumns = document.getElementById("sortableColumns");
-            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
-            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
+                            if (!quoteResponse.ok) {
+                                console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
+                                return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
+                            }
+                            const quoteData = await quoteResponse.json();
 
-            let draggedItem = null;
+                            let prevClose = 0;
+                            if (!prevCloseResponse.ok) {
+                                console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
+                            } else {
+                                const prevCloseData = await prevCloseResponse.json();
+                                prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
+                            }
 
-            sortableColumns.addEventListener("dragstart", (event) => {
-                draggedItem = event.target;
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("text/plain", "");
+                            return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
+                        })
+                    );
+
+                    const prices = {};
+                    responses.forEach((res) => {
+                        if (res.ticker) {
+                            prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
+                        }
+                    });
+                    console.log("Fetched prices from Finnhub:", prices);
+                    return prices;
+                } catch (error) {
+                    console.error("Error fetching prices from Finnhub:", error);
+                    return {};
+                }
+            }
+
+            // Function to Load Portfolio Data
+            async function loadPortfolio() {
+                allPositions = await fetchPositions();
+                // Calculate and append additional fields to each position
+                allPositions = allPositions.map(position => {
+                    const currentPrice = position.lastPrice || 0;
+                    const costBasis = position.avgPrice * position.numShares;
+                    const totalValue = currentPrice * position.numShares;
+                    const profit = totalValue - costBasis;
+                    const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
+                    const changeToday = position.changeToday || 0;
+                    const changePctToday = position.changePctToday || 0;
+                    const gapPct = position.gapPct || 0;
+                    const timeSinceLastTrade = position.lastTime || "N/A";
+
+                    return {
+                        ...position,
+                        costBasis,
+                        totalValue,
+                        profit,
+                        profitPct,
+                        changeToday,
+                        changePctToday,
+                        gapPct,
+                        timeSinceLastTrade
+                    };
+                });
+
+                const uniqueTickers = [...new Set(allPositions.map((p) => p.tickerSymbol))];
+                selectedTickers = selectedTickers.length === 0 ? uniqueTickers : selectedTickers;
+                generateFilterCheckboxes(uniqueTickers);
+                sortPositions(); // Sort after adding calculated fields
+                renderPortfolio();
+            }
+
+            // Function to Render Portfolio Table
+            async function renderPortfolio() {
+                const filteredPositions = filterPositions(allPositions, selectedTickers);
+                const portfolioBody = document.getElementById("portfolioBody");
+                portfolioBody.innerHTML = "";
+
+                if (filteredPositions.length === 0) {
+                    portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
+                    return;
+                }
+
+                // Fetch batched prices for all symbols
+                const uniqueTickers = [...new Set(filteredPositions.map((p) => p.tickerSymbol))];
+                const priceData = await fetchCurrentPrices(uniqueTickers);
+                console.log("Price Data:", priceData); // Debug log
+
+                let totals = {
+                    costBasis: 0,
+                    totalValue: 0,
+                    profit: 0,
+                    profitPct: 0,
+                    changeToday: 0,
+                    changePctToday: 0,
+                    gapPct: 0
+                };
+
+                filteredPositions.forEach((position) => {
+                    const priceInfo = priceData[position.tickerSymbol] || {};
+                    const currentPrice = priceInfo.price || position.lastPrice || 0;
+                    const lastTime = priceInfo.time || "N/A";
+                    const openPrice = priceInfo.open || position.openPrice || 0;
+                    const prevClosePrice = priceInfo.prevClose || position.prevClosePrice || 0;
+
+                    // Update calculated fields
+                    position.costBasis = position.avgPrice * position.numShares;
+                    position.totalValue = currentPrice * position.numShares;
+                    position.profit = position.totalValue - position.costBasis;
+                    position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
+                    position.changeToday = currentPrice - prevClosePrice;
+                    position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
+                    position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
+                    position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
+
+                    // Accumulate totals
+                    totals.costBasis += position.costBasis;
+                    totals.totalValue += position.totalValue;
+                    totals.profit += position.profit;
+                    totals.profitPct += position.profitPct;
+                    totals.changeToday += position.changeToday;
+                    totals.changePctToday += position.changePctToday;
+                    totals.gapPct += position.gapPct;
+
+                    const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
+
+                    // Generate table row based on visibleColumns order
+                    let row = `<tr>`;
+                    visibleColumns.forEach((columnKey) => {
+                        let cellContent = "";
+                        switch (columnKey) {
+                            case "tickerSymbol":
+                                cellContent = position.tickerSymbol;
+                                break;
+                            case "avgPrice":
+                                cellContent = position.avgPrice.toFixed(2);
+                                break;
+                            case "numShares":
+                                cellContent = position.numShares;
+                                break;
+                            case "lastPrice":
+                                cellContent = currentPrice.toFixed(2);
+                                break;
+                            case "costBasis":
+                                cellContent = position.costBasis.toFixed(2);
+                                break;
+                            case "totalValue":
+                                cellContent = position.totalValue.toFixed(2);
+                                break;
+                            case "profit":
+                                cellContent = `<span class="${profitClass}">${position.profit.toFixed(2)}</span>`;
+                                break;
+                            case "profitPct":
+                                cellContent = `${position.profitPct.toFixed(2)}%`;
+                                break;
+                            case "changeToday":
+                                cellContent = position.changeToday.toFixed(2);
+                                break;
+                            case "changePctToday":
+                                cellContent = `${position.changePctToday.toFixed(2)}%`;
+                                break;
+                            case "gapPct":
+                                cellContent = `${position.gapPct.toFixed(2)}%`;
+                                break;
+                            case "lastTime":
+                                cellContent = position.timeSinceLastTrade;
+                                break;
+                            default:
+                                cellContent = "";
+                        }
+                        row += `<td>${cellContent}</td>`;
+                    });
+                    row += `</tr>`;
+                    portfolioBody.innerHTML += row;
+                });
+
+                // Calculate total profit percentage based on total cost basis
+                const totalProfitPct = totals.costBasis !== 0 ? (totals.profit / totals.costBasis) * 100 : 0;
+
+                // Update totals in the footer based on visibleColumns
+                const footerRow = document.querySelector("#portfolioTable tfoot tr");
+                footerRow.innerHTML = `<td>Totals</td>`;
+
+                visibleColumns.forEach((columnKey) => {
+                    let footerContent = "";
+                    switch (columnKey) {
+                        case "costBasis":
+                            footerContent = totals.costBasis.toFixed(2);
+                            break;
+                        case "totalValue":
+                            footerContent = totals.totalValue.toFixed(2);
+                            break;
+                        case "profit":
+                            footerContent = totals.profit.toFixed(2);
+                            break;
+                        case "profitPct":
+                            footerContent = totalProfitPct.toFixed(2) + "%";
+                            break;
+                        case "changeToday":
+                            footerContent = totals.changeToday.toFixed(2);
+                            break;
+                        case "changePctToday":
+                            footerContent = totals.changePctToday.toFixed(2) + "%";
+                            break;
+                        case "gapPct":
+                            footerContent = totals.gapPct.toFixed(2) + "%";
+                            break;
+                        default:
+                            footerContent = ""; // Empty for other columns
+                    }
+                    footerRow.innerHTML += `<td>${footerContent}</td>`;
+                });
+
+                // If there are remaining columns not handled, fill them with empty cells
+                const totalColumns = 12; // Total number of possible columns
+                if (visibleColumns.length < totalColumns) {
+                    for (let i = visibleColumns.length; i < totalColumns; i++) {
+                        footerRow.innerHTML += `<td></td>`;
+                    }
+                }
+            }
+
+            // Function to Calculate Time Since Last Trade
+            function calculateTimeSinceLastTrade(lastTradeTime) {
+                if (lastTradeTime === "N/A") return "N/A";
+                const lastTradeDate = new Date(lastTradeTime);
+                const now = new Date();
+                const diffInSeconds = Math.round((now - lastTradeDate) / 1000);
+
+                if (diffInSeconds < 60) {
+                    return `${diffInSeconds}s ago`;
+                } else if (diffInSeconds < 3600) {
+                    const minutes = Math.round(diffInSeconds / 60);
+                    return `${minutes}m ago`;
+                } else if (diffInSeconds < 86400) {
+                    const hours = Math.round(diffInSeconds / 3600);
+                    return `${hours}h ago`;
+                } else {
+                    const days = Math.round(diffInSeconds / 86400);
+                    return `${days}d ago`;
+                }
+            }
+
+            // Function to Fetch All Positions from IndexedDB
+            async function fetchPositions() {
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readonly");
+                const store = transaction.objectStore(positionsStoreName);
+
+                return new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    request.onsuccess = (event) => resolve(event.target.result);
+                    request.onerror = (event) => reject(event.target.error);
+                });
+            }
+
+            // Function to Update a Position in IndexedDB
+            async function updatePosition(tickerSymbol, currentPrice, lastTime, openPrice, prevClosePrice) {
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readwrite");
+                const store = transaction.objectStore(positionsStoreName);
+
+                const position = await new Promise((resolve, reject) => {
+                    const request = store.get(tickerSymbol);
+                    request.onsuccess = (event) => resolve(event.target.result);
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                if (position) {
+                    position.lastPrice = currentPrice;
+                    position.lastTime = lastTime;
+                    position.openPrice = openPrice;
+                    position.prevClosePrice = prevClosePrice;
+                    store.put(position);
+                }
+            }
+
+            // Function to Start Auto-Refresh
+            async function startAutoRefresh() {
+                const interval = await getRefreshInterval();
+                if (refreshIntervalId) {
+                    clearInterval(refreshIntervalId);
+                }
+
+                if (interval > 0) {
+                    refreshIntervalId = setInterval(async () => {
+                        console.log("Auto-refreshing prices...");
+                        await loadPortfolio(); // Changed to loadPortfolio to recalculate and sort
+                    }, interval * 1000);
+                }
+            }
+
+            // Function to Get Refresh Interval from IndexedDB
+            async function getRefreshInterval() {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readonly");
+                const store = transaction.objectStore(settingsStoreName);
+
+                return new Promise((resolve, reject) => {
+                    const request = store.get("refreshInterval");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                    request.onerror = (event) => reject(event.target.error);
+                });
+            }
+
+            // Function to Generate Filter Checkboxes
+            function generateFilterCheckboxes(uniqueTickers) {
+                const filterCheckboxes = document.getElementById("filterCheckboxes");
+                filterCheckboxes.innerHTML = "";
+
+                uniqueTickers.forEach((ticker) => {
+                    const isChecked = selectedTickers.includes(ticker);
+                    const checkbox = document.createElement("div");
+                    checkbox.className = "form-check form-check-inline filter-checkbox";
+                    checkbox.innerHTML = `
+                        <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" ${isChecked ? "checked" : ""}>
+                        <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
+                    `;
+
+                    checkbox.addEventListener("change", () => {
+                        const ticker = checkbox.querySelector("input").value;
+                        if (checkbox.querySelector("input").checked) {
+                            if (!selectedTickers.includes(ticker)) {
+                                selectedTickers.push(ticker);
+                            }
+                        } else {
+                            selectedTickers = selectedTickers.filter((t) => t !== ticker);
+                        }
+                        sortPositions(); // Re-sort after filter change
+                        renderPortfolio();
+                    });
+
+                    filterCheckboxes.appendChild(checkbox);
+                });
+            }
+
+            // Function to Filter Positions Based on Selected Tickers and Filter Text
+            function filterPositions(positions, selectedTickers) {
+                const filterInput = document.getElementById("filterInput");
+                const filterText = filterInput.value.toLowerCase();
+                return positions.filter((position) => {
+                    const tickerMatches = position.tickerSymbol.toLowerCase().includes(filterText);
+                    const isSelected = selectedTickers.includes(position.tickerSymbol);
+                    return tickerMatches && isSelected;
+                });
+            }
+
+            // Function to Save API Keys to IndexedDB
+            async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
+
+                appendDebugLog("Saving API keys...");
+
+                if (alpacaKey) {
+                    store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
+                    appendDebugLog(`Alpaca Key saved: ${alpacaKey}`);
+                }
+
+                if (alpacaSecret) {
+                    store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
+                    appendDebugLog("Alpaca Secret saved.");
+                }
+
+                if (finnhubKey) {
+                    store.put({ key: "finnhubApiKey", value: finnhubKey });
+                    appendDebugLog("Finnhub Key saved.");
+                }
+
+                return new Promise((resolve, reject) => {
+                    transaction.oncomplete = () => {
+                        appendDebugLog("Settings saved successfully.");
+                        resolve();
+                    };
+
+                    transaction.onerror = (event) => {
+                        appendDebugLog(`Failed to save settings: ${event.target.error}`);
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            // Function to Show Feedback Messages
+            function showFeedback(message, type) {
+                const feedbackDiv = document.getElementById("settingsFeedback");
+                feedbackDiv.textContent = message;
+                feedbackDiv.className = `mt-2 text-${type}`;
+                feedbackDiv.style.display = "block";
+
                 setTimeout(() => {
-                    draggedItem.style.opacity = "0.5";
-                }, 0);
-            });
+                    feedbackDiv.style.display = "none";
+                }, 3000);
+            }
 
-            sortableColumns.addEventListener("dragover", (event) => {
-                event.preventDefault();
-                const targetItem = event.target.closest(".column-item");
-                if (targetItem) {
-                    const bounding = targetItem.getBoundingClientRect();
-                    const offset = bounding.y + bounding.height / 2;
+            // Function to Save Refresh Interval to IndexedDB
+            async function saveRefreshInterval(interval) {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
 
-                    if (event.clientY - offset > 0) {
-                        targetItem.style.borderBottom = "2px solid white";
-                        targetItem.style.borderTop = "";
+                store.put({ key: "refreshInterval", value: interval });
+
+                return new Promise((resolve, reject) => {
+                    transaction.oncomplete = () => {
+                        console.log("Refresh interval saved successfully!");
+                        resolve();
+                    };
+                    transaction.onerror = (event) => {
+                        console.error("Failed to save refresh interval.", event.target.error);
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            // Function to Load Saved Refresh Interval
+            async function loadSavedRefreshInterval() {
+                const interval = await getRefreshInterval();
+                const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+
+                refreshButtons.forEach((button) => {
+                    if (parseInt(button.getAttribute("data-interval")) === interval) {
+                        button.classList.add("btn-primary");
                     } else {
-                        targetItem.style.borderTop = "2px solid white";
+                        button.classList.remove("btn-primary");
+                    }
+                });
+            }
+
+            // Function to Append Messages to Debug Logs
+            function appendDebugLog(message) {
+                const debugDiv = document.getElementById("debugLogs");
+                const log = document.createElement("div");
+                log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                debugDiv.appendChild(log);
+                debugDiv.style.display = "block"; // Make sure it's visible if needed
+            }
+
+            // Function to Setup Column Customization (Visibility and Ordering)
+            function setupColumnCustomization() {
+                const sortableColumns = document.getElementById("sortableColumns");
+                const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
+                const columnItems = document.querySelectorAll("#sortableColumns .column-item");
+
+                let draggedItem = null;
+
+                // Drag Start Event
+                sortableColumns.addEventListener("dragstart", (event) => {
+                    draggedItem = event.target;
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", "");
+                    setTimeout(() => {
+                        draggedItem.classList.add("dragging");
+                    }, 0);
+                });
+
+                // Drag Over Event
+                sortableColumns.addEventListener("dragover", (event) => {
+                    event.preventDefault();
+                    const targetItem = event.target.closest(".column-item");
+                    if (targetItem && targetItem !== draggedItem) {
+                        const bounding = targetItem.getBoundingClientRect();
+                        const offset = bounding.y + bounding.height / 2;
+
+                        if (event.clientY - offset > 0) {
+                            targetItem.style.borderBottom = "2px solid white";
+                            targetItem.style.borderTop = "";
+                        } else {
+                            targetItem.style.borderTop = "2px solid white";
+                            targetItem.style.borderBottom = "";
+                        }
+                    }
+                });
+
+                // Drag Leave Event
+                sortableColumns.addEventListener("dragleave", (event) => {
+                    const targetItem = event.target.closest(".column-item");
+                    if (targetItem) {
+                        targetItem.style.borderTop = "";
                         targetItem.style.borderBottom = "";
                     }
-                }
-            });
+                });
 
-            sortableColumns.addEventListener("dragleave", (event) => {
-                const targetItem = event.target.closest(".column-item");
-                if (targetItem) {
-                    targetItem.style.borderTop = "";
-                    targetItem.style.borderBottom = "";
-                }
-            });
+                // Drop Event
+                sortableColumns.addEventListener("drop", async (event) => {
+                    event.preventDefault();
+                    const targetItem = event.target.closest(".column-item");
+                    if (draggedItem && targetItem) {
+                        if (draggedItem !== targetItem) {
+                            if (targetItem.style.borderBottom === "2px solid white") {
+                                sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
+                            } else {
+                                sortableColumns.insertBefore(draggedItem, targetItem);
+                            }
+                            targetItem.style.borderTop = "";
+                            targetItem.style.borderBottom = "";
+                            draggedItem.classList.remove("dragging");
+                            draggedItem = null;
 
-            sortableColumns.addEventListener("drop", async (event) => {
-                event.preventDefault();
-                const targetItem = event.target.closest(".column-item");
-                if (draggedItem && targetItem) {
-                    if (draggedItem !== targetItem) {
-                        if (targetItem.style.borderBottom === "2px solid white") {
-                            sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
+                            // Update visibleColumns based on new order
+                            await updateVisibleColumns();
+                            renderPortfolio();
+                        }
+                    }
+                });
+
+                // Checkbox Change Events
+                columnCheckboxes.forEach((checkbox) => {
+                    checkbox.addEventListener("change", async () => {
+                        const columnKey = checkbox.value;
+                        if (checkbox.checked) {
+                            if (!visibleColumns.includes(columnKey)) {
+                                // Find the position to insert based on current sortableColumns order
+                                const sortableColumnItems = document.querySelectorAll("#sortableColumns .column-item");
+                                let insertIndex = sortableColumnItems.length; // Default to end
+                                sortableColumnItems.forEach((item, index) => {
+                                    if (item.getAttribute("data-column") === columnKey) {
+                                        insertIndex = index;
+                                    }
+                                });
+                                visibleColumns.splice(insertIndex, 0, columnKey);
+                            }
                         } else {
-                            sortableColumns.insertBefore(draggedItem, targetItem);
+                            visibleColumns = visibleColumns.filter((key) => key !== columnKey);
                         }
-                        await updateVisibleColumns();
-                        updateTableColumns();
+                        await saveVisibleColumns();
                         renderPortfolio();
-                    }
-                    targetItem.style.borderTop = "";
-                    targetItem.style.borderBottom = "";
-                    draggedItem.style.opacity = "";
-                    draggedItem = null;
-                }
-            });
+                    });
+                });
+            }
 
-            columnCheckboxes.forEach((checkbox) => {
-                checkbox.addEventListener("change", async () => {
-                    const columnKey = checkbox.value;
-                    if (checkbox.checked) {
-                        if (!visibleColumns.includes(columnKey)) {
-                            visibleColumns.push(columnKey);
+            // Function to Save Visible Columns to IndexedDB
+            async function saveVisibleColumns() {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
+                const sortedColumnItems = document.querySelectorAll("#sortableColumns .column-item");
+                const updatedVisibleColumns = Array.from(sortedColumnItems)
+                    .map(item => item.getAttribute("data-column"))
+                    .filter(column => visibleColumns.includes(column));
+
+                store.put({ key: "visibleColumns", value: updatedVisibleColumns });
+
+                return new Promise((resolve, reject) => {
+                    transaction.oncomplete = () => {
+                        console.log("Visible columns saved successfully!");
+                        resolve();
+                    };
+                    transaction.onerror = (event) => {
+                        console.error("Failed to save visible columns.", event.target.error);
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            // Function to Load Saved Visible Columns from IndexedDB
+            async function loadSavedVisibleColumns() {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readonly");
+                const store = transaction.objectStore(settingsStoreName);
+
+                return new Promise((resolve, reject) => {
+                    const request = store.get("visibleColumns");
+                    request.onsuccess = (event) => {
+                        const savedVisibleColumns = event.target.result?.value;
+                        if (savedVisibleColumns && Array.isArray(savedVisibleColumns)) {
+                            visibleColumns = savedVisibleColumns;
+                            updateCheckboxes();
+                            updateSortableColumns(); // Ensure sortableColumns reflect the saved order
                         }
-                    } else {
-                        visibleColumns = visibleColumns.filter((key) => key !== columnKey);
+                        resolve();
+                    };
+                    request.onerror = (event) => {
+                        console.error("Failed to load visible columns.", event.target.error);
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            // Function to Update Checkboxes Based on visibleColumns
+            function updateCheckboxes() {
+                const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
+                columnCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = visibleColumns.includes(checkbox.value);
+                });
+            }
+
+            // Function to Update Sortable Columns Order in DOM
+            function updateSortableColumns() {
+                const sortableColumns = document.getElementById("sortableColumns");
+                sortableColumns.innerHTML = ""; // Clear existing sortable columns
+
+                visibleColumns.forEach(columnKey => {
+                    const columnItem = document.querySelector(`.column-item[data-column="${columnKey}"]`);
+                    if (columnItem) {
+                        sortableColumns.appendChild(columnItem);
                     }
-                    await saveVisibleColumns();
-                    updateTableColumns();
+                });
+            }
+
+            // Function to Sort Positions Based on sortColumn and sortDirection
+            function sortPositions() {
+                if (!sortColumn) return;
+
+                allPositions.sort((a, b) => {
+                    let valA = a[sortColumn];
+                    let valB = b[sortColumn];
+
+                    // Handle undefined or null values
+                    valA = valA !== undefined && valA !== null ? valA : (typeof valB === 'number' ? -Infinity : '');
+                    valB = valB !== undefined && valB !== null ? valB : (typeof valA === 'number' ? -Infinity : '');
+
+                    // If sorting by string, convert to lowercase for case-insensitive comparison
+                    if (typeof valA === 'string') {
+                        valA = valA.toLowerCase();
+                        valB = typeof valB === 'string' ? valB.toLowerCase() : '';
+                    }
+
+                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            // Function to Update Visible Columns Array Based on DOM Order
+            async function updateVisibleColumns() {
+                const columnItems = document.querySelectorAll("#sortableColumns .column-item");
+                const newVisibleColumns = [];
+
+                columnItems.forEach(item => {
+                    const columnKey = item.getAttribute("data-column");
+                    if (visibleColumns.includes(columnKey)) {
+                        newVisibleColumns.push(columnKey);
+                    }
+                });
+
+                visibleColumns = newVisibleColumns;
+                await saveVisibleColumns();
+            }
+
+            // Function to Setup Event Listeners on DOMContentLoaded
+            document.addEventListener("DOMContentLoaded", async () => {
+                const settingsIcon = document.getElementById("settingsIcon");
+                const settingsSection = document.getElementById("settings");
+
+                // Toggle Settings Section
+                settingsIcon.addEventListener("click", () => {
+                    if (settingsSection.style.display === "none" || !settingsSection.style.display) {
+                        settingsSection.style.display = "block";
+                    } else {
+                        settingsSection.style.display = "none";
+                    }
+                });
+
+                // Setup Refresh Interval Buttons
+                const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+
+                refreshButtons.forEach((button) => {
+                    button.addEventListener("click", async (event) => {
+                        const selectedInterval = parseInt(event.target.getAttribute("data-interval"));
+                        await saveRefreshInterval(selectedInterval);
+
+                        refreshButtons.forEach((btn) => btn.classList.remove("btn-primary"));
+                        event.target.classList.add("btn-primary");
+
+                        startAutoRefresh();
+                    });
+                });
+
+                // Setup Save Keys Button
+                const saveKeysButton = document.getElementById("saveKeys");
+                saveKeysButton.addEventListener("click", async () => {
+                    const alpacaKey = document.getElementById("alpacaApiKey").value;
+                    const alpacaSecret = document.getElementById("alpacaApiSecret").value;
+                    const finnhubKey = document.getElementById("finnhubApiKey").value;
+
+                    try {
+                        await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
+                        showFeedback("Settings saved successfully!", "success");
+                    } catch (error) {
+                        console.error("Failed to save settings:", error);
+                        showFeedback("Failed to save settings.", "danger");
+                    }
+                });
+
+                // Setup Table Header Click Events for Sorting
+                const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
+
+                tableHeaders.forEach((header) => {
+                    header.addEventListener("click", (event) => {
+                        const newSortColumn = header.getAttribute("data-sort-key");
+                        const sortType = header.getAttribute("data-sort-type");
+
+                        if (sortColumn === newSortColumn) {
+                            sortDirection = sortDirection === "asc" ? "desc" : "asc";
+                        } else {
+                            sortColumn = newSortColumn;
+                            sortDirection = "asc";
+                        }
+
+                        tableHeaders.forEach((h) => {
+                            h.classList.remove("sorted-asc", "sorted-desc");
+                        });
+                        header.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
+
+                        sortPositions();
+                        renderPortfolio();
+                    });
+                });
+
+                // Setup Filter Input Event
+                const filterInput = document.getElementById("filterInput");
+                filterInput.addEventListener("input", () => {
+                    sortPositions(); // Re-sort when filter changes
                     renderPortfolio();
                 });
-            });
-        }
 
-        async function saveVisibleColumns() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
-            const sortedColumnItems = document.querySelectorAll("#sortableColumns .column-item");
-            const updatedVisibleColumns = Array.from(sortedColumnItems)
-                .map(item => item.getAttribute("data-column"))
-                .filter(column => visibleColumns.includes(column));
+                // Load Saved Settings
+                await loadSavedVisibleColumns();
+                await loadSavedRefreshInterval();
 
-            store.put({ key: "visibleColumns", value: updatedVisibleColumns });
+                // Load Portfolio Data and Start Auto-Refresh
+                await loadPortfolio();
+                await startAutoRefresh();
 
-            return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => {
-                    console.log("Visible columns saved successfully!");
-                    resolve();
-                };
-                transaction.onerror = (event) => {
-                    console.error("Failed to save visible columns.", event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        async function loadSavedVisibleColumns() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("visibleColumns");
-                request.onsuccess = (event) => {
-                    const savedVisibleColumns = event.target.result?.value;
-                    if (savedVisibleColumns) {
-                        visibleColumns = savedVisibleColumns;
-                        updateCheckboxes();
-                    }
-                    resolve();
-                };
-                request.onerror = (event) => {
-                    console.error("Failed to load visible columns.", event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        function updateCheckboxes() {
-            const columnCheckboxes = document.querySelectorAll("#sortableColumns .column-checkbox");
-            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-
-            columnCheckboxes.forEach((checkbox) => {
-                checkbox.checked = visibleColumns.includes(checkbox.value);
+                // Setup Column Customization (Visibility and Ordering)
+                setupColumnCustomization();
             });
 
-            const sortableColumns = document.getElementById("sortableColumns");
-            visibleColumns.forEach(columnKey => {
-                const columnItem = Array.from(columnItems).find(item => item.getAttribute("data-column") === columnKey);
-                if (columnItem) {
-                    sortableColumns.appendChild(columnItem);
-                }
-            });
-        }
-
-        function updateTableColumns() {
-            const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
-            const bodyRows = document.querySelectorAll("#portfolioTable tbody tr");
-            const footerRow = document.querySelector("#portfolioTable tfoot tr");
-            const footerCells = footerRow.querySelectorAll("td");
-            const headerMap = {};
-
-            tableHeaders.forEach(header => {
-                const headerKey = header.getAttribute("data-sort-key");
-                headerMap[headerKey] = header;
-            });
-
-            tableHeaders.forEach(header => {
-                const headerKey = header.getAttribute("data-sort-key");
-                header.style.display = visibleColumns.includes(headerKey) ? "" : "none";
-            });
-
-            bodyRows.forEach(row => {
-                const cells = row.querySelectorAll("td");
-                cells.forEach((cell, index) => {
-                    const headerKey = tableHeaders[index].getAttribute("data-sort-key");
-                    if (headerKey) {
-                        cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
-                    }
-                });
-            });
-
-            footerCells.forEach((cell, index) => {
-                if (index > 0 && index <= tableHeaders.length) {
-                    const headerKey = tableHeaders[index - 1].getAttribute("data-sort-key");
-                    cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
-                }
-            });
-        }
-
-        async function updateVisibleColumns() {
-            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-            const newVisibleColumns = [];
-
-            columnItems.forEach(item => {
-                const columnKey = item.getAttribute("data-column");
-                if (visibleColumns.includes(columnKey)) {
-                    newVisibleColumns.push(columnKey);
-                }
-            });
-
-            visibleColumns = newVisibleColumns;
-            await saveVisibleColumns();
-        }
-
-        function sortPositions() {
-            if (!sortColumn) return;
-
-            allPositions.sort((a, b) => {
-                let valA = a[sortColumn];
-                let valB = b[sortColumn];
-
-                // Handle undefined or null values
-                valA = valA !== undefined && valA !== null ? valA : (typeof valB === 'number' ? -Infinity : '');
-                valB = valB !== undefined && valB !== null ? valB : (typeof valA === 'number' ? -Infinity : '');
-
-                // If sorting by string, convert to lowercase for case-insensitive comparison
-                if (typeof valA === 'string') {
-                    valA = valA.toLowerCase();
-                    valB = typeof valB === 'string' ? valB.toLowerCase() : '';
-                }
-
-                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-
-        async function loadSavedVisibleColumns() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("visibleColumns");
-                request.onsuccess = (event) => {
-                    const savedVisibleColumns = event.target.result?.value;
-                    if (savedVisibleColumns) {
-                        visibleColumns = savedVisibleColumns;
-                        updateCheckboxes();
-                    }
-                    resolve();
-                };
-                request.onerror = (event) => {
-                    console.error("Failed to load visible columns.", event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-    </script>
-</body>
+            // Function to Append Messages to Debug Logs
+            function appendDebugLog(message) {
+                const debugDiv = document.getElementById("debugLogs");
+                const log = document.createElement("div");
+                log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                debugDiv.appendChild(log);
+                debugDiv.style.display = "block"; // Make sure it's visible if needed
+            }
+        </script>
+    </body>
 </html>
