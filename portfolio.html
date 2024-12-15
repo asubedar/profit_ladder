@@ -60,7 +60,6 @@
             color: #dc3545;
         }
         .settings {
-            /* Removed display: none; initially controlled by Bootstrap's d-none class */
             margin-top: 20px;
             background-color: #1e1e1e;
             padding: 20px;
@@ -151,7 +150,7 @@
             justify-content: space-between;
             cursor: grab;
             padding-left: 25px;
-            background-color: #1e1e1e; /* Dark background to match the settings */
+            background-color: #1e1e1e; /* Dark background to match the theme */
             border: 1px solid #444; /* Consistent border color */
             color: #ffffff; /* Light text for readability */
             margin-bottom: 5px; /* Spacing between items */
@@ -236,67 +235,7 @@
             <div id="columnCustomization" class="mb-3">
                 <h4>Customize Columns</h4>
                 <ul id="sortableColumns" class="list-group">
-                    <!-- Example Column Item -->
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="tickerSymbol" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-tickerSymbol" value="tickerSymbol" checked>
-                        <label class="form-check-label text-light" for="checkbox-tickerSymbol">Ticker</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="avgPrice" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-avgPrice" value="avgPrice" checked>
-                        <label class="form-check-label text-light" for="checkbox-avgPrice">Average Price</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="numShares" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-numShares" value="numShares" checked>
-                        <label class="form-check-label text-light" for="checkbox-numShares">Shares</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="lastPrice" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-lastPrice" value="lastPrice" checked>
-                        <label class="form-check-label text-light" for="checkbox-lastPrice">Current Price</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="costBasis" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-costBasis" value="costBasis" checked>
-                        <label class="form-check-label text-light" for="checkbox-costBasis">Cost Basis</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="totalValue" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-totalValue" value="totalValue" checked>
-                        <label class="form-check-label text-light" for="checkbox-totalValue">Total Value</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="profit" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-profit" value="profit" checked>
-                        <label class="form-check-label text-light" for="checkbox-profit">Profit</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="profitPct" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-profitPct" value="profitPct" checked>
-                        <label class="form-check-label text-light" for="checkbox-profitPct">Profit %</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="changeToday" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-changeToday" value="changeToday" checked>
-                        <label class="form-check-label text-light" for="checkbox-changeToday">Change Today</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="changePctToday" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-changePctToday" value="changePctToday" checked>
-                        <label class="form-check-label text-light" for="checkbox-changePctToday">Change % Today</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="gapPct" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-gapPct" value="gapPct" checked>
-                        <label class="form-check-label text-light" for="checkbox-gapPct">Gap %</label>
-                    </li>
-                    <li class="column-item list-group-item d-flex align-items-center" data-column="lastTime" draggable="true">
-                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-lastTime" value="lastTime" checked>
-                        <label class="form-check-label text-light" for="checkbox-lastTime">Time Since Last Trade</label>
-                    </li>
+                    <!-- List items will be populated dynamically by JavaScript -->
                 </ul>
             </div>
 
@@ -322,6 +261,8 @@
 
     <!-- Bootstrap JS and Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Font Awesome JS for Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/js/all.min.js"></script>
     <!-- Main JavaScript -->
     <script>
         // Database Configuration
@@ -350,153 +291,154 @@
             "lastTime"
         ];
 
-        // Function to Open IndexedDB
-        async function openDatabase() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 2);
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
+        // Define the available columns
+        const availableColumns = [
+            { key: "tickerSymbol", name: "Ticker" },
+            { key: "avgPrice", name: "Average Price" },
+            { key: "numShares", name: "Shares" },
+            { key: "lastPrice", name: "Current Price" },
+            { key: "costBasis", name: "Cost Basis" },
+            { key: "totalValue", name: "Total Value" },
+            { key: "profit", name: "Profit" },
+            { key: "profitPct", name: "Profit %" },
+            { key: "changeToday", name: "Change Today" },
+            { key: "changePctToday", name: "Change % Today" },
+            { key: "gapPct", name: "Gap %" },
+            { key: "lastTime", name: "Time Since Last Trade" }
+        ];
 
-                    if (!db.objectStoreNames.contains(positionsStoreName)) {
-                        db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
-                        appendDebugLog("Created 'Positions' object store.");
-                    }
-
-                    if (!db.objectStoreNames.contains(settingsStoreName)) {
-                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
-                        appendDebugLog("Created 'Settings' object store.");
-                    }
-                };
-
-                request.onsuccess = (event) => {
-                    const db = event.target.result;
-                    resolve(db);
-                };
-
-                request.onerror = (event) => {
-                    appendDebugLog(`Database open failed: ${event.target.error}`);
-                    reject(event.target.error);
-                };
-            });
+        // Function to Append Debug Logs (Optional)
+        function appendDebugLog(message) {
+            const debugLogs = document.getElementById("debugLogs");
+            const logEntry = document.createElement("div");
+            logEntry.textContent = message;
+            debugLogs.appendChild(logEntry);
         }
 
-        // Function to Fetch Current Prices
-        async function fetchCurrentPrices(tickers) {
-            if (!tickers || tickers.length === 0) {
-                return {};
-            }
+        // Function to Populate Sortable Columns
+        function populateSortableColumns() {
+            const sortableColumns = document.getElementById("sortableColumns");
+            sortableColumns.innerHTML = ""; // Clear existing list items
 
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
+            availableColumns.forEach(column => {
+                const li = document.createElement("li");
+                li.className = "column-item list-group-item d-flex align-items-center";
+                li.setAttribute("data-column", column.key);
+                li.setAttribute("draggable", "true");
 
-            const alpacaKey = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_KEY_ID");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
+                li.innerHTML = `
+                    <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                    <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-${column.key}" value="${column.key}" checked>
+                    <label class="form-check-label text-light" for="checkbox-${column.key}">${column.name}</label>
+                `;
 
-            const alpacaSecret = await new Promise((resolve, reject) => {
-                const request = store.get("APCA_API_SECRET_KEY");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (alpacaKey && alpacaSecret) {
-                return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
-            }
-
-            console.warn("Alpaca credentials not available, falling back to Finnhub.");
-            const finnhubKey = await new Promise((resolve, reject) => {
-                const request = store.get("finnhubApiKey");
-                request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (!finnhubKey) {
-                console.error("Finnhub API Key is not set. Please configure it in the settings.");
-                return {};
-            }
-
-            return await fetchPricesFromFinnhub(tickers, finnhubKey);
-        }
-
-        // Fetch Prices from Alpaca
-        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
-            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        "APCA-API-KEY-ID": apiKey,
-                        "APCA-API-SECRET-KEY": apiSecret,
-                    },
+                // Add Event Listener for Checkbox Change
+                li.querySelector('.column-checkbox').addEventListener('change', (e) => {
+                    const columnKey = e.target.value;
+                    if (e.target.checked) {
+                        if (!visibleColumns.includes(columnKey)) {
+                            visibleColumns.push(columnKey);
+                        }
+                    } else {
+                        visibleColumns = visibleColumns.filter(col => col !== columnKey);
+                    }
+                    sortPositions(); // Re-sort after column visibility change
+                    renderPortfolio();
                 });
 
-                if (!response.ok) {
-                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
-                    return {};
-                }
+                sortableColumns.appendChild(li);
+            });
 
-                const data = await response.json();
-                const prices = {};
+            // Initialize Drag-and-Drop Functionality
+            initializeDragAndDrop();
 
-                for (const [symbol, snapshot] of Object.entries(data)) {
-                    prices[symbol] = {
-                        price: snapshot.latestTrade?.p || 0,
-                        time: snapshot.latestTrade?.t || "N/A",
-                        open: snapshot.dailyBar?.o || 0,
-                        prevClose: snapshot.prevDailyBar?.c || 0,
-                    };
-                }
-
-                console.log("Fetched prices from Alpaca:", prices);
-                return prices;
-            } catch (error) {
-                console.error("Error fetching snapshots from Alpaca:", error);
-                return {};
-            }
+            console.log("Sortable columns populated successfully.");
+            appendDebugLog("Sortable columns populated successfully.");
         }
 
-        // Fetch Prices from Finnhub
-        async function fetchPricesFromFinnhub(tickers, apiKey) {
-            try {
-                const responses = await Promise.all(
-                    tickers.map(async (ticker) => {
-                        const [quoteResponse, prevCloseResponse] = await Promise.all([
-                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
-                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
-                        ]);
+        // Function to Initialize Drag-and-Drop for Sortable Columns
+        function initializeDragAndDrop() {
+            const sortableColumns = document.getElementById("sortableColumns");
+            let dragSrcEl = null;
 
-                        if (!quoteResponse.ok) {
-                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
-                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
-                        }
-                        const quoteData = await quoteResponse.json();
-
-                        let prevClose = 0;
-                        if (!prevCloseResponse.ok) {
-                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
-                        } else {
-                            const prevCloseData = await prevCloseResponse.json();
-                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
-                        }
-
-                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
-                    })
-                );
-
-                const prices = {};
-                responses.forEach((res) => {
-                    if (res.ticker) {
-                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
-                    }
-                });
-                console.log("Fetched prices from Finnhub:", prices);
-                return prices;
-            } catch (error) {
-                console.error("Error fetching prices from Finnhub:", error);
-                return {};
+            function handleDragStart(e) {
+                dragSrcEl = this;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.outerHTML);
+                this.classList.add('dragging');
             }
+
+            function handleDragOver(e) {
+                if (e.preventDefault) {
+                    e.preventDefault(); // Necessary. Allows us to drop.
+                }
+                e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
+                return false;
+            }
+
+            function handleDragEnter(e) {
+                this.classList.add('over');
+            }
+
+            function handleDragLeave(e) {
+                this.classList.remove('over');
+            }
+
+            function handleDrop(e) {
+                if (e.stopPropagation) {
+                    e.stopPropagation(); // Stops some browsers from redirecting.
+                }
+
+                if (dragSrcEl !== this) {
+                    // Swap the dragged element with the drop target
+                    this.parentNode.removeChild(dragSrcEl);
+                    const dropHTML = e.dataTransfer.getData('text/html');
+                    this.insertAdjacentHTML('beforebegin', dropHTML);
+                    const dropElem = this.previousSibling;
+                    addDnDHandlers(dropElem);
+                    
+                    // Remove the original dragged element
+                    this.parentNode.removeChild(this);
+                    // Re-append the drop target
+                    this.parentNode.insertBefore(this, dropElem.nextSibling);
+                    
+                    // Update visibleColumns based on new order
+                    updateVisibleColumnsOrder();
+                    renderPortfolio();
+                }
+                return false;
+            }
+
+            function handleDragEnd(e) {
+                this.classList.remove('dragging');
+                const items = sortableColumns.querySelectorAll('.column-item');
+                items.forEach(function (item) {
+                    item.classList.remove('over');
+                });
+            }
+
+            function addDnDHandlers(elem) {
+                elem.addEventListener('dragstart', handleDragStart, false);
+                elem.addEventListener('dragenter', handleDragEnter, false);
+                elem.addEventListener('dragover', handleDragOver, false);
+                elem.addEventListener('dragleave', handleDragLeave, false);
+                elem.addEventListener('drop', handleDrop, false);
+                elem.addEventListener('dragend', handleDragEnd, false);
+            }
+
+            const items = sortableColumns.querySelectorAll('.column-item');
+            items.forEach(function(item) {
+                addDnDHandlers(item);
+            });
+        }
+
+        // Function to Update Visible Columns Order After Drag-and-Drop
+        function updateVisibleColumnsOrder() {
+            const sortableColumns = document.getElementById("sortableColumns");
+            const columnItems = sortableColumns.querySelectorAll('.column-item');
+            visibleColumns = Array.from(columnItems).map(item => item.getAttribute('data-column'));
+            console.log("Updated visibleColumns order:", visibleColumns);
+            appendDebugLog("Updated visibleColumns order.");
         }
 
         // Function to Load Portfolio Data
@@ -566,6 +508,18 @@
                 header.appendChild(thName);
                 header.appendChild(sortArrowAsc);
                 header.appendChild(sortArrowDesc);
+
+                // Add Event Listener for Sorting
+                header.addEventListener('click', () => {
+                    if (sortColumn === columnKey) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortColumn = columnKey;
+                        sortDirection = 'asc';
+                    }
+                    sortPositions();
+                    renderPortfolio();
+                });
 
                 portfolioHeaders.appendChild(header);
             });
@@ -813,8 +767,14 @@
             if (interval > 0) {
                 refreshIntervalId = setInterval(async () => {
                     console.log("Auto-refreshing prices...");
+                    appendDebugLog("Auto-refreshing prices...");
                     await loadPortfolio(); // Changed to loadPortfolio to recalculate and sort
                 }, interval * 1000);
+                console.log(`Auto-refresh set to every ${interval} seconds.`);
+                appendDebugLog(`Auto-refresh set to every ${interval} seconds.`);
+            } else {
+                console.log("Auto-refresh stopped.");
+                appendDebugLog("Auto-refresh stopped.");
             }
         }
 
@@ -845,7 +805,7 @@
                     <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
                 `;
 
-                checkbox.addEventListener("change", () => {
+                checkbox.querySelector('input').addEventListener("change", () => {
                     const ticker = checkbox.querySelector("input").value;
                     if (checkbox.querySelector("input").checked) {
                         if (!selectedTickers.includes(ticker)) {
@@ -873,387 +833,246 @@
             });
         }
 
-        // Function to Save API Keys to IndexedDB
-        async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
-
-            appendDebugLog("Saving API keys...");
-
-            if (alpacaKey) {
-                store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
-                appendDebugLog(`Alpaca Key saved: ${alpacaKey}`);
-            }
-
-            if (alpacaSecret) {
-                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
-                appendDebugLog("Alpaca Secret saved.");
-            }
-
-            if (finnhubKey) {
-                store.put({ key: "finnhubApiKey", value: finnhubKey });
-                appendDebugLog("Finnhub Key saved.");
-            }
-
-            return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => {
-                    appendDebugLog("Settings saved successfully.");
-                    resolve();
-                };
-
-                transaction.onerror = (event) => {
-                    appendDebugLog(`Failed to save settings: ${event.target.error}`);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        // Function to Show Feedback Messages
-        function showFeedback(message, type) {
-            const feedbackDiv = document.getElementById("settingsFeedback");
-            feedbackDiv.textContent = message;
-            feedbackDiv.className = `mt-2 text-${type}`;
-            feedbackDiv.style.display = "block";
-
-            setTimeout(() => {
-                feedbackDiv.style.display = "none";
-            }, 3000);
-        }
-
-        // Function to Save Refresh Interval to IndexedDB
-        async function saveRefreshInterval(interval) {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
-            store.put({ key: "refreshInterval", value: interval });
-
-            return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => {
-                    console.log("Refresh interval saved successfully!");
-                    resolve();
-                };
-                transaction.onerror = (event) => {
-                    console.error("Failed to save refresh interval.", event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        // Function to Load Saved Refresh Interval
-        async function loadSavedRefreshInterval() {
-            const interval = await getRefreshInterval();
-            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
-
-            refreshButtons.forEach((button) => {
-                if (parseInt(button.getAttribute("data-interval")) === interval) {
-                    button.classList.add("btn-primary");
-                } else {
-                    button.classList.remove("btn-primary");
-                }
-            });
-        }
-
-        // Function to Append Messages to Debug Logs
-        function appendDebugLog(message) {
-            const debugDiv = document.getElementById("debugLogs");
-            const log = document.createElement("div");
-            log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            debugDiv.appendChild(log);
-            debugDiv.style.display = "block"; // Make sure it's visible if needed
-        }
-
-        // Function to Setup Column Customization (Visibility and Ordering)
-        function setupColumnCustomization() {
-            const sortableColumns = document.getElementById("sortableColumns");
-            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
-            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-
-            let draggedItem = null;
-
-            // Drag Start Event
-            sortableColumns.addEventListener("dragstart", (event) => {
-                draggedItem = event.target.closest(".column-item");
-                if (draggedItem) {
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData("text/plain", "");
-                    setTimeout(() => {
-                        draggedItem.classList.add("dragging");
-                    }, 0);
-                }
-            });
-
-            // Drag Over Event
-            sortableColumns.addEventListener("dragover", (event) => {
-                event.preventDefault();
-                const targetItem = event.target.closest(".column-item");
-                if (targetItem && targetItem !== draggedItem) {
-                    const bounding = targetItem.getBoundingClientRect();
-                    const offset = bounding.y + bounding.height / 2;
-
-                    if (event.clientY - offset > 0) {
-                        targetItem.style.borderBottom = "2px solid #00bcd4"; /* Changed to match accent color */
-                        targetItem.style.borderTop = "";
-                    } else {
-                        targetItem.style.borderTop = "2px solid #00bcd4"; /* Changed to match accent color */
-                        targetItem.style.borderBottom = "";
-                    }
-                }
-            });
-
-            // Drag Leave Event
-            sortableColumns.addEventListener("dragleave", (event) => {
-                const targetItem = event.target.closest(".column-item");
-                if (targetItem) {
-                    targetItem.style.borderTop = "";
-                    targetItem.style.borderBottom = "";
-                }
-            });
-
-            // Drop Event
-            sortableColumns.addEventListener("drop", async (event) => {
-                event.preventDefault();
-                const targetItem = event.target.closest(".column-item");
-                if (draggedItem && targetItem) {
-                    if (draggedItem !== targetItem) {
-                        if (targetItem.style.borderBottom === "2px solid #00bcd4") {
-                            sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
-                        } else {
-                            sortableColumns.insertBefore(draggedItem, targetItem);
-                        }
-                        targetItem.style.borderTop = "";
-                        targetItem.style.borderBottom = "";
-                        draggedItem.classList.remove("dragging");
-                        draggedItem = null;
-
-                        // Update visibleColumns based on new order
-                        await updateVisibleColumns();
-                        renderPortfolio();
-                    }
-                }
-            });
-
-            // Checkbox Change Events
-            columnCheckboxes.forEach((checkbox) => {
-                checkbox.addEventListener("change", async () => {
-                    const columnKey = checkbox.value;
-                    if (checkbox.checked) {
-                        if (!visibleColumns.includes(columnKey)) {
-                            // Find the position to insert based on current sortableColumns order
-                            const sortableColumnItems = document.querySelectorAll("#sortableColumns .column-item");
-                            let insertIndex = sortableColumnItems.length; // Default to end
-                            sortableColumnItems.forEach((item, index) => {
-                                if (item.getAttribute("data-column") === columnKey) {
-                                    insertIndex = index;
-                                }
-                            });
-                            visibleColumns.splice(insertIndex, 0, columnKey);
-                        }
-                    } else {
-                        visibleColumns = visibleColumns.filter((key) => key !== columnKey);
-                    }
-                    await saveVisibleColumns();
-                    renderPortfolio();
-                });
-            });
-        }
-
-        // Function to Save Visible Columns to IndexedDB
-        async function saveVisibleColumns() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
-            const sortedColumnItems = document.querySelectorAll("#sortableColumns .column-item");
-            const updatedVisibleColumns = Array.from(sortedColumnItems)
-                .map(item => item.getAttribute("data-column"))
-                .filter(column => visibleColumns.includes(column));
-
-            store.put({ key: "visibleColumns", value: updatedVisibleColumns });
-
-            return new Promise((resolve, reject) => {
-                transaction.oncomplete = () => {
-                    console.log("Visible columns saved successfully!");
-                    resolve();
-                };
-                transaction.onerror = (event) => {
-                    console.error("Failed to save visible columns.", event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        // Function to Load Saved Visible Columns from IndexedDB
-        async function loadSavedVisibleColumns() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("visibleColumns");
-                request.onsuccess = (event) => {
-                    const savedVisibleColumns = event.target.result?.value;
-                    if (savedVisibleColumns && Array.isArray(savedVisibleColumns)) {
-                        visibleColumns = savedVisibleColumns;
-                        updateCheckboxes();
-                        updateSortableColumns(); // Ensure sortableColumns reflect the saved order
-                    }
-                    resolve();
-                };
-                request.onerror = (event) => {
-                    console.error("Failed to load visible columns.", event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        // Function to Update Checkboxes Based on visibleColumns
-        function updateCheckboxes() {
-            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
-            columnCheckboxes.forEach((checkbox) => {
-                checkbox.checked = visibleColumns.includes(checkbox.value);
-            });
-        }
-
-        // Function to Update Sortable Columns Order in DOM
-        function updateSortableColumns() {
-            const sortableColumns = document.getElementById("sortableColumns");
-            sortableColumns.innerHTML = ""; // Clear existing sortable columns
-
-            visibleColumns.forEach(columnKey => {
-                const columnItem = document.querySelector(`.column-item[data-column="${columnKey}"]`);
-                if (columnItem) {
-                    sortableColumns.appendChild(columnItem);
-                }
-            });
-        }
-
-        // Function to Sort Positions Based on sortColumn and sortDirection
+        // Function to Sort Positions
         function sortPositions() {
-            if (!sortColumn) return;
+            if (!sortColumn) return; // No sorting applied
 
             allPositions.sort((a, b) => {
                 let valA = a[sortColumn];
                 let valB = b[sortColumn];
 
                 // Handle undefined or null values
-                valA = valA !== undefined && valA !== null ? valA : (typeof valB === 'number' ? -Infinity : '');
-                valB = valB !== undefined && valB !== null ? valB : (typeof valA === 'number' ? -Infinity : '');
+                valA = valA !== undefined && valA !== null ? valA : "";
+                valB = valB !== undefined && valB !== null ? valB : "";
 
-                // If sorting by string, convert to lowercase for case-insensitive comparison
-                if (typeof valA === 'string') {
+                if (typeof valA === "string") {
                     valA = valA.toLowerCase();
-                    valB = typeof valB === 'string' ? valB.toLowerCase() : '';
+                }
+                if (typeof valB === "string") {
+                    valB = valB.toLowerCase();
                 }
 
-                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                if (valA < valB) {
+                    return sortDirection === 'asc' ? -1 : 1;
+                }
+                if (valA > valB) {
+                    return sortDirection === 'asc' ? 1 : -1;
+                }
                 return 0;
             });
         }
 
-        // Function to Setup Event Listeners on DOMContentLoaded
-        document.addEventListener("DOMContentLoaded", async () => {
-            const settingsIcon = document.getElementById("settingsIcon");
-            const settingsSection = document.getElementById("settings");
+        // Function to Open IndexedDB
+        async function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, 2);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
 
-            // Toggle Settings Section using Bootstrap's d-none class
-            settingsIcon.addEventListener("click", () => {
-                settingsSection.classList.toggle("d-none");
+                    if (!db.objectStoreNames.contains(positionsStoreName)) {
+                        db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
+                        appendDebugLog("Created 'Positions' object store.");
+                    }
+
+                    if (!db.objectStoreNames.contains(settingsStoreName)) {
+                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
+                        appendDebugLog("Created 'Settings' object store.");
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    appendDebugLog(`Database open failed: ${event.target.error}`);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // Function to Fetch Current Prices
+        async function fetchCurrentPrices(tickers) {
+            if (!tickers || tickers.length === 0) {
+                return {};
+            }
+
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            const alpacaKey = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_KEY_ID");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
             });
 
-            // Setup Refresh Interval Buttons
-            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+            const alpacaSecret = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_SECRET_KEY");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
 
-            refreshButtons.forEach((button) => {
-                button.addEventListener("click", async (event) => {
-                    const selectedInterval = parseInt(event.target.getAttribute("data-interval"));
-                    await saveRefreshInterval(selectedInterval);
+            if (alpacaKey && alpacaSecret) {
+                return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
+            }
 
-                    refreshButtons.forEach((btn) => btn.classList.remove("btn-primary"));
-                    event.target.classList.add("btn-primary");
+            console.warn("Alpaca credentials not available, falling back to Finnhub.");
+            appendDebugLog("Alpaca credentials not available, falling back to Finnhub.");
+            const finnhubKey = await new Promise((resolve, reject) => {
+                const request = store.get("finnhubApiKey");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
 
-                    startAutoRefresh();
+            if (!finnhubKey) {
+                console.error("Finnhub API Key is not set. Please configure it in the settings.");
+                appendDebugLog("Finnhub API Key is not set. Please configure it in the settings.");
+                return {};
+            }
+
+            return await fetchPricesFromFinnhub(tickers, finnhubKey);
+        }
+
+        // Fetch Prices from Alpaca
+        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
+            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        "APCA-API-KEY-ID": apiKey,
+                        "APCA-API-SECRET-KEY": apiSecret,
+                    },
                 });
-            });
 
-            // Setup Save Keys Button
-            const saveKeysButton = document.getElementById("saveKeys");
-            saveKeysButton.addEventListener("click", async () => {
-                const alpacaKey = document.getElementById("alpacaApiKey").value;
-                const alpacaSecret = document.getElementById("alpacaApiSecret").value;
-                const finnhubKey = document.getElementById("finnhubApiKey").value;
-
-                try {
-                    await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
-                    showFeedback("Settings saved successfully!", "success");
-                } catch (error) {
-                    console.error("Failed to save settings:", error);
-                    showFeedback("Failed to save settings.", "danger");
-                }
-            });
-
-            // Setup Table Header Click Events for Sorting
-            document.addEventListener("click", (event) => {
-                const th = event.target.closest("th");
-                if (!th) return;
-
-                const newSortColumn = th.getAttribute("data-sort-key");
-                const sortType = th.getAttribute("data-sort-type");
-
-                if (sortColumn === newSortColumn) {
-                    sortDirection = sortDirection === "asc" ? "desc" : "asc";
-                } else {
-                    sortColumn = newSortColumn;
-                    sortDirection = "asc";
+                if (!response.ok) {
+                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
+                    appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
+                    return {};
                 }
 
-                // Remove sort classes from all headers
-                const allTh = document.querySelectorAll("#portfolioHeaders th");
-                allTh.forEach((header) => {
-                    header.classList.remove("sorted-asc", "sorted-desc");
+                const data = await response.json();
+                const prices = {};
+
+                for (const [symbol, snapshot] of Object.entries(data)) {
+                    prices[symbol] = {
+                        price: snapshot.latestTrade?.p || 0,
+                        time: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).toLocaleString() : "N/A",
+                        open: snapshot.dailyBar?.o || 0,
+                        prevClose: snapshot.prevDailyBar?.c || 0,
+                    };
+                }
+
+                console.log("Fetched prices from Alpaca:", prices);
+                appendDebugLog("Fetched prices from Alpaca.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching snapshots from Alpaca:", error);
+                appendDebugLog(`Error fetching snapshots from Alpaca: ${error}`);
+                return {};
+            }
+        }
+
+        // Fetch Prices from Finnhub
+        async function fetchPricesFromFinnhub(tickers, apiKey) {
+            try {
+                const responses = await Promise.all(
+                    tickers.map(async (ticker) => {
+                        const [quoteResponse, prevCloseResponse] = await Promise.all([
+                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
+                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
+                        ]);
+
+                        if (!quoteResponse.ok) {
+                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
+                            appendDebugLog(`Failed to fetch quote data for ${ticker} from Finnhub: ${quoteResponse.statusText}`);
+                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
+                        }
+                        const quoteData = await quoteResponse.json();
+
+                        let prevClose = 0;
+                        if (!prevCloseResponse.ok) {
+                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
+                            appendDebugLog(`Failed to fetch previous close data for ${ticker} from Finnhub: ${prevCloseResponse.statusText}`);
+                        } else {
+                            const prevCloseData = await prevCloseResponse.json();
+                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
+                        }
+
+                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
+                    })
+                );
+
+                const prices = {};
+                responses.forEach((res) => {
+                    if (res.ticker) {
+                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
+                    }
                 });
+                console.log("Fetched prices from Finnhub:", prices);
+                appendDebugLog("Fetched prices from Finnhub.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching prices from Finnhub:", error);
+                appendDebugLog(`Error fetching prices from Finnhub: ${error}`);
+                return {};
+            }
+        }
 
-                // Add sort class to the current header
-                th.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
-
-                sortPositions();
-                renderPortfolio();
-            });
-
-            // Setup Filter Input Event
-            const filterInput = document.getElementById("filterInput");
-            filterInput.addEventListener("input", () => {
-                sortPositions(); // Re-sort when filter changes
-                renderPortfolio();
-            });
-
-            // Load Saved Settings
-            await loadSavedVisibleColumns();
-            await loadSavedRefreshInterval();
-
-            // Load Portfolio Data and Start Auto-Refresh
-            await loadPortfolio();
-            await startAutoRefresh();
-
-            // Setup Column Customization (Visibility and Ordering)
-            setupColumnCustomization();
+        // Function to Handle Settings Toggle
+        document.getElementById("settingsIcon").addEventListener("click", () => {
+            const settingsDiv = document.getElementById("settings");
+            settingsDiv.classList.toggle("d-none");
         });
 
-        // Function to Update Visible Columns Array Based on DOM Order
-        async function updateVisibleColumns() {
-            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-            const newVisibleColumns = [];
+        // Function to Save API Keys and Refresh Interval
+        document.getElementById("saveKeys").addEventListener("click", async () => {
+            const alpacaApiKey = document.getElementById("alpacaApiKey").value.trim();
+            const alpacaApiSecret = document.getElementById("alpacaApiSecret").value.trim();
+            const finnhubApiKey = document.getElementById("finnhubApiKey").value.trim();
 
-            columnItems.forEach(item => {
-                const columnKey = item.getAttribute("data-column");
-                if (visibleColumns.includes(columnKey)) {
-                    newVisibleColumns.push(columnKey);
-                }
-            });
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
 
-            visibleColumns = newVisibleColumns;
-            await saveVisibleColumns();
-        }
+            if (alpacaApiKey) {
+                store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
+                appendDebugLog("Alpaca API Key saved.");
+            }
+
+            if (alpacaApiSecret) {
+                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
+                appendDebugLog("Alpaca API Secret saved.");
+            }
+
+            if (finnhubApiKey) {
+                store.put({ key: "finnhubApiKey", value: finnhubApiKey });
+                appendDebugLog("Finnhub API Key saved.");
+            }
+
+            document.getElementById("settingsFeedback").textContent = "Settings saved successfully!";
+            document.getElementById("settingsFeedback").style.display = "block";
+            setTimeout(() => {
+                document.getElementById("settingsFeedback").style.display = "none";
+            }, 3000);
+        });
+
+        // Function to Handle Filter Input
+        document.getElementById("filterInput").addEventListener("input", () => {
+            renderPortfolio();
+        });
+
+        // Function to Populate Sortable Columns and Initialize Drag-and-Drop
+        document.addEventListener("DOMContentLoaded", () => {
+            populateSortableColumns();
+            loadPortfolio();
+            startAutoRefresh();
+        });
+
+        // Optional: Function to Handle Sorting with Keyboard Accessibility (Enhancement)
+        // You can implement additional features as needed
+
     </script>
 </body>
 </html>
