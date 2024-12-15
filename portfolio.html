@@ -147,9 +147,9 @@
         #sortableColumns .column-item {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start; /* Changed from space-between to flex-start */
             cursor: grab;
-            padding-left: 25px;
+            padding: 5px 10px; /* Adjusted padding for better spacing */
             background-color: #1e1e1e; /* Dark background to match the theme */
             border: 1px solid #444; /* Consistent border color */
             color: #ffffff; /* Light text for readability */
@@ -328,8 +328,10 @@
 
                 li.innerHTML = `
                     <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                    <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-${column.key}" value="${column.key}" checked>
-                    <label class="form-check-label text-light" for="checkbox-${column.key}">${column.name}</label>
+                    <div class="form-check">
+                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-${column.key}" value="${column.key}" checked>
+                        <label class="form-check-label text-light" for="checkbox-${column.key}">${column.name}</label>
+                    </div>
                 `;
 
                 // Add Event Listener for Checkbox Change
@@ -1069,9 +1071,6 @@
             loadPortfolio();
             startAutoRefresh();
         });
-
-        // Optional: Function to Handle Sorting with Keyboard Accessibility (Enhancement)
-        // You can implement additional features as needed
 
     </script>
 </body>
