@@ -129,6 +129,16 @@
                 white-space: nowrap;
             }
         }
+        /* Debug Logs Styling */
+        #debugLogs {
+            background-color: #1e1e1e;
+            padding: 10px;
+            border: 1px solid #444;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+            display: none; /* Initially hidden */
+        }
     </style>
 </head>
 <body>
@@ -178,10 +188,10 @@
                         <td id="totalCostBasis">0.00</td>
                         <td id="totalValue">0.00</td>
                         <td id="totalProfit">0.00</td>
-                        <td id="totalProfitPct">0.00</td>
+                        <td id="totalProfitPct">0.00%</td>
                         <td id="totalChangeToday">0.00</td>
-                        <td id="totalChangePctToday">0.00</td>
-                        <td id="totalGapPct">0.00</td>
+                        <td id="totalChangePctToday">0.00%</td>
+                        <td id="totalGapPct">0.00%</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -263,6 +273,8 @@
             <input type="text" id="apiKeyInput" class="form-control" placeholder="Enter your Finnhub API Key">
             <button id="saveKeys" class="btn btn-primary mt-2">Save Settings</button>
         </div>
+        <!-- Debug Logs Section (Optional) -->
+        <div id="debugLogs"></div>
     </div>
 
     <script>
@@ -419,25 +431,42 @@
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = "";
 
+            if (filteredPositions.length === 0) {
+                portfolioBody.innerHTML = `<tr><td colspan="12" class="text-center">No positions to display.</td></tr>`;
+                return;
+            }
+
             // Collect all unique tickers
             const uniqueTickers = [...new Set(filteredPositions.map((p) => p.tickerSymbol))];
 
             // Fetch batched prices for all symbols
             const priceData = await fetchCurrentPrices(uniqueTickers);
+            console.log("Price Data:", priceData); // Debug log
 
             let totalCostBasis = 0;
             let totalValue = 0;
             let totalProfit = 0;
-            let totalProfitPct = 0;
 
             filteredPositions.forEach((position) => {
-                const currentPrice = priceData[position.tickerSymbol]?.price || position.lastPrice || 0;
-                const lastTime = priceData[position.tickerSymbol]?.time || "N/A";
+                const priceInfo = priceData[position.tickerSymbol] || {};
+                const currentPrice = priceInfo.price || position.lastPrice || 0;
+                const lastTime = priceInfo.time || "N/A";
+                const openPrice = priceInfo.open || position.openPrice || 0;
+                const prevClosePrice = priceInfo.prevClose || position.prevClosePrice || 0;
+
                 const costBasis = position.avgPrice * position.numShares;
                 const totalValueForPosition = currentPrice * position.numShares;
                 const profit = totalValueForPosition - costBasis;
                 const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
 
+                // Calculate additional metrics
+                const changeToday = currentPrice - prevClosePrice;
+                const changePctToday = prevClosePrice !== 0 ? (changeToday / prevClosePrice) * 100 : 0;
+                const gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
+
+                const timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
+
+                // Accumulate totals
                 totalCostBasis += costBasis;
                 totalValue += totalValueForPosition;
                 totalProfit += profit;
@@ -447,17 +476,33 @@
                 const row = `
                     <tr>
                         <td>${position.tickerSymbol}</td>
+                        <td>${position.avgPrice.toFixed(2)}</td>
+                        <td>${position.numShares}</td>
                         <td>${currentPrice.toFixed(2)}</td>
+                        <td>${costBasis.toFixed(2)}</td>
+                        <td>${totalValueForPosition.toFixed(2)}</td>
+                        <td class="${profitClass}">${profit.toFixed(2)}</td>
                         <td>${profitPct.toFixed(2)}%</td>
+                        <td>${changeToday.toFixed(2)}</td>
+                        <td>${changePctToday.toFixed(2)}%</td>
+                        <td>${gapPct.toFixed(2)}%</td>
+                        <td>${timeSinceLastTrade}</td>
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
             });
 
-            // Update totals
-            document.getElementById("totalProfit").textContent = totalProfit.toFixed(2);
+            // Calculate total profit percentage
+            const totalProfitPct = totalCostBasis !== 0 ? (totalProfit / totalCostBasis) * 100 : 0;
+
+            // Update totals in the footer
+            document.getElementById("totalCostBasis").textContent = totalCostBasis.toFixed(2);
             document.getElementById("totalValue").textContent = totalValue.toFixed(2);
-            document.getElementById("totalProfitPct").textContent = (totalProfit / totalCostBasis * 100).toFixed(2) + "%";
+            document.getElementById("totalProfit").textContent = totalProfit.toFixed(2);
+            document.getElementById("totalProfitPct").textContent = totalProfitPct.toFixed(2) + "%";
+
+            // Optionally, you can calculate and update other totals like totalChangeToday, etc.
+            // For now, they are set to 0.00 in the footer
         }
 
         function calculateTimeSinceLastTrade(lastTradeTime) {
@@ -571,391 +616,431 @@
             const filterCheckboxes = document.getElementById("filterCheckboxes");
             filterCheckboxes.innerHTML = "";
 
-uniqueTickers.forEach((ticker) => {
-    const isChecked = selectedTickers.includes(ticker);
-    const checkbox = document.createElement("div");
-    checkbox.className = "form-check form-check-inline filter-checkbox";
-    checkbox.innerHTML = `
-        <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" ${isChecked ? "checked" : ""}>
-        <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
-    `;
+            uniqueTickers.forEach((ticker) => {
+                const isChecked = selectedTickers.includes(ticker);
+                const checkbox = document.createElement("div");
+                checkbox.className = "form-check form-check-inline filter-checkbox";
+                checkbox.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" ${isChecked ? "checked" : ""}>
+                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
+                `;
 
-    checkbox.addEventListener("change", () => {
-        const ticker = checkbox.querySelector("input").value;
-        if (checkbox.querySelector("input").checked) {
-            if (!selectedTickers.includes(ticker)) {
-                selectedTickers.push(ticker);
-            }
-        } else {
-            selectedTickers = selectedTickers.filter((t) => t !== ticker);
-        }
-        renderPortfolio();
-    });
+                checkbox.addEventListener("change", () => {
+                    const ticker = checkbox.querySelector("input").value;
+                    if (checkbox.querySelector("input").checked) {
+                        if (!selectedTickers.includes(ticker)) {
+                            selectedTickers.push(ticker);
+                        }
+                    } else {
+                        selectedTickers = selectedTickers.filter((t) => t !== ticker);
+                    }
+                    renderPortfolio();
+                });
 
-    filterCheckboxes.appendChild(checkbox);
-});
-}
-
-function filterPositions(positions, selectedTickers) {
-const filterInput = document.getElementById("filterInput");
-const filterText = filterInput.value.toLowerCase();
-return positions.filter((position) => {
-    const tickerMatches = position.tickerSymbol.toLowerCase().includes(filterText);
-    const isSelected = selectedTickers.includes(position.tickerSymbol);
-    return tickerMatches && isSelected;
-});
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-const settingsIcon = document.getElementById("settingsIcon");
-const settingsSection = document.getElementById("settings");
-
-settingsIcon.addEventListener("click", () => {
-    if (settingsSection.style.display === "none" || !settingsSection.style.display) {
-        settingsSection.style.display = "block";
-    } else {
-        settingsSection.style.display = "none";
-    }
-});
-
-const refreshButtons = document.querySelectorAll(".refresh-interval-button");
-
-refreshButtons.forEach((button) => {
-    button.addEventListener("click", async (event) => {
-        const selectedInterval = parseInt(event.target.getAttribute("data-interval"));
-        await saveRefreshInterval(selectedInterval);
-
-        refreshButtons.forEach((btn) => btn.classList.remove("btn-primary"));
-        event.target.classList.add("btn-primary");
-
-        startAutoRefresh();
-    });
-});
-
-const saveKeysButton = document.getElementById("saveKeys");
-saveKeysButton.addEventListener("click", async () => {
-    const alpacaKey = document.getElementById("alpacaApiKey").value;
-    const alpacaSecret = document.getElementById("alpacaApiSecret").value;
-    const finnhubKey = document.getElementById("apiKeyInput").value;
-
-    try {
-        await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
-        showFeedback("Settings saved successfully!", "success");
-    } catch (error) {
-        console.error("Failed to save settings:", error);
-        showFeedback("Failed to save settings.", "danger");
-    }
-});
-
-const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
-
-tableHeaders.forEach((header) => {
-    header.addEventListener("click", (event) => {
-       const newSortColumn = header.getAttribute("data-sort-key");
-        const sortType = header.getAttribute("data-sort-type");
-
-        if (sortColumn === newSortColumn) {
-            sortDirection = sortDirection === "asc" ? "desc" : "asc";
-        } else {
-            sortColumn = newSortColumn;
-            sortDirection = "asc";
+                filterCheckboxes.appendChild(checkbox);
+            });
         }
 
-        tableHeaders.forEach((h) => {
-            h.classList.remove("sorted-asc", "sorted-desc");
+        function filterPositions(positions, selectedTickers) {
+            const filterInput = document.getElementById("filterInput");
+            const filterText = filterInput.value.toLowerCase();
+            return positions.filter((position) => {
+                const tickerMatches = position.tickerSymbol.toLowerCase().includes(filterText);
+                const isSelected = selectedTickers.includes(position.tickerSymbol);
+                return tickerMatches && isSelected;
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const settingsIcon = document.getElementById("settingsIcon");
+            const settingsSection = document.getElementById("settings");
+
+            settingsIcon.addEventListener("click", () => {
+                if (settingsSection.style.display === "none" || !settingsSection.style.display) {
+                    settingsSection.style.display = "block";
+                } else {
+                    settingsSection.style.display = "none";
+                }
+            });
+
+            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
+
+            refreshButtons.forEach((button) => {
+                button.addEventListener("click", async (event) => {
+                    const selectedInterval = parseInt(event.target.getAttribute("data-interval"));
+                    await saveRefreshInterval(selectedInterval);
+
+                    refreshButtons.forEach((btn) => btn.classList.remove("btn-primary"));
+                    event.target.classList.add("btn-primary");
+
+                    startAutoRefresh();
+                });
+            });
+
+            const saveKeysButton = document.getElementById("saveKeys");
+            saveKeysButton.addEventListener("click", async () => {
+                const alpacaKey = document.getElementById("alpacaApiKey").value;
+                const alpacaSecret = document.getElementById("alpacaApiSecret").value;
+                const finnhubKey = document.getElementById("apiKeyInput").value;
+
+                try {
+                    await saveKeys(alpacaKey, alpacaSecret, finnhubKey);
+                    showFeedback("Settings saved successfully!", "success");
+                } catch (error) {
+                    console.error("Failed to save settings:", error);
+                    showFeedback("Failed to save settings.", "danger");
+                }
+            });
+
+            const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
+
+            tableHeaders.forEach((header) => {
+                header.addEventListener("click", (event) => {
+                   const newSortColumn = header.getAttribute("data-sort-key");
+                    const sortType = header.getAttribute("data-sort-type");
+
+                    if (sortColumn === newSortColumn) {
+                        sortDirection = sortDirection === "asc" ? "desc" : "asc";
+                    } else {
+                        sortColumn = newSortColumn;
+                        sortDirection = "asc";
+                    }
+
+                    tableHeaders.forEach((h) => {
+                        h.classList.remove("sorted-asc", "sorted-desc");
+                    });
+                    header.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
+
+                    sortPositions();
+                    renderPortfolio();
+                });
+            });
+
+            const filterInput = document.getElementById("filterInput");
+            filterInput.addEventListener("input", renderPortfolio);
+
+            await loadSavedVisibleColumns();
+            await loadSavedRefreshInterval();
+            await loadPortfolio();
+            await startAutoRefresh();
+            setupColumnCustomization();
         });
-        header.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
 
-        renderPortfolio();
-    });
-});
+        async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
 
-const filterInput = document.getElementById("filterInput");
-filterInput.addEventListener("input", renderPortfolio);
+            appendDebugLog("Saving API keys...");
 
-await loadSavedVisibleColumns();
-await loadSavedRefreshInterval();
-await loadPortfolio();
-await startAutoRefresh();
-setupColumnCustomization();
-});
-
-async function saveKeys(alpacaKey, alpacaSecret, finnhubKey) {
-const db = await openDatabase();
-const transaction = db.transaction(settingsStoreName, "readwrite");
-const store = transaction.objectStore(settingsStoreName);
-
-appendDebugLog("Saving API keys...");
-
-if (alpacaKey) {
-    store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
-    appendDebugLog(`Alpaca Key saved: ${alpacaKey}`);
-}
-
-if (alpacaSecret) {
-    store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
-    appendDebugLog("Alpaca Secret saved.");
-}
-
-if (finnhubKey) {
-    store.put({ key: "finnhubApiKey", value: finnhubKey });
-    appendDebugLog("Finnhub Key saved.");
-}
-
-return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => {
-        appendDebugLog("Settings saved successfully.");
-        resolve();
-    };
-
-    transaction.onerror = (event) => {
-        appendDebugLog(`Failed to save settings: ${event.target.error}`);
-        reject(event.target.error);
-    };
-});
-}
-
-function showFeedback(message, type) {
-const feedbackDiv = document.getElementById("settingsFeedback");
-feedbackDiv.textContent = message;
-feedbackDiv.className = `mt-2 text-${type}`;
-feedbackDiv.style.display = "block";
-
-setTimeout(() => {
-    feedbackDiv.style.display = "none";
-}, 3000);
-}
-
-async function saveRefreshInterval(interval) {
-const db = await openDatabase();
-const transaction = db.transaction(settingsStoreName, "readwrite");
-const store = transaction.objectStore(settingsStoreName);
-
-store.put({ key: "refreshInterval", value: interval });
-
-return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => {
-        console.log("Refresh interval saved successfully!");
-        resolve();
-    };
-    transaction.onerror = (event) => {
-        console.error("Failed to save refresh interval.", event.target.error);
-        reject(event.target.error);
-    };
-});
-}
-
-async function loadSavedRefreshInterval() {
-const interval = await getRefreshInterval();
-const refreshButtons = document.querySelectorAll(".refresh-interval-button");
-
-refreshButtons.forEach((button) => {
-    if (parseInt(button.getAttribute("data-interval")) === interval) {
-        button.classList.add("btn-primary");
-    } else {
-        button.classList.remove("btn-primary");
-    }
-});
-}
-
-function appendDebugLog(message) {
-const debugDiv = document.getElementById("debugLogs");
-const log = document.createElement("div");
-log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-debugDiv.appendChild(log);
-}
-
-function setupColumnCustomization() {
-const sortableColumns = document.getElementById("sortableColumns");
-const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
-const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-
-let draggedItem = null;
-
-sortableColumns.addEventListener("dragstart", (event) => {
-    draggedItem = event.target;
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", "");
-    setTimeout(() => {
-        draggedItem.style.opacity = "0.5";
-    }, 0);
-});
-
-sortableColumns.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    const targetItem = event.target.closest(".column-item");
-    if (targetItem) {
-        const bounding = targetItem.getBoundingClientRect();
-        const offset = bounding.y + bounding.height / 2;
-
-        if (event.clientY - offset > 0) {
-            targetItem.style.borderBottom = "2px solid white";
-            targetItem.style.borderTop = "";
-        } else {
-            targetItem.style.borderTop = "2px solid white";
-            targetItem.style.borderBottom = "";
-        }
-    }
-});
-
-sortableColumns.addEventListener("dragleave", (event) => {
-    const targetItem = event.target.closest(".column-item");
-    if (targetItem) {
-        targetItem.style.borderTop = "";
-        targetItem.style.borderBottom = "";
-    }
-});
-
-sortableColumns.addEventListener("drop", async (event) => {
-    event.preventDefault();
-    const targetItem = event.target.closest(".column-item");
-    if (draggedItem && targetItem) {
-        if (draggedItem !== targetItem) {
-            if (targetItem.style.borderBottom === "2px solid white") {
-                sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
-            } else {
-                sortableColumns.insertBefore(draggedItem, targetItem);
+            if (alpacaKey) {
+                store.put({ key: "APCA_API_KEY_ID", value: alpacaKey });
+                appendDebugLog(`Alpaca Key saved: ${alpacaKey}`);
             }
-            await updateVisibleColumns();
-            updateTableColumns();
-            renderPortfolio();
-        }
-        targetItem.style.borderTop = "";
-        targetItem.style.borderBottom = "";
-        draggedItem.style.opacity = "";
-        draggedItem = null;
-    }
-});
 
-columnCheckboxes.forEach((checkbox) => {
-    checkbox.addEventListener("change", async () => {
-        const columnKey = checkbox.value;
-        if (checkbox.checked) {
-            if (!visibleColumns.includes(columnKey)) {
-                visibleColumns.push(columnKey);
+            if (alpacaSecret) {
+                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaSecret });
+                appendDebugLog("Alpaca Secret saved.");
             }
-        } else {
-            visibleColumns = visibleColumns.filter((key) => key !== columnKey);
+
+            if (finnhubKey) {
+                store.put({ key: "finnhubApiKey", value: finnhubKey });
+                appendDebugLog("Finnhub Key saved.");
+            }
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    appendDebugLog("Settings saved successfully.");
+                    resolve();
+                };
+
+                transaction.onerror = (event) => {
+                    appendDebugLog(`Failed to save settings: ${event.target.error}`);
+                    reject(event.target.error);
+                };
+            });
         }
-        await saveVisibleColumns();
-        updateTableColumns();
-        renderPortfolio();
-    });
-});
-}
 
-async function saveVisibleColumns() {
-const db = await openDatabase();
-const transaction = db.transaction(settingsStoreName, "readwrite");
-const store = transaction.objectStore(settingsStoreName);
-const sortedColumnItems = document.querySelectorAll("#sortableColumns .column-item");
-const updatedVisibleColumns = Array.from(sortedColumnItems).map(item => item.getAttribute("data-column")).filter(column => visibleColumns.includes(column));
+        function showFeedback(message, type) {
+            const feedbackDiv = document.getElementById("settingsFeedback");
+            feedbackDiv.textContent = message;
+            feedbackDiv.className = `mt-2 text-${type}`;
+            feedbackDiv.style.display = "block";
 
-store.put({ key: "visibleColumns", value: updatedVisibleColumns });
-
-return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => {
-        console.log("Visible columns saved successfully!");
-        resolve();
-    };
-    transaction.onerror = (event) => {
-        console.error("Failed to save visible columns.", event.target.error);
-        reject(event.target.error);
-    };
-});
-}
-
-async function loadSavedVisibleColumns() {
-const db = await openDatabase();
-const transaction = db.transaction(settingsStoreName, "readonly");
-const store = transaction.objectStore(settingsStoreName);
-
-return new Promise((resolve, reject) => {
-    const request = store.get("visibleColumns");
-    request.onsuccess = (event) => {
-        const savedVisibleColumns = event.target.result?.value;
-        if (savedVisibleColumns) {
-            visibleColumns = savedVisibleColumns;
-            updateCheckboxes();
+            setTimeout(() => {
+                feedbackDiv.style.display = "none";
+            }, 3000);
         }
-        resolve();
-    };
-    request.onerror = (event) => {
-        console.error("Failed to load visible columns.", event.target.error);
-        reject(event.target.error);
-    };
-});
-}
 
-function updateCheckboxes() {
-const columnCheckboxes = document.querySelectorAll("#sortableColumns .column-checkbox");
-const columnItems = document.querySelectorAll("#sortableColumns .column-item");
+        async function saveRefreshInterval(interval) {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
 
-columnCheckboxes.forEach((checkbox) => {
-    checkbox.checked = visibleColumns.includes(checkbox.value);
-});
+            store.put({ key: "refreshInterval", value: interval });
 
-const sortableColumns = document.getElementById("sortableColumns");
-visibleColumns.forEach(columnKey => {
-    const columnItem = Array.from(columnItems).find(item => item.getAttribute("data-column") === columnKey);
-    if (columnItem) {
-        sortableColumns.appendChild(columnItem);
-    }
-});
-}
-
-function updateTableColumns() {
-const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
-const bodyRows = document.querySelectorAll("#portfolioTable tbody tr");
-const footerRow = document.querySelector("#portfolioTable tfoot tr");
-const headerMap = {};
-
-tableHeaders.forEach(header => {
-    const headerKey = header.getAttribute("data-sort-key");
-    headerMap[headerKey] = header;
-});
-
-tableHeaders.forEach(header => {
-    const headerKey = header.getAttribute("data-sort-key");
-    header.style.display = visibleColumns.includes(headerKey) ? "" : "none";
-});
-
-bodyRows.forEach(row => {
-    const cells = row.querySelectorAll("td");
-    cells.forEach((cell, index) => {
-        const headerKey = Object.keys(headerMap)[index];
-        if (headerKey) {
-            cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    console.log("Refresh interval saved successfully!");
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error("Failed to save refresh interval.", event.target.error);
+                    reject(event.target.error);
+                };
+            });
         }
-    });
-});
 
-footerCells.forEach((cell, index) => {
-    if (index > 0 && index <= tableHeaders.length) {
-        const headerKey = tableHeaders[index - 1].getAttribute("data-sort-key");
-        cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
-    }
-});
-}
+        async function loadSavedRefreshInterval() {
+            const interval = await getRefreshInterval();
+            const refreshButtons = document.querySelectorAll(".refresh-interval-button");
 
-async function updateVisibleColumns() {
-const columnItems = document.querySelectorAll("#sortableColumns .column-item");
-const newVisibleColumns = [];
+            refreshButtons.forEach((button) => {
+                if (parseInt(button.getAttribute("data-interval")) === interval) {
+                    button.classList.add("btn-primary");
+                } else {
+                    button.classList.remove("btn-primary");
+                }
+            });
+        }
 
-columnItems.forEach((item) => {
-    const checkbox = item.querySelector(".column-checkbox");
-    if (checkbox.checked) {
-        newVisibleColumns.push(checkbox.value);
-    }
-});
+        function appendDebugLog(message) {
+            const debugDiv = document.getElementById("debugLogs");
+            const log = document.createElement("div");
+            log.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            debugDiv.appendChild(log);
+            debugDiv.style.display = "block"; // Make sure it's visible if needed
+        }
 
-visibleColumns = newVisibleColumns;
+        function setupColumnCustomization() {
+            const sortableColumns = document.getElementById("sortableColumns");
+            const columnCheckboxes = document.querySelectorAll("#columnCustomization .column-checkbox");
+            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
 
-await saveVisibleColumns();
-updateCheckboxes();
-updateTableColumns();
-}
-</script>
-<div id="debugLogs" style="margin-top: 20px; color: #ff6f61; font-family: monospace;"></div>
+            let draggedItem = null;
+
+            sortableColumns.addEventListener("dragstart", (event) => {
+                draggedItem = event.target;
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", "");
+                setTimeout(() => {
+                    draggedItem.style.opacity = "0.5";
+                }, 0);
+            });
+
+            sortableColumns.addEventListener("dragover", (event) => {
+                event.preventDefault();
+                const targetItem = event.target.closest(".column-item");
+                if (targetItem) {
+                    const bounding = targetItem.getBoundingClientRect();
+                    const offset = bounding.y + bounding.height / 2;
+
+                    if (event.clientY - offset > 0) {
+                        targetItem.style.borderBottom = "2px solid white";
+                        targetItem.style.borderTop = "";
+                    } else {
+                        targetItem.style.borderTop = "2px solid white";
+                        targetItem.style.borderBottom = "";
+                    }
+                }
+            });
+
+            sortableColumns.addEventListener("dragleave", (event) => {
+                const targetItem = event.target.closest(".column-item");
+                if (targetItem) {
+                    targetItem.style.borderTop = "";
+                    targetItem.style.borderBottom = "";
+                }
+            });
+
+            sortableColumns.addEventListener("drop", async (event) => {
+                event.preventDefault();
+                const targetItem = event.target.closest(".column-item");
+                if (draggedItem && targetItem) {
+                    if (draggedItem !== targetItem) {
+                        if (targetItem.style.borderBottom === "2px solid white") {
+                            sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
+                        } else {
+                            sortableColumns.insertBefore(draggedItem, targetItem);
+                        }
+                        await updateVisibleColumns();
+                        updateTableColumns();
+                        renderPortfolio();
+                    }
+                    targetItem.style.borderTop = "";
+                    targetItem.style.borderBottom = "";
+                    draggedItem.style.opacity = "";
+                    draggedItem = null;
+                }
+            });
+
+            columnCheckboxes.forEach((checkbox) => {
+                checkbox.addEventListener("change", async () => {
+                    const columnKey = checkbox.value;
+                    if (checkbox.checked) {
+                        if (!visibleColumns.includes(columnKey)) {
+                            visibleColumns.push(columnKey);
+                        }
+                    } else {
+                        visibleColumns = visibleColumns.filter((key) => key !== columnKey);
+                    }
+                    await saveVisibleColumns();
+                    updateTableColumns();
+                    renderPortfolio();
+                });
+            });
+        }
+
+        async function saveVisibleColumns() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+            const sortedColumnItems = document.querySelectorAll("#sortableColumns .column-item");
+            const updatedVisibleColumns = Array.from(sortedColumnItems).map(item => item.getAttribute("data-column")).filter(column => visibleColumns.includes(column));
+
+            store.put({ key: "visibleColumns", value: updatedVisibleColumns });
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    console.log("Visible columns saved successfully!");
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error("Failed to save visible columns.", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        async function loadSavedVisibleColumns() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.get("visibleColumns");
+                request.onsuccess = (event) => {
+                    const savedVisibleColumns = event.target.result?.value;
+                    if (savedVisibleColumns) {
+                        visibleColumns = savedVisibleColumns;
+                        updateCheckboxes();
+                    }
+                    resolve();
+                };
+                request.onerror = (event) => {
+                    console.error("Failed to load visible columns.", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        function updateCheckboxes() {
+            const columnCheckboxes = document.querySelectorAll("#sortableColumns .column-checkbox");
+            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
+
+            columnCheckboxes.forEach((checkbox) => {
+                checkbox.checked = visibleColumns.includes(checkbox.value);
+            });
+
+            const sortableColumns = document.getElementById("sortableColumns");
+            visibleColumns.forEach(columnKey => {
+                const columnItem = Array.from(columnItems).find(item => item.getAttribute("data-column") === columnKey);
+                if (columnItem) {
+                    sortableColumns.appendChild(columnItem);
+                }
+            });
+        }
+
+        function updateTableColumns() {
+            const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
+            const bodyRows = document.querySelectorAll("#portfolioTable tbody tr");
+            const footerRow = document.querySelector("#portfolioTable tfoot tr");
+            const footerCells = footerRow.querySelectorAll("td"); // Defined footerCells
+            const headerMap = {};
+
+            tableHeaders.forEach(header => {
+                const headerKey = header.getAttribute("data-sort-key");
+                headerMap[headerKey] = header;
+            });
+
+            tableHeaders.forEach(header => {
+                const headerKey = header.getAttribute("data-sort-key");
+                header.style.display = visibleColumns.includes(headerKey) ? "" : "none";
+            });
+
+            bodyRows.forEach(row => {
+                const cells = row.querySelectorAll("td");
+                cells.forEach((cell, index) => {
+                    const headerKey = tableHeaders[index].getAttribute("data-sort-key");
+                    if (headerKey) {
+                        cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
+                    }
+                });
+            });
+
+            footerCells.forEach((cell, index) => {
+                if (index > 0 && index <= tableHeaders.length) {
+                    const headerKey = tableHeaders[index - 1].getAttribute("data-sort-key");
+                    cell.style.display = visibleColumns.includes(headerKey) ? "" : "none";
+                }
+            });
+        }
+
+        async function updateVisibleColumns() {
+            const columnItems = document.querySelectorAll("#sortableColumns .column-item");
+            const newVisibleColumns = [];
+
+            columnItems.forEach(item => {
+                const columnKey = item.getAttribute("data-column");
+                if (visibleColumns.includes(columnKey)) {
+                    newVisibleColumns.push(columnKey);
+                }
+            });
+
+            visibleColumns = newVisibleColumns;
+            await saveVisibleColumns();
+        }
+
+        function sortPositions() {
+            if (!sortColumn) return;
+
+            allPositions.sort((a, b) => {
+                let valA = a[sortColumn];
+                let valB = b[sortColumn];
+
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        async function loadSavedVisibleColumns() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.get("visibleColumns");
+                request.onsuccess = (event) => {
+                    const savedVisibleColumns = event.target.result?.value;
+                    if (savedVisibleColumns) {
+                        visibleColumns = savedVisibleColumns;
+                        updateCheckboxes();
+                    }
+                    resolve();
+                };
+                request.onerror = (event) => {
+                    console.error("Failed to load visible columns.", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+    </script>
 </body>
 </html>
