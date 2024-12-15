@@ -166,18 +166,66 @@
             <table id="portfolioTable">
                 <thead>
                     <tr>
-                        <th data-column="tickerSymbol" data-sort-type="string" data-sort-key="tickerSymbol" data-col-index="0"><span class="th-name">Ticker</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="avgPrice" data-sort-type="number" data-sort-key="avgPrice" data-col-index="1"><span class="th-name">Average Price</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="numShares" data-sort-type="number" data-sort-key="numShares" data-col-index="2"><span class="th-name">Shares</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="lastPrice" data-sort-type="number" data-sort-key="lastPrice" data-col-index="3"><span class="th-name">Current Price</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="costBasis" data-sort-type="number" data-sort-key="costBasis" data-col-index="4"><span class="th-name">Cost Basis</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="totalValue" data-sort-type="number" data-sort-key="totalValue" data-col-index="5"><span class="th-name">Total Value</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="profit" data-sort-type="number" data-sort-key="profit" data-col-index="6"><span class="th-name">Profit</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="profitPct" data-sort-type="number" data-sort-key="profitPct" data-col-index="7"><span class="th-name">Profit %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="changeToday" data-sort-type="number" data-sort-key="changeToday" data-col-index="8"><span class="th-name">Change Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="changePctToday" data-sort-type="number" data-sort-key="changePctToday" data-col-index="9"><span class="th-name">Change % Today</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="gapPct" data-sort-type="number" data-sort-key="gapPct" data-col-index="10"><span class="th-name">Gap %</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
-                        <th data-column="lastTime" data-sort-type="string" data-sort-key="lastTime" data-col-index="11"><span class="th-name">Time Since Last Trade</span><span class="sort-arrow asc">▲</span><span class="sort-arrow desc">▼</span></th>
+                        <th data-column="tickerSymbol" data-sort-type="string" data-sort-key="tickerSymbol" data-col-index="0">
+                            <span class="th-name">Ticker</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="avgPrice" data-sort-type="number" data-sort-key="avgPrice" data-col-index="1">
+                            <span class="th-name">Average Price</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="numShares" data-sort-type="number" data-sort-key="numShares" data-col-index="2">
+                            <span class="th-name">Shares</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="lastPrice" data-sort-type="number" data-sort-key="lastPrice" data-col-index="3">
+                            <span class="th-name">Current Price</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="costBasis" data-sort-type="number" data-sort-key="costBasis" data-col-index="4">
+                            <span class="th-name">Cost Basis</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="totalValue" data-sort-type="number" data-sort-key="totalValue" data-col-index="5">
+                            <span class="th-name">Total Value</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="profit" data-sort-type="number" data-sort-key="profit" data-col-index="6">
+                            <span class="th-name">Profit</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="profitPct" data-sort-type="number" data-sort-key="profitPct" data-col-index="7">
+                            <span class="th-name">Profit %</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="changeToday" data-sort-type="number" data-sort-key="changeToday" data-col-index="8">
+                            <span class="th-name">Change Today</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="changePctToday" data-sort-type="number" data-sort-key="changePctToday" data-col-index="9">
+                            <span class="th-name">Change % Today</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="gapPct" data-sort-type="number" data-sort-key="gapPct" data-col-index="10">
+                            <span class="th-name">Gap %</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
+                        <th data-column="lastTime" data-sort-type="string" data-sort-key="lastTime" data-col-index="11">
+                            <span class="th-name">Time Since Last Trade</span>
+                            <span class="sort-arrow asc">▲</span>
+                            <span class="sort-arrow desc">▼</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
@@ -420,9 +468,35 @@
 
         async function loadPortfolio() {
             allPositions = await fetchPositions();
+            // Calculate and append additional fields to each position
+            allPositions = allPositions.map(position => {
+                const currentPrice = position.lastPrice || 0;
+                const costBasis = position.avgPrice * position.numShares;
+                const totalValue = currentPrice * position.numShares;
+                const profit = totalValue - costBasis;
+                const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
+                const changeToday = position.changeToday || 0;
+                const changePctToday = position.changePctToday || 0;
+                const gapPct = position.gapPct || 0;
+                const timeSinceLastTrade = position.lastTime || "N/A";
+
+                return {
+                    ...position,
+                    costBasis,
+                    totalValue,
+                    profit,
+                    profitPct,
+                    changeToday,
+                    changePctToday,
+                    gapPct,
+                    timeSinceLastTrade
+                };
+            });
+
             const uniqueTickers = [...new Set(allPositions.map((p) => p.tickerSymbol))];
             selectedTickers = selectedTickers.length === 0 ? uniqueTickers : selectedTickers;
             generateFilterCheckboxes(uniqueTickers);
+            sortPositions(); // Sort after adding calculated fields
             renderPortfolio();
         }
 
@@ -446,6 +520,10 @@
             let totalCostBasis = 0;
             let totalValue = 0;
             let totalProfit = 0;
+            let totalProfitPct = 0;
+            let totalChangeToday = 0;
+            let totalChangePctToday = 0;
+            let totalGapPct = 0;
 
             filteredPositions.forEach((position) => {
                 const priceInfo = priceData[position.tickerSymbol] || {};
@@ -454,24 +532,26 @@
                 const openPrice = priceInfo.open || position.openPrice || 0;
                 const prevClosePrice = priceInfo.prevClose || position.prevClosePrice || 0;
 
-                const costBasis = position.avgPrice * position.numShares;
-                const totalValueForPosition = currentPrice * position.numShares;
-                const profit = totalValueForPosition - costBasis;
-                const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
-
-                // Calculate additional metrics
-                const changeToday = currentPrice - prevClosePrice;
-                const changePctToday = prevClosePrice !== 0 ? (changeToday / prevClosePrice) * 100 : 0;
-                const gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
-
-                const timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
+                // Update calculated fields
+                position.costBasis = position.avgPrice * position.numShares;
+                position.totalValue = currentPrice * position.numShares;
+                position.profit = position.totalValue - position.costBasis;
+                position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
+                position.changeToday = currentPrice - prevClosePrice;
+                position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
+                position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
+                position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
 
                 // Accumulate totals
-                totalCostBasis += costBasis;
-                totalValue += totalValueForPosition;
-                totalProfit += profit;
+                totalCostBasis += position.costBasis;
+                totalValue += position.totalValue;
+                totalProfit += position.profit;
+                totalProfitPct += position.profitPct;
+                totalChangeToday += position.changeToday;
+                totalChangePctToday += position.changePctToday;
+                totalGapPct += position.gapPct;
 
-                const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
+                const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
 
                 const row = `
                     <tr>
@@ -479,30 +559,33 @@
                         <td>${position.avgPrice.toFixed(2)}</td>
                         <td>${position.numShares}</td>
                         <td>${currentPrice.toFixed(2)}</td>
-                        <td>${costBasis.toFixed(2)}</td>
-                        <td>${totalValueForPosition.toFixed(2)}</td>
-                        <td class="${profitClass}">${profit.toFixed(2)}</td>
-                        <td>${profitPct.toFixed(2)}%</td>
-                        <td>${changeToday.toFixed(2)}</td>
-                        <td>${changePctToday.toFixed(2)}%</td>
-                        <td>${gapPct.toFixed(2)}%</td>
-                        <td>${timeSinceLastTrade}</td>
+                        <td>${position.costBasis.toFixed(2)}</td>
+                        <td>${position.totalValue.toFixed(2)}</td>
+                        <td class="${profitClass}">${position.profit.toFixed(2)}</td>
+                        <td>${position.profitPct.toFixed(2)}%</td>
+                        <td>${position.changeToday.toFixed(2)}</td>
+                        <td>${position.changePctToday.toFixed(2)}%</td>
+                        <td>${position.gapPct.toFixed(2)}%</td>
+                        <td>${position.timeSinceLastTrade}</td>
                     </tr>
                 `;
                 portfolioBody.innerHTML += row;
             });
 
-            // Calculate total profit percentage
-            const totalProfitPct = totalCostBasis !== 0 ? (totalProfit / totalCostBasis) * 100 : 0;
+            // Calculate average profit percentage
+            const averageProfitPct = filteredPositions.length > 0 ? (totalProfitPct / filteredPositions.length) : 0;
+
+            // Calculate total profit percentage based on total cost basis
+            totalProfitPct = totalCostBasis !== 0 ? (totalProfit / totalCostBasis) * 100 : 0;
 
             // Update totals in the footer
             document.getElementById("totalCostBasis").textContent = totalCostBasis.toFixed(2);
             document.getElementById("totalValue").textContent = totalValue.toFixed(2);
             document.getElementById("totalProfit").textContent = totalProfit.toFixed(2);
             document.getElementById("totalProfitPct").textContent = totalProfitPct.toFixed(2) + "%";
-
-            // Optionally, you can calculate and update other totals like totalChangeToday, etc.
-            // For now, they are set to 0.00 in the footer
+            document.getElementById("totalChangeToday").textContent = totalChangeToday.toFixed(2);
+            document.getElementById("totalChangePctToday").textContent = totalChangePctToday.toFixed(2) + "%";
+            document.getElementById("totalGapPct").textContent = totalGapPct.toFixed(2) + "%";
         }
 
         function calculateTimeSinceLastTrade(lastTradeTime) {
@@ -595,7 +678,7 @@
             if (interval > 0) {
                 refreshIntervalId = setInterval(async () => {
                     console.log("Auto-refreshing prices...");
-                    await renderPortfolio();
+                    await loadPortfolio(); // Changed to loadPortfolio to recalculate and sort
                 }, interval * 1000);
             }
         }
@@ -634,6 +717,7 @@
                     } else {
                         selectedTickers = selectedTickers.filter((t) => t !== ticker);
                     }
+                    sortPositions(); // Re-sort after filter change
                     renderPortfolio();
                 });
 
@@ -696,7 +780,7 @@
 
             tableHeaders.forEach((header) => {
                 header.addEventListener("click", (event) => {
-                   const newSortColumn = header.getAttribute("data-sort-key");
+                    const newSortColumn = header.getAttribute("data-sort-key");
                     const sortType = header.getAttribute("data-sort-type");
 
                     if (sortColumn === newSortColumn) {
@@ -717,7 +801,10 @@
             });
 
             const filterInput = document.getElementById("filterInput");
-            filterInput.addEventListener("input", renderPortfolio);
+            filterInput.addEventListener("input", () => {
+                sortPositions(); // Re-sort when filter changes
+                renderPortfolio();
+            });
 
             await loadSavedVisibleColumns();
             await loadSavedRefreshInterval();
@@ -896,7 +983,9 @@
             const transaction = db.transaction(settingsStoreName, "readwrite");
             const store = transaction.objectStore(settingsStoreName);
             const sortedColumnItems = document.querySelectorAll("#sortableColumns .column-item");
-            const updatedVisibleColumns = Array.from(sortedColumnItems).map(item => item.getAttribute("data-column")).filter(column => visibleColumns.includes(column));
+            const updatedVisibleColumns = Array.from(sortedColumnItems)
+                .map(item => item.getAttribute("data-column"))
+                .filter(column => visibleColumns.includes(column));
 
             store.put({ key: "visibleColumns", value: updatedVisibleColumns });
 
@@ -955,7 +1044,7 @@
             const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
             const bodyRows = document.querySelectorAll("#portfolioTable tbody tr");
             const footerRow = document.querySelector("#portfolioTable tfoot tr");
-            const footerCells = footerRow.querySelectorAll("td"); // Defined footerCells
+            const footerCells = footerRow.querySelectorAll("td");
             const headerMap = {};
 
             tableHeaders.forEach(header => {
@@ -1008,9 +1097,14 @@
                 let valA = a[sortColumn];
                 let valB = b[sortColumn];
 
+                // Handle undefined or null values
+                valA = valA !== undefined && valA !== null ? valA : (typeof valB === 'number' ? -Infinity : '');
+                valB = valB !== undefined && valB !== null ? valB : (typeof valA === 'number' ? -Infinity : '');
+
+                // If sorting by string, convert to lowercase for case-insensitive comparison
                 if (typeof valA === 'string') {
                     valA = valA.toLowerCase();
-                    valB = valB.toLowerCase();
+                    valB = typeof valB === 'string' ? valB.toLowerCase() : '';
                 }
 
                 if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
