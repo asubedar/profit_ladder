@@ -60,7 +60,7 @@
             color: #dc3545;
         }
         .settings {
-            display: none;
+            /* Removed display: none; initially controlled by Bootstrap's d-none class */
             margin-top: 20px;
             background-color: #1e1e1e;
             padding: 20px;
@@ -111,7 +111,7 @@
         }
         .drag-handle i {
             font-size: 14px;
-            color: #ccc; /* Changed from #666 to #ccc for better visibility */
+            color: #cccccc; /* Lighter gray for better visibility */
         }
         .th-name {
             margin-left: 25px;
@@ -151,18 +151,18 @@
             justify-content: space-between;
             cursor: grab;
             padding-left: 25px;
-            background-color: #1e1e1e; /* Dark background */
+            background-color: #1e1e1e; /* Dark background to match the settings */
             border: 1px solid #444; /* Consistent border color */
-            color: #ffffff; /* Light text */
+            color: #ffffff; /* Light text for readability */
             margin-bottom: 5px; /* Spacing between items */
-            border-radius: 4px; /* Slightly rounded corners */
+            border-radius: 4px; /* Slightly rounded corners for aesthetics */
         }
         #sortableColumns .column-item.dragging {
-            opacity: 0.5;
+            opacity: 0.5; /* Semi-transparent while dragging */
         }
         /* Checkbox and Label Styling */
         #sortableColumns .form-check-input {
-            accent-color: #00bcd4; /* Custom color for checkboxes */
+            accent-color: #00bcd4; /* Custom color for checkboxes to match the theme */
         }
         #sortableColumns .form-check-label {
             margin-left: 5px;
@@ -230,7 +230,7 @@
         </div>
 
         <!-- Settings Section -->
-        <div class="settings" id="settings">
+        <div class="settings d-none" id="settings"> <!-- Added 'd-none' class to hide initially -->
             <h3>Settings</h3>
             <!-- Column Customization -->
             <div id="columnCustomization" class="mb-3">
@@ -926,7 +926,6 @@
             const db = await openDatabase();
             const transaction = db.transaction(settingsStoreName, "readwrite");
             const store = transaction.objectStore(settingsStoreName);
-
             store.put({ key: "refreshInterval", value: interval });
 
             return new Promise((resolve, reject) => {
@@ -1157,13 +1156,9 @@
             const settingsIcon = document.getElementById("settingsIcon");
             const settingsSection = document.getElementById("settings");
 
-            // Toggle Settings Section
+            // Toggle Settings Section using Bootstrap's d-none class
             settingsIcon.addEventListener("click", () => {
-                if (settingsSection.style.display === "none" || !settingsSection.style.display) {
-                    settingsSection.style.display = "block";
-                } else {
-                    settingsSection.style.display = "none";
-                }
+                settingsSection.classList.toggle("d-none");
             });
 
             // Setup Refresh Interval Buttons
