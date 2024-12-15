@@ -414,103 +414,50 @@
             renderPortfolio();
         }
 
-        function renderPortfolio() {
+        async function renderPortfolio() {
             const filteredPositions = filterPositions(allPositions, selectedTickers);
             const portfolioBody = document.getElementById("portfolioBody");
             portfolioBody.innerHTML = "";
+
+            // Collect all unique tickers
+            const uniqueTickers = [...new Set(filteredPositions.map((p) => p.tickerSymbol))];
+
+            // Fetch batched prices for all symbols
+            const priceData = await fetchCurrentPrices(uniqueTickers);
 
             let totalCostBasis = 0;
             let totalValue = 0;
             let totalProfit = 0;
             let totalProfitPct = 0;
-            let totalChangeToday = 0;
-            let totalChangePctToday = 0;
-            let totalGapPct = 0;
 
-            const pricedPositions = filteredPositions.map(async (position) => {
-                const priceData = await fetchCurrentPrices([position.tickerSymbol]);
+            filteredPositions.forEach((position) => {
                 const currentPrice = priceData[position.tickerSymbol]?.price || position.lastPrice || 0;
-                const lastTime = priceData[position.tickerSymbol]?.time || position.lastTime || "N/A";
-                const openPrice = priceData[position.tickerSymbol]?.open || 0;
-                const prevClosePrice = priceData[position.tickerSymbol]?.prevClose || 0;
-
-                if (currentPrice > 0) {
-                    await updatePosition(position.tickerSymbol, currentPrice, lastTime, openPrice, prevClosePrice);
-                    position.lastPrice = currentPrice;
-                    position.lastTime = lastTime;
-                    position.openPrice = openPrice;
-                    position.prevClosePrice = prevClosePrice;
-                }
-
+                const lastTime = priceData[position.tickerSymbol]?.time || "N/A";
                 const costBasis = position.avgPrice * position.numShares;
                 const totalValueForPosition = currentPrice * position.numShares;
                 const profit = totalValueForPosition - costBasis;
                 const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
-                const changeToday = currentPrice - position.openPrice;
-                const changePctToday = position.openPrice !== 0 ? ((currentPrice - position.openPrice) / position.openPrice) * 100 : 0;
-                const gapPct = position.prevClosePrice !== 0 ? ((position.openPrice - position.prevClosePrice) / position.prevClosePrice) * 100 : 0;
 
                 totalCostBasis += costBasis;
                 totalValue += totalValueForPosition;
                 totalProfit += profit;
 
-                return { ...position, costBasis, totalValue: totalValueForPosition, profit, profitPct, changeToday, changePctToday, gapPct };
+                const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
+
+                const row = `
+                    <tr>
+                        <td>${position.tickerSymbol}</td>
+                        <td>${currentPrice.toFixed(2)}</td>
+                        <td>${profitPct.toFixed(2)}%</td>
+                    </tr>
+                `;
+                portfolioBody.innerHTML += row;
             });
 
-            Promise.all(pricedPositions).then((positionsWithValues) => {
-                totalProfitPct = totalCostBasis !== 0 ? (totalProfit / totalCostBasis) * 100 : 0;
-                totalChangeToday = positionsWithValues.reduce((sum, pos) => sum + pos.changeToday, 0);
-                totalChangePctToday = positionsWithValues.length > 0 ? positionsWithValues.reduce((sum, pos) => sum + pos.changePctToday, 0) / positionsWithValues.length : 0;
-                totalGapPct = positionsWithValues.length > 0 ? positionsWithValues.reduce((sum, pos) => sum + pos.gapPct, 0) / positionsWithValues.length : 0;
-
-                if (sortColumn !== null) {
-                    positionsWithValues.sort((a, b) => {
-                        const aVal = sortColumn === 'tickerSymbol' || sortColumn === 'lastTime' ? a[sortColumn] : parseFloat(a[sortColumn]);
-                        const bVal = sortColumn === 'tickerSymbol' || sortColumn === 'lastTime' ? b[sortColumn] : parseFloat(b[sortColumn]);
-
-                        if (sortDirection === 'asc') {
-                            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-                        } else {
-                            return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-                        }
-                    });
-                }
-
-                positionsWithValues.forEach((position) => {
-                    const { tickerSymbol, avgPrice, numShares, lastPrice, costBasis, totalValue, profit, profitPct, changeToday, changePctToday, gapPct, lastTime } = position;
-                    const profitClass = profit >= 0 ? "profit-positive" : "profit-negative";
-                    const changeTodayClass = changeToday >= 0 ? "profit-positive" : "profit-negative";
-                    const changePctTodayClass = changePctToday >= 0 ? "profit-positive" : "profit-negative";
-                    const gapPctClass = gapPct >= 0 ? "profit-positive" : "profit-negative";
-                    const timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
-
-                    const row = `
-                        <tr>
-                            <td data-column="tickerSymbol" ${visibleColumns.includes('tickerSymbol') ? '' : ' style="display: none;"'}>${tickerSymbol}</td>
-                            <td data-column="avgPrice" ${visibleColumns.includes('avgPrice') ? '' : ' style="display: none;"'}>${avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="numShares" ${visibleColumns.includes('numShares') ? '' : ' style="display: none;"'}>${numShares.toLocaleString()}</td>
-                            <td data-column="lastPrice" ${visibleColumns.includes('lastPrice') ? '' : ' style="display: none;"'}>${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="costBasis" ${visibleColumns.includes('costBasis') ? '' : ' style="display: none;"'}>${costBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="totalValue" ${visibleColumns.includes('totalValue') ? '' : ' style="display: none;"'}>${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="profit" ${visibleColumns.includes('profit') ? '' : ' style="display: none;"'} class="${profitClass}">${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="profitPct" ${visibleColumns.includes('profitPct') ? '' : ' style="display: none;"'} class="${profitClass}">${profitPct.toFixed(2)}%</td>
-                            <td data-column="changeToday" ${visibleColumns.includes('changeToday') ? '' : ' style="display: none;"'} class="${changeTodayClass}">${changeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td data-column="changePctToday" ${visibleColumns.includes('changePctToday') ? '' : ' style="display: none;"'} class="${changePctTodayClass}">${changePctToday.toFixed(2)}%</td>
-                            <td data-column="gapPct" ${visibleColumns.includes('gapPct') ? '' : ' style="display: none;"'} class="${gapPctClass}">${gapPct.toFixed(2)}%</td>
-                            <td data-column="lastTime" ${visibleColumns.includes('lastTime') ? '' : ' style="display: none;"'}>${timeSinceLastTrade}</td>
-                        </tr>
-                    `;
-                    portfolioBody.innerHTML += row;
-                });
-
-                document.getElementById("totalCostBasis").textContent = totalCostBasis.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById("totalValue").textContent = totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById("totalProfit").textContent = totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById("totalProfitPct").textContent = totalProfitPct.toFixed(2) + "%";
-                document.getElementById("totalChangeToday").textContent = totalChangeToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById("totalChangePctToday").textContent = totalChangePctToday.toFixed(2) + "%";
-                document.getElementById("totalGapPct").textContent = totalGapPct.toFixed(2) + "%";
-            });
+            // Update totals
+            document.getElementById("totalProfit").textContent = totalProfit.toFixed(2);
+            document.getElementById("totalValue").textContent = totalValue.toFixed(2);
+            document.getElementById("totalProfitPct").textContent = (totalProfit / totalCostBasis * 100).toFixed(2) + "%";
         }
 
         function calculateTimeSinceLastTrade(lastTradeTime) {
