@@ -111,7 +111,7 @@
         }
         .drag-handle i {
             font-size: 14px;
-            color: #666;
+            color: #ccc; /* Changed from #666 to #ccc for better visibility */
         }
         .th-name {
             margin-left: 25px;
@@ -151,9 +151,21 @@
             justify-content: space-between;
             cursor: grab;
             padding-left: 25px;
+            background-color: #1e1e1e; /* Dark background */
+            border: 1px solid #444; /* Consistent border color */
+            color: #ffffff; /* Light text */
+            margin-bottom: 5px; /* Spacing between items */
+            border-radius: 4px; /* Slightly rounded corners */
         }
         #sortableColumns .column-item.dragging {
             opacity: 0.5;
+        }
+        /* Checkbox and Label Styling */
+        #sortableColumns .form-check-input {
+            accent-color: #00bcd4; /* Custom color for checkboxes */
+        }
+        #sortableColumns .form-check-label {
+            margin-left: 5px;
         }
     </style>
 </head>
@@ -981,10 +993,10 @@
                     const offset = bounding.y + bounding.height / 2;
 
                     if (event.clientY - offset > 0) {
-                        targetItem.style.borderBottom = "2px solid white";
+                        targetItem.style.borderBottom = "2px solid #00bcd4"; /* Changed to match accent color */
                         targetItem.style.borderTop = "";
                     } else {
-                        targetItem.style.borderTop = "2px solid white";
+                        targetItem.style.borderTop = "2px solid #00bcd4"; /* Changed to match accent color */
                         targetItem.style.borderBottom = "";
                     }
                 }
@@ -1005,7 +1017,7 @@
                 const targetItem = event.target.closest(".column-item");
                 if (draggedItem && targetItem) {
                     if (draggedItem !== targetItem) {
-                        if (targetItem.style.borderBottom === "2px solid white") {
+                        if (targetItem.style.borderBottom === "2px solid #00bcd4") {
                             sortableColumns.insertBefore(draggedItem, targetItem.nextSibling);
                         } else {
                             sortableColumns.insertBefore(draggedItem, targetItem);
