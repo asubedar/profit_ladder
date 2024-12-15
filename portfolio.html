@@ -173,82 +173,14 @@
         <div class="table-responsive">
             <table id="portfolioTable">
                 <thead>
-                    <tr>
-                        <th data-column="tickerSymbol" data-sort-type="string" data-sort-key="tickerSymbol" data-col-index="0">
-                            <span class="th-name">Ticker</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="avgPrice" data-sort-type="number" data-sort-key="avgPrice" data-col-index="1">
-                            <span class="th-name">Average Price</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="numShares" data-sort-type="number" data-sort-key="numShares" data-col-index="2">
-                            <span class="th-name">Shares</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="lastPrice" data-sort-type="number" data-sort-key="lastPrice" data-col-index="3">
-                            <span class="th-name">Current Price</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="costBasis" data-sort-type="number" data-sort-key="costBasis" data-col-index="4">
-                            <span class="th-name">Cost Basis</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="totalValue" data-sort-type="number" data-sort-key="totalValue" data-col-index="5">
-                            <span class="th-name">Total Value</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="profit" data-sort-type="number" data-sort-key="profit" data-col-index="6">
-                            <span class="th-name">Profit</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="profitPct" data-sort-type="number" data-sort-key="profitPct" data-col-index="7">
-                            <span class="th-name">Profit %</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="changeToday" data-sort-type="number" data-sort-key="changeToday" data-col-index="8">
-                            <span class="th-name">Change Today</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="changePctToday" data-sort-type="number" data-sort-key="changePctToday" data-col-index="9">
-                            <span class="th-name">Change % Today</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="gapPct" data-sort-type="number" data-sort-key="gapPct" data-col-index="10">
-                            <span class="th-name">Gap %</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
-                        <th data-column="lastTime" data-sort-type="string" data-sort-key="lastTime" data-col-index="11">
-                            <span class="th-name">Time Since Last Trade</span>
-                            <span class="sort-arrow asc">▲</span>
-                            <span class="sort-arrow desc">▼</span>
-                        </th>
+                    <tr id="portfolioHeaders">
+                        <!-- Dynamic Headers will be inserted here -->
                     </tr>
                 </thead>
                 <tbody id="portfolioBody"></tbody>
                 <tfoot>
-                    <tr class="totals-row">
-                        <td>Totals</td>
-                        <td colspan="3"></td>
-                        <td id="totalCostBasis">0.00</td>
-                        <td id="totalValue">0.00</td>
-                        <td id="totalProfit">0.00</td>
-                        <td id="totalProfitPct">0.00%</td>
-                        <td id="totalChangeToday">0.00</td>
-                        <td id="totalChangePctToday">0.00%</td>
-                        <td id="totalGapPct">0.00%</td>
-                        <td></td>
+                    <tr class="totals-row" id="totalsRow">
+                        <!-- Totals will be inserted here -->
                     </tr>
                 </tfoot>
             </table>
@@ -267,7 +199,7 @@
         <div id="settingsFeedback" class="mt-2 text-success" style="display: none;"></div>
 
         <!-- Settings Toggle -->
-        <div class="settings-toggle text-right">
+        <div class="settings-toggle text-end">
             <span id="settingsIcon">⚙️ Settings</span>
         </div>
 
@@ -580,8 +512,44 @@
                 const portfolioBody = document.getElementById("portfolioBody");
                 portfolioBody.innerHTML = "";
 
+                // Render Table Headers Dynamically
+                const portfolioHeaders = document.getElementById("portfolioHeaders");
+                portfolioHeaders.innerHTML = ""; // Clear existing headers
+
+                visibleColumns.forEach(columnKey => {
+                    const header = document.createElement("th");
+                    header.setAttribute("data-column", columnKey);
+                    header.setAttribute("data-sort-type", getSortType(columnKey));
+                    header.setAttribute("data-sort-key", columnKey);
+                    header.setAttribute("data-col-index", visibleColumns.indexOf(columnKey));
+
+                    const thName = document.createElement("span");
+                    thName.className = "th-name";
+                    thName.textContent = getColumnDisplayName(columnKey);
+
+                    const sortArrowAsc = document.createElement("span");
+                    sortArrowAsc.className = "sort-arrow asc";
+                    sortArrowAsc.textContent = "▲";
+
+                    const sortArrowDesc = document.createElement("span");
+                    sortArrowDesc.className = "sort-arrow desc";
+                    sortArrowDesc.textContent = "▼";
+
+                    header.appendChild(thName);
+                    header.appendChild(sortArrowAsc);
+                    header.appendChild(sortArrowDesc);
+
+                    portfolioHeaders.appendChild(header);
+                });
+
                 if (filteredPositions.length === 0) {
                     portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
+                    // Also clear the totals row
+                    const totalsRow = document.getElementById("totalsRow");
+                    totalsRow.innerHTML = `<td>Totals</td>`;
+                    for (let i = 1; i < visibleColumns.length; i++) {
+                        totalsRow.innerHTML += `<td></td>`;
+                    }
                     return;
                 }
 
@@ -682,8 +650,8 @@
                 const totalProfitPct = totals.costBasis !== 0 ? (totals.profit / totals.costBasis) * 100 : 0;
 
                 // Update totals in the footer based on visibleColumns
-                const footerRow = document.querySelector("#portfolioTable tfoot tr");
-                footerRow.innerHTML = `<td>Totals</td>`;
+                const totalsRow = document.getElementById("totalsRow");
+                totalsRow.innerHTML = `<td>Totals</td>`;
 
                 visibleColumns.forEach((columnKey) => {
                     let footerContent = "";
@@ -712,16 +680,44 @@
                         default:
                             footerContent = ""; // Empty for other columns
                     }
-                    footerRow.innerHTML += `<td>${footerContent}</td>`;
+                    totalsRow.innerHTML += `<td>${footerContent}</td>`;
                 });
 
                 // If there are remaining columns not handled, fill them with empty cells
                 const totalColumns = 12; // Total number of possible columns
                 if (visibleColumns.length < totalColumns) {
                     for (let i = visibleColumns.length; i < totalColumns; i++) {
-                        footerRow.innerHTML += `<td></td>`;
+                        totalsRow.innerHTML += `<td></td>`;
                     }
                 }
+            }
+
+            // Function to Get Sort Type Based on Column Key
+            function getSortType(columnKey) {
+                const stringColumns = ["tickerSymbol", "lastTime"];
+                if (stringColumns.includes(columnKey)) {
+                    return "string";
+                }
+                return "number";
+            }
+
+            // Function to Get Display Name for Column
+            function getColumnDisplayName(columnKey) {
+                const mapping = {
+                    "tickerSymbol": "Ticker",
+                    "avgPrice": "Average Price",
+                    "numShares": "Shares",
+                    "lastPrice": "Current Price",
+                    "costBasis": "Cost Basis",
+                    "totalValue": "Total Value",
+                    "profit": "Profit",
+                    "profitPct": "Profit %",
+                    "changeToday": "Change Today",
+                    "changePctToday": "Change % Today",
+                    "gapPct": "Gap %",
+                    "lastTime": "Time Since Last Trade"
+                };
+                return mapping[columnKey] || columnKey;
             }
 
             // Function to Calculate Time Since Last Trade
@@ -950,12 +946,14 @@
 
                 // Drag Start Event
                 sortableColumns.addEventListener("dragstart", (event) => {
-                    draggedItem = event.target;
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData("text/plain", "");
-                    setTimeout(() => {
-                        draggedItem.classList.add("dragging");
-                    }, 0);
+                    draggedItem = event.target.closest(".column-item");
+                    if (draggedItem) {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", "");
+                        setTimeout(() => {
+                            draggedItem.classList.add("dragging");
+                        }, 0);
+                    }
                 });
 
                 // Drag Over Event
@@ -1188,28 +1186,31 @@
                 });
 
                 // Setup Table Header Click Events for Sorting
-                const tableHeaders = document.querySelectorAll("#portfolioTable thead th");
+                document.addEventListener("click", (event) => {
+                    const th = event.target.closest("th");
+                    if (!th) return;
 
-                tableHeaders.forEach((header) => {
-                    header.addEventListener("click", (event) => {
-                        const newSortColumn = header.getAttribute("data-sort-key");
-                        const sortType = header.getAttribute("data-sort-type");
+                    const newSortColumn = th.getAttribute("data-sort-key");
+                    const sortType = th.getAttribute("data-sort-type");
 
-                        if (sortColumn === newSortColumn) {
-                            sortDirection = sortDirection === "asc" ? "desc" : "asc";
-                        } else {
-                            sortColumn = newSortColumn;
-                            sortDirection = "asc";
-                        }
+                    if (sortColumn === newSortColumn) {
+                        sortDirection = sortDirection === "asc" ? "desc" : "asc";
+                    } else {
+                        sortColumn = newSortColumn;
+                        sortDirection = "asc";
+                    }
 
-                        tableHeaders.forEach((h) => {
-                            h.classList.remove("sorted-asc", "sorted-desc");
-                        });
-                        header.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
-
-                        sortPositions();
-                        renderPortfolio();
+                    // Remove sort classes from all headers
+                    const allTh = document.querySelectorAll("#portfolioHeaders th");
+                    allTh.forEach((header) => {
+                        header.classList.remove("sorted-asc", "sorted-desc");
                     });
+
+                    // Add sort class to the current header
+                    th.classList.add(sortDirection === "asc" ? "sorted-asc" : "sorted-desc");
+
+                    sortPositions();
+                    renderPortfolio();
                 });
 
                 // Setup Filter Input Event
