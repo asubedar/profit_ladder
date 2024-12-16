@@ -110,7 +110,7 @@
         }
         .drag-handle i {
             font-size: 14px;
-            color: #cccccc; /* Lighter gray for better visibility */
+            color: #cccccc;
         }
         .th-name {
             margin-left: 25px;
@@ -141,27 +141,27 @@
             max-height: 200px;
             overflow-y: auto;
             margin-top: 20px;
-            display: block; /* Changed from 'none' to 'block' to make it visible */
+            display: block;
         }
         /* Customize Columns Styling */
         #sortableColumns .column-item {
             display: flex;
             align-items: center;
-            justify-content: flex-start; /* Changed from space-between to flex-start */
+            justify-content: flex-start;
             cursor: grab;
-            padding: 5px 10px; /* Adjusted padding for better spacing */
-            background-color: #1e1e1e; /* Dark background to match the theme */
-            border: 1px solid #444; /* Consistent border color */
-            color: #ffffff; /* Light text for readability */
-            margin-bottom: 5px; /* Spacing between items */
-            border-radius: 4px; /* Slightly rounded corners for aesthetics */
+            padding: 5px 10px;
+            background-color: #1e1e1e;
+            border: 1px solid #444;
+            color: #ffffff;
+            margin-bottom: 5px;
+            border-radius: 4px;
         }
         #sortableColumns .column-item.dragging {
-            opacity: 0.5; /* Semi-transparent while dragging */
+            opacity: 0.5;
         }
         /* Checkbox and Label Styling */
         #sortableColumns .form-check-input {
-            accent-color: #00bcd4; /* Custom color for checkboxes to match the theme */
+            accent-color: #00bcd4;
         }
         #sortableColumns .form-check-label {
             margin-left: 5px;
@@ -234,7 +234,7 @@
         </div>
 
         <!-- Settings Section -->
-        <div class="settings d-none" id="settings"> <!-- Added 'd-none' class to hide initially -->
+        <div class="settings d-none" id="settings">
             <h3>Settings</h3>
             <!-- Column Customization -->
             <div id="columnCustomization" class="mb-3">
@@ -260,7 +260,7 @@
             <button id="saveKeys" class="btn btn-primary">Save Settings</button>
         </div>
 
-        <!-- Debug Logs Section (Optional) -->
+        <!-- Debug Logs Section -->
         <div id="debugLogs"></div>
     </div>
 
@@ -369,9 +369,9 @@
 
             function handleDragOver(e) {
                 if (e.preventDefault) {
-                    e.preventDefault(); // Necessary. Allows us to drop.
+                    e.preventDefault(); // Necessary to allow drop
                 }
-                e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
+                e.dataTransfer.dropEffect = 'move'; // Show move cursor
                 return false;
             }
 
@@ -385,26 +385,18 @@
 
             function handleDrop(e) {
                 if (e.stopPropagation) {
-                    e.stopPropagation(); // Stops some browsers from redirecting.
+                    e.stopPropagation(); // Stops the browser from redirecting.
                 }
 
                 if (dragSrcEl !== this) {
-                    // Remove the dragged element
-                    dragSrcEl.parentNode.removeChild(dragSrcEl);
-                    // Get the dropped element's HTML
-                    const dropHTML = e.dataTransfer.getData('text/html');
-                    // Insert the dragged element before the drop target
-                    this.insertAdjacentHTML('beforebegin', dropHTML);
-                    // Get the newly inserted element
-                    const dropElem = this.previousSibling;
-                    // Re-attach the event listeners
-                    addDnDHandlers(dropElem);
-                    
-                    // Remove the original drop target
-                    this.parentNode.removeChild(this);
-                    // Re-append the drop target after the dragged element
-                    this.parentNode.insertBefore(this, dropElem.nextSibling);
-                    
+                    // Swap the HTML of the dragged and dropped elements
+                    dragSrcEl.innerHTML = this.innerHTML;
+                    this.innerHTML = e.dataTransfer.getData('text/html');
+
+                    // Re-attach event listeners after swapping
+                    addDnDHandlers(dragSrcEl);
+                    addDnDHandlers(this);
+
                     // Update visibleColumns based on new order
                     updateVisibleColumns();
                     renderPortfolio();
@@ -436,7 +428,7 @@
         }
 
         // Function to Update Visible Columns Order and Visibility Based on Column Settings
-        function updateVisibleColumns() {
+        async function updateVisibleColumns() {
             const sortableColumns = document.getElementById("sortableColumns");
             const columnItems = sortableColumns.querySelectorAll('.column-item');
             visibleColumns = Array.from(columnItems)
@@ -444,6 +436,18 @@
                 .map(item => item.getAttribute('data-column'));
             console.log("Updated visibleColumns:", visibleColumns);
             appendDebugLog("Updated visibleColumns.");
+
+            // Save visibleColumns to IndexedDB
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
+                store.put({ key: "visibleColumns", value: visibleColumns });
+                appendDebugLog("Visible columns saved to settings.");
+            } catch (error) {
+                console.error("Error saving visible columns:", error);
+                appendDebugLog(`Error saving visible columns: ${error}`);
+            }
         }
 
         // Function to Load Portfolio Data
@@ -478,7 +482,6 @@
             selectedTickers = selectedTickers.length === 0 ? uniqueTickers : selectedTickers;
             generateFilterCheckboxes(uniqueTickers);
             sortPositions(); // Sort after adding calculated fields
-            updateVisibleColumns(); // Ensure visibleColumns is up-to-date
             renderPortfolio();
         }
 
@@ -781,7 +784,7 @@
                 refreshIntervalId = setInterval(async () => {
                     console.log("Auto-refreshing prices...");
                     appendDebugLog("Auto-refreshing prices...");
-                    await loadPortfolio(); // Changed to loadPortfolio to recalculate and sort
+                    await loadPortfolio();
                 }, interval * 1000);
                 console.log(`Auto-refresh set to every ${interval} seconds.`);
                 appendDebugLog(`Auto-refresh set to every ${interval} seconds.`);
@@ -1094,30 +1097,40 @@
                 }
 
                 button.addEventListener('click', async () => {
-                    const interval = parseInt(button.getAttribute('data-interval'));
-                    
-                    // Await the completion of store.put
-                    await new Promise((resolve, reject) => {
-                        const request = store.put({ key: "refreshInterval", value: interval });
-                        request.onsuccess = () => resolve();
-                        request.onerror = (event) => reject(event.target.error);
-                    });
+                    try {
+                        const interval = parseInt(button.getAttribute('data-interval'));
+                        
+                        // Await the completion of store.put
+                        await new Promise((resolve, reject) => {
+                            const request = store.put({ key: "refreshInterval", value: interval });
+                            request.onsuccess = () => resolve();
+                            request.onerror = (event) => reject(event.target.error);
+                        });
 
-                    appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
+                        appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
 
-                    // Update button styles
-                    buttons.forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active');
+                        // Update button styles
+                        buttons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
 
-                    // Restart auto-refresh with the new interval
-                    await startAutoRefresh();
+                        // Restart auto-refresh with the new interval
+                        await startAutoRefresh();
 
-                    // Provide user feedback
-                    document.getElementById("settingsFeedback").textContent = interval === 0 ? "Auto-refresh stopped." : `Auto-refresh interval set to ${interval} seconds.`;
-                    document.getElementById("settingsFeedback").style.display = "block";
-                    setTimeout(() => {
-                        document.getElementById("settingsFeedback").style.display = "none";
-                    }, 3000);
+                        // Provide user feedback
+                        document.getElementById("settingsFeedback").textContent = interval === 0 ? "Auto-refresh stopped." : `Auto-refresh interval set to ${interval} seconds.`;
+                        document.getElementById("settingsFeedback").style.display = "block";
+                        setTimeout(() => {
+                            document.getElementById("settingsFeedback").style.display = "none";
+                        }, 3000);
+                    } catch (error) {
+                        console.error("Error setting refresh interval:", error);
+                        appendDebugLog(`Error setting refresh interval: ${error}`);
+                        document.getElementById("settingsFeedback").textContent = "Failed to set refresh interval.";
+                        document.getElementById("settingsFeedback").style.display = "block";
+                        setTimeout(() => {
+                            document.getElementById("settingsFeedback").style.display = "none";
+                        }, 3000);
+                    }
                 });
             });
 
@@ -1125,9 +1138,39 @@
             appendDebugLog("Refresh interval buttons initialized.");
         }
 
+        // Function to Initialize Visible Columns on Page Load
+        async function initializeVisibleColumns() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+            const savedColumns = await new Promise((resolve, reject) => {
+                const request = store.get("visibleColumns");
+                request.onsuccess = (event) => resolve(event.target.result?.value || []);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (savedColumns.length > 0) {
+                visibleColumns = savedColumns;
+                // Update the UI to reflect saved columns
+                const columnItems = document.querySelectorAll('.column-item');
+                columnItems.forEach(item => {
+                    const columnKey = item.getAttribute('data-column');
+                    const checkbox = item.querySelector('.column-checkbox');
+                    if (visibleColumns.includes(columnKey)) {
+                        checkbox.checked = true;
+                    } else {
+                        checkbox.checked = false;
+                    }
+                });
+                console.log("Loaded visibleColumns from settings:", visibleColumns);
+                appendDebugLog("Loaded visibleColumns from settings.");
+            }
+        }
+
         // Initialize Everything on DOMContentLoaded
         document.addEventListener("DOMContentLoaded", async () => {
             populateSortableColumns();
+            await initializeVisibleColumns();
             await loadPortfolio();
             await initializeRefreshIntervalButtons();
             await startAutoRefresh();
