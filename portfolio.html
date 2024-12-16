@@ -434,6 +434,10 @@
             visibleColumns = Array.from(columnItems)
                 .filter(item => item.querySelector('.column-checkbox').checked)
                 .map(item => item.getAttribute('data-column'));
+
+            // **Ensure uniqueness to prevent duplicate columns**
+            visibleColumns = [...new Set(visibleColumns)];
+
             console.log("Updated visibleColumns:", visibleColumns);
             appendDebugLog("Updated visibleColumns.");
 
@@ -1083,8 +1087,7 @@
         async function initializeRefreshIntervalButtons() {
             const buttons = document.querySelectorAll('.refresh-interval-button');
             const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readwrite");
-            const store = transaction.objectStore(settingsStoreName);
+            const store = db.transaction(settingsStoreName, "readwrite").objectStore(settingsStoreName);
             const currentInterval = await new Promise((resolve, reject) => {
                 const request = store.get("refreshInterval");
                 request.onsuccess = (event) => resolve(event.target.result?.value || 0);
@@ -1147,8 +1150,7 @@
         // Function to Initialize Visible Columns on Page Load
         async function initializeVisibleColumns() {
             const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
+            const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
             const savedColumns = await new Promise((resolve, reject) => {
                 const request = store.get("visibleColumns");
                 request.onsuccess = (event) => resolve(event.target.result?.value || []);
@@ -1157,6 +1159,9 @@
 
             if (savedColumns.length > 0) {
                 visibleColumns = savedColumns;
+                // Ensure uniqueness
+                visibleColumns = [...new Set(visibleColumns)];
+
                 // Update the UI to reflect saved columns
                 const columnItems = document.querySelectorAll('.column-item');
                 columnItems.forEach(item => {
