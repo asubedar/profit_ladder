@@ -325,27 +325,21 @@
             const sortableColumns = document.getElementById("sortableColumns");
             sortableColumns.innerHTML = ""; // Clear existing list items
 
+            // First, add columns in the order of visibleColumns
+            visibleColumns.forEach(columnKey => {
+                const column = availableColumns.find(col => col.key === columnKey);
+                if (column) {
+                    const li = createColumnListItem(column);
+                    sortableColumns.appendChild(li);
+                }
+            });
+
+            // Then, add the remaining columns not in visibleColumns
             availableColumns.forEach(column => {
-                const li = document.createElement("li");
-                li.className = "column-item list-group-item d-flex align-items-center";
-                li.setAttribute("data-column", column.key);
-                li.setAttribute("draggable", "true");
-
-                li.innerHTML = `
-                    <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
-                    <div class="form-check">
-                        <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-${column.key}" value="${column.key}" checked>
-                        <label class="form-check-label text-light" for="checkbox-${column.key}">${column.name}</label>
-                    </div>
-                `;
-
-                // Add Event Listener for Checkbox Change
-                li.querySelector('.column-checkbox').addEventListener('change', () => {
-                    updateVisibleColumns();
-                    renderPortfolio();
-                });
-
-                sortableColumns.appendChild(li);
+                if (!visibleColumns.includes(column.key)) {
+                    const li = createColumnListItem(column);
+                    sortableColumns.appendChild(li);
+                }
             });
 
             // Initialize Drag-and-Drop Functionality
@@ -353,6 +347,30 @@
 
             console.log("Sortable columns populated successfully.");
             appendDebugLog("Sortable columns populated successfully.");
+        }
+
+        // Helper Function to Create a Column List Item
+        function createColumnListItem(column) {
+            const li = document.createElement("li");
+            li.className = "column-item list-group-item d-flex align-items-center";
+            li.setAttribute("data-column", column.key);
+            li.setAttribute("draggable", "true");
+
+            li.innerHTML = `
+                <span class="drag-handle me-2"><i class="fas fa-grip-vertical"></i></span>
+                <div class="form-check">
+                    <input class="form-check-input column-checkbox me-2" type="checkbox" id="checkbox-${column.key}" value="${column.key}" ${visibleColumns.includes(column.key) ? "checked" : ""}>
+                    <label class="form-check-label text-light" for="checkbox-${column.key}">${column.name}</label>
+                </div>
+            `;
+
+            // Add Event Listener for Checkbox Change
+            li.querySelector('.column-checkbox').addEventListener('change', () => {
+                updateVisibleColumns();
+                renderPortfolio();
+            });
+
+            return li;
         }
 
         // Function to Initialize Drag-and-Drop for Sortable Columns
@@ -389,9 +407,9 @@
                 }
 
                 if (dragSrcEl !== this) {
-                    // Reorder the DOM elements
+                    // Reorder the DOM elements by inserting the dragged element before the drop target
                     sortableColumns.insertBefore(dragSrcEl, this);
-                    
+
                     // Update visibleColumns based on new order
                     updateVisibleColumns();
                     renderPortfolio();
@@ -1163,17 +1181,6 @@
                 // Ensure uniqueness
                 visibleColumns = [...new Set(visibleColumns)];
 
-                // Update the UI to reflect saved columns
-                const columnItems = document.querySelectorAll('.column-item');
-                columnItems.forEach(item => {
-                    const columnKey = item.getAttribute('data-column');
-                    const checkbox = item.querySelector('.column-checkbox');
-                    if (visibleColumns.includes(columnKey)) {
-                        checkbox.checked = true;
-                    } else {
-                        checkbox.checked = false;
-                    }
-                });
                 console.log("Loaded visibleColumns from settings:", visibleColumns);
                 appendDebugLog("Loaded visibleColumns from settings.");
             }
@@ -1181,8 +1188,8 @@
 
         // Initialize Everything on DOMContentLoaded
         document.addEventListener("DOMContentLoaded", async () => {
-            populateSortableColumns();
-            await initializeVisibleColumns();
+            await initializeVisibleColumns(); // Load saved column order first
+            populateSortableColumns();        // Then populate the "Customize Columns" list based on saved order
             await loadPortfolio();
             await initializeRefreshIntervalButtons();
             await startAutoRefresh();
