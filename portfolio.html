@@ -670,45 +670,41 @@
 
             // Update totals in the footer based on visibleColumns
             const totalsRow = document.getElementById("totalsRow");
-            totalsRow.innerHTML = `<td>Totals</td>`;
+            totalsRow.innerHTML = ""; // Clear existing cells
 
-            visibleColumns.forEach((columnKey) => {
-                let footerContent = "";
-                switch (columnKey) {
-                    case "costBasis":
-                        footerContent = totals.costBasis.toFixed(2);
-                        break;
-                    case "totalValue":
-                        footerContent = totals.totalValue.toFixed(2);
-                        break;
-                    case "profit":
-                        footerContent = totals.profit.toFixed(2);
-                        break;
-                    case "profitPct":
-                        footerContent = totalProfitPct.toFixed(2) + "%";
-                        break;
-                    case "changeToday":
-                        footerContent = totals.changeToday.toFixed(2);
-                        break;
-                    case "changePctToday":
-                        footerContent = totals.changePctToday.toFixed(2) + "%";
-                        break;
-                    case "gapPct":
-                        footerContent = totals.gapPct.toFixed(2) + "%";
-                        break;
-                    default:
-                        footerContent = ""; // Empty for other columns
+            visibleColumns.forEach(columnKey => {
+                if (columnKey === "tickerSymbol") {
+                    totalsRow.innerHTML += `<td>Totals</td>`;
+                } else {
+                    let footerContent = "";
+                    switch (columnKey) {
+                        case "costBasis":
+                            footerContent = totals.costBasis.toFixed(2);
+                            break;
+                        case "totalValue":
+                            footerContent = totals.totalValue.toFixed(2);
+                            break;
+                        case "profit":
+                            footerContent = totals.profit.toFixed(2);
+                            break;
+                        case "profitPct":
+                            footerContent = totalProfitPct.toFixed(2) + "%";
+                            break;
+                        case "changeToday":
+                            footerContent = totals.changeToday.toFixed(2);
+                            break;
+                        case "changePctToday":
+                            footerContent = totals.changePctToday.toFixed(2) + "%";
+                            break;
+                        case "gapPct":
+                            footerContent = totals.gapPct.toFixed(2) + "%";
+                            break;
+                        default:
+                            footerContent = ""; // Empty for other columns
+                    }
+                    totalsRow.innerHTML += `<td>${footerContent}</td>`;
                 }
-                totalsRow.innerHTML += `<td>${footerContent}</td>`;
             });
-
-            // If there are remaining columns not handled, fill them with empty cells
-            const totalColumns = 12; // Total number of possible columns
-            if (visibleColumns.length < totalColumns) {
-                for (let i = visibleColumns.length; i < totalColumns; i++) {
-                    totalsRow.innerHTML += `<td></td>`;
-                }
-            }
         }
 
         // Function to Get Sort Type Based on Column Key
