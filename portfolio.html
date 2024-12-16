@@ -141,7 +141,7 @@
             max-height: 200px;
             overflow-y: auto;
             margin-top: 20px;
-            display: none; /* Initially hidden */
+            display: block; /* Changed from 'none' to 'block' to make it visible */
         }
         /* Customize Columns Styling */
         #sortableColumns .column-item {
@@ -1095,7 +1095,14 @@
 
                 button.addEventListener('click', async () => {
                     const interval = parseInt(button.getAttribute('data-interval'));
-                    store.put({ key: "refreshInterval", value: interval });
+                    
+                    // Await the completion of store.put
+                    await new Promise((resolve, reject) => {
+                        const request = store.put({ key: "refreshInterval", value: interval });
+                        request.onsuccess = () => resolve();
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+
                     appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
 
                     // Update button styles
@@ -1113,6 +1120,9 @@
                     }, 3000);
                 });
             });
+
+            console.log("Refresh interval buttons initialized.");
+            appendDebugLog("Refresh interval buttons initialized.");
         }
 
         // Initialize Everything on DOMContentLoaded
