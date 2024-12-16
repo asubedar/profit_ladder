@@ -166,6 +166,11 @@
         #sortableColumns .form-check-label {
             margin-left: 5px;
         }
+        /* Active Refresh Interval Button Styling */
+        .refresh-interval-button.active {
+            background-color: #00bcd4;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -1072,15 +1077,294 @@
         });
 
         // Function to Populate Sortable Columns and Initialize Drag-and-Drop
-        document.addEventListener("DOMContentLoaded", () => {
-            populateSortableColumns();
-            loadPortfolio();
-            startAutoRefresh();
+        document.addEventListener("DOMContentLoaded", async () => {
+            await populateSortableColumns();
+            await loadPortfolio();
+            await startAutoRefresh();
+            await initializeRefreshIntervalButtons(); // Initialize auto-refresh button listeners
         });
 
-        // Optional: Function to Handle Sorting with Keyboard Accessibility (Enhancement)
-        // You can implement additional features as needed
+        // Function to Initialize Auto-Refresh Interval Buttons
+        async function initializeRefreshIntervalButtons() {
+            const buttons = document.querySelectorAll('.refresh-interval-button');
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+            const currentInterval = await new Promise((resolve, reject) => {
+                const request = store.get("refreshInterval");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                request.onerror = (event) => reject(event.target.error);
+            });
 
+            buttons.forEach(button => {
+                if (parseInt(button.getAttribute('data-interval')) === currentInterval) {
+                    button.classList.add('active');
+                }
+
+                button.addEventListener('click', async () => {
+                    const interval = parseInt(button.getAttribute('data-interval'));
+                    store.put({ key: "refreshInterval", value: interval });
+                    appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
+
+                    // Update button styles
+                    buttons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Restart auto-refresh with the new interval
+                    await startAutoRefresh();
+
+                    // Provide user feedback
+                    document.getElementById("settingsFeedback").textContent = interval === 0 ? "Auto-refresh stopped." : `Auto-refresh interval set to ${interval} seconds.`;
+                    document.getElementById("settingsFeedback").style.display = "block";
+                    setTimeout(() => {
+                        document.getElementById("settingsFeedback").style.display = "none";
+                    }, 3000);
+                });
+            });
+        }
+
+        // Function to Open IndexedDB
+        async function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, 2);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+
+                    if (!db.objectStoreNames.contains(positionsStoreName)) {
+                        db.createObjectStore(positionsStoreName, { keyPath: "tickerSymbol" });
+                        appendDebugLog("Created 'Positions' object store.");
+                    }
+
+                    if (!db.objectStoreNames.contains(settingsStoreName)) {
+                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
+                        appendDebugLog("Created 'Settings' object store.");
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    appendDebugLog(`Database open failed: ${event.target.error}`);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // Function to Fetch Current Prices
+        async function fetchCurrentPrices(tickers) {
+            if (!tickers || tickers.length === 0) {
+                return {};
+            }
+
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            const alpacaKey = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_KEY_ID");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            const alpacaSecret = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_SECRET_KEY");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (alpacaKey && alpacaSecret) {
+                return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
+            }
+
+            console.warn("Alpaca credentials not available, falling back to Finnhub.");
+            appendDebugLog("Alpaca credentials not available, falling back to Finnhub.");
+            const finnhubKey = await new Promise((resolve, reject) => {
+                const request = store.get("finnhubApiKey");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (!finnhubKey) {
+                console.error("Finnhub API Key is not set. Please configure it in the settings.");
+                appendDebugLog("Finnhub API Key is not set. Please configure it in the settings.");
+                return {};
+            }
+
+            return await fetchPricesFromFinnhub(tickers, finnhubKey);
+        }
+
+        // Fetch Prices from Alpaca
+        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
+            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        "APCA-API-KEY-ID": apiKey,
+                        "APCA-API-SECRET-KEY": apiSecret,
+                    },
+                });
+
+                if (!response.ok) {
+                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
+                    appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
+                    return {};
+                }
+
+                const data = await response.json();
+                const prices = {};
+
+                for (const [symbol, snapshot] of Object.entries(data)) {
+                    prices[symbol] = {
+                        price: snapshot.latestTrade?.p || 0,
+                        time: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).toLocaleString() : "N/A",
+                        open: snapshot.dailyBar?.o || 0,
+                        prevClose: snapshot.prevDailyBar?.c || 0,
+                    };
+                }
+
+                console.log("Fetched prices from Alpaca:", prices);
+                appendDebugLog("Fetched prices from Alpaca.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching snapshots from Alpaca:", error);
+                appendDebugLog(`Error fetching snapshots from Alpaca: ${error}`);
+                return {};
+            }
+        }
+
+        // Fetch Prices from Finnhub
+        async function fetchPricesFromFinnhub(tickers, apiKey) {
+            try {
+                const responses = await Promise.all(
+                    tickers.map(async (ticker) => {
+                        const [quoteResponse, prevCloseResponse] = await Promise.all([
+                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
+                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
+                        ]);
+
+                        if (!quoteResponse.ok) {
+                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
+                            appendDebugLog(`Failed to fetch quote data for ${ticker} from Finnhub: ${quoteResponse.statusText}`);
+                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
+                        }
+                        const quoteData = await quoteResponse.json();
+
+                        let prevClose = 0;
+                        if (!prevCloseResponse.ok) {
+                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
+                            appendDebugLog(`Failed to fetch previous close data for ${ticker} from Finnhub: ${prevCloseResponse.statusText}`);
+                        } else {
+                            const prevCloseData = await prevCloseResponse.json();
+                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
+                        }
+
+                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
+                    })
+                );
+
+                const prices = {};
+                responses.forEach((res) => {
+                    if (res.ticker) {
+                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
+                    }
+                });
+                console.log("Fetched prices from Finnhub:", prices);
+                appendDebugLog("Fetched prices from Finnhub.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching prices from Finnhub:", error);
+                appendDebugLog(`Error fetching prices from Finnhub: ${error}`);
+                return {};
+            }
+        }
+
+        // Function to Handle Settings Toggle
+        document.getElementById("settingsIcon").addEventListener("click", () => {
+            const settingsDiv = document.getElementById("settings");
+            settingsDiv.classList.toggle("d-none");
+        });
+
+        // Function to Save API Keys and Refresh Interval
+        document.getElementById("saveKeys").addEventListener("click", async () => {
+            const alpacaApiKey = document.getElementById("alpacaApiKey").value.trim();
+            const alpacaApiSecret = document.getElementById("alpacaApiSecret").value.trim();
+            const finnhubApiKey = document.getElementById("finnhubApiKey").value.trim();
+
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+
+            if (alpacaApiKey) {
+                store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
+                appendDebugLog("Alpaca API Key saved.");
+            }
+
+            if (alpacaApiSecret) {
+                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
+                appendDebugLog("Alpaca API Secret saved.");
+            }
+
+            if (finnhubApiKey) {
+                store.put({ key: "finnhubApiKey", value: finnhubApiKey });
+                appendDebugLog("Finnhub API Key saved.");
+            }
+
+            document.getElementById("settingsFeedback").textContent = "Settings saved successfully!";
+            document.getElementById("settingsFeedback").style.display = "block";
+            setTimeout(() => {
+                document.getElementById("settingsFeedback").style.display = "none";
+            }, 3000);
+        });
+
+        // Function to Handle Filter Input
+        document.getElementById("filterInput").addEventListener("input", () => {
+            renderPortfolio();
+        });
+
+        // Function to Populate Sortable Columns and Initialize Drag-and-Drop
+        // Already handled in DOMContentLoaded event
+
+        // Function to Initialize Auto-Refresh Interval Buttons
+        async function initializeRefreshIntervalButtons() {
+            const buttons = document.querySelectorAll('.refresh-interval-button');
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readwrite");
+            const store = transaction.objectStore(settingsStoreName);
+            const currentInterval = await new Promise((resolve, reject) => {
+                const request = store.get("refreshInterval");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            buttons.forEach(button => {
+                if (parseInt(button.getAttribute('data-interval')) === currentInterval) {
+                    button.classList.add('active');
+                }
+
+                button.addEventListener('click', async () => {
+                    const interval = parseInt(button.getAttribute('data-interval'));
+                    store.put({ key: "refreshInterval", value: interval });
+                    appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
+
+                    // Update button styles
+                    buttons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Restart auto-refresh with the new interval
+                    await startAutoRefresh();
+
+                    // Provide user feedback
+                    document.getElementById("settingsFeedback").textContent = interval === 0 ? "Auto-refresh stopped." : `Auto-refresh interval set to ${interval} seconds.`;
+                    document.getElementById("settingsFeedback").style.display = "block";
+                    setTimeout(() => {
+                        document.getElementById("settingsFeedback").style.display = "none";
+                    }, 3000);
+                });
+            });
+        }
     </script>
 </body>
 </html>
