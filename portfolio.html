@@ -1100,12 +1100,18 @@
                     try {
                         const interval = parseInt(button.getAttribute('data-interval'));
                         
-                        // Await the completion of store.put
+                        // **CORRECTION START**
+                        // Open a new transaction for each put operation
+                        const newTransaction = db.transaction(settingsStoreName, "readwrite");
+                        const newStore = newTransaction.objectStore(settingsStoreName);
+                        
+                        // Await the completion of store.put within the new transaction
                         await new Promise((resolve, reject) => {
-                            const request = store.put({ key: "refreshInterval", value: interval });
+                            const request = newStore.put({ key: "refreshInterval", value: interval });
                             request.onsuccess = () => resolve();
                             request.onerror = (event) => reject(event.target.error);
                         });
+                        // **CORRECTION END**
 
                         appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
 
