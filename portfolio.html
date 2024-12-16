@@ -363,7 +363,7 @@
             function handleDragStart(e) {
                 dragSrcEl = this;
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', this.outerHTML);
+                e.dataTransfer.setData('text/plain', null); // For Firefox compatibility
                 this.classList.add('dragging');
             }
 
@@ -389,14 +389,9 @@
                 }
 
                 if (dragSrcEl !== this) {
-                    // Swap the HTML of the dragged and dropped elements
-                    dragSrcEl.innerHTML = this.innerHTML;
-                    this.innerHTML = e.dataTransfer.getData('text/html');
-
-                    // Re-attach event listeners after swapping
-                    addDnDHandlers(dragSrcEl);
-                    addDnDHandlers(this);
-
+                    // Reorder the DOM elements
+                    sortableColumns.insertBefore(dragSrcEl, this);
+                    
                     // Update visibleColumns based on new order
                     updateVisibleColumns();
                     renderPortfolio();
@@ -446,7 +441,11 @@
                 const db = await openDatabase();
                 const transaction = db.transaction(settingsStoreName, "readwrite");
                 const store = transaction.objectStore(settingsStoreName);
-                store.put({ key: "visibleColumns", value: visibleColumns });
+                await new Promise((resolve, reject) => {
+                    const request = store.put({ key: "visibleColumns", value: visibleColumns });
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject(event.target.error);
+                });
                 appendDebugLog("Visible columns saved to settings.");
             } catch (error) {
                 console.error("Error saving visible columns:", error);
@@ -773,7 +772,11 @@
                 position.lastTime = lastTime;
                 position.openPrice = openPrice;
                 position.prevClosePrice = prevClosePrice;
-                store.put(position);
+                await new Promise((resolve, reject) => {
+                    const request = store.put(position);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject(event.target.error);
+                });
             }
         }
 
@@ -1103,7 +1106,6 @@
                     try {
                         const interval = parseInt(button.getAttribute('data-interval'));
                         
-                        // **CORRECTION START**
                         // Open a new transaction for each put operation
                         const newTransaction = db.transaction(settingsStoreName, "readwrite");
                         const newStore = newTransaction.objectStore(settingsStoreName);
@@ -1114,7 +1116,6 @@
                             request.onsuccess = () => resolve();
                             request.onerror = (event) => reject(event.target.error);
                         });
-                        // **CORRECTION END**
 
                         appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
 
