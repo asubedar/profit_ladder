@@ -1,4 +1,5 @@
 // utils.js
+"use strict";
 
 /**
  * Creates a debounced version of a function.

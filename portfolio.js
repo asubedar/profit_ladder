@@ -1,4 +1,5 @@
 // portfolio.js
+"use strict";
 
 import { openDatabase, getAll, get, put, deleteItem, positionsStoreName, settingsStoreName } from './db.js';
 import { debounce, calculateTimeSinceLastTrade } from './utils.js';
@@ -756,22 +757,7 @@ async function initializeVisibleColumnsAndSortSettings() {
 }
 
 /**
- * Initializes filter checkboxes.
- * (Already handled via generateFilterCheckboxes)
- */
-
-/**
- * Opens the portfolio page by loading positions and initializing UI components.
- * (Already handled in loadPortfolio)
- */
-
-/**
- * Sorts the allPositions array based on sortColumn and sortDirection.
- * (Already implemented in sortPositions function)
- */
-
-/**
- * Initializes everything on DOMContentLoaded.
+ * Populates and initializes everything on DOMContentLoaded.
  */
 document.addEventListener("DOMContentLoaded", async () => {
     await initializeVisibleColumnsAndSortSettings(); // Load saved column order and sort settings first
@@ -816,14 +802,50 @@ async function startAutoRefresh() {
  */
 async function getRefreshInterval() {
     try {
-        const refreshInterval = await get(settingsStoreName, "refreshInterval");
-        return refreshInterval && refreshInterval.value ? refreshInterval.value : 0;
+        const refreshIntervalObj = await get(settingsStoreName, "refreshInterval");
+        return refreshIntervalObj && refreshIntervalObj.value ? refreshIntervalObj.value : 0;
     } catch (error) {
         console.error("Error getting refresh interval:", error);
         appendDebugLog(`Error getting refresh interval: ${error}`);
         return 0;
     }
 }
+
+/**
+ * Sorts the allPositions array based on sortColumn and sortDirection.
+ */
+function sortPositions() {
+    if (!sortColumn) return; // No sorting applied
+
+    allPositions.sort((a, b) => {
+        let valA = a[sortColumn];
+        let valB = b[sortColumn];
+
+        // Handle undefined or null values
+        valA = valA !== undefined && valA !== null ? valA : "";
+        valB = valB !== undefined && valB !== null ? valB : "";
+
+        if (typeof valA === "string") {
+            valA = valA.toLowerCase();
+        }
+        if (typeof valB === "string") {
+            valB = valB.toLowerCase();
+        }
+
+        if (valA < valB) {
+            return sortDirection === 'asc' ? -1 : 1;
+        }
+        if (valA > valB) {
+            return sortDirection === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+}
+
+/**
+ * Renders the portfolio table based on visibleColumns and allPositions.
+ * (This function is already defined above)
+ */
 
 /**
  * Export all positions as a JSON file.
@@ -896,11 +918,8 @@ async function initializeFilterCheckboxes() {
 
 /**
  * Toggles the visibility of the settings section.
+ * (Already handled via event listener)
  */
-document.getElementById("settingsIcon").addEventListener("click", () => {
-    const settings = document.getElementById("settings");
-    settings.classList.toggle("d-none");
-});
 
 /**
  * Resets all settings to default.
@@ -1130,11 +1149,3 @@ async function loadPortfolio() {
         appendDebugLog(`Error loading portfolio: ${error}`);
     }
 }
-
-/**
- * Toggles the visibility of the settings section.
- */
-document.getElementById("settingsIcon").addEventListener("click", () => {
-    const settings = document.getElementById("settings");
-    settings.classList.toggle("d-none");
-});

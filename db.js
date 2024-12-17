@@ -1,4 +1,5 @@
 // db.js
+"use strict";
 
 export const positionsStoreName = "Positions";
 export const settingsStoreName = "Settings";
