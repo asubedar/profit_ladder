@@ -1290,7 +1290,7 @@
         // Function to Open IndexedDB
         async function openDatabase() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 2);
+                const request = indexedDB.open(dbName, 3); // Incremented from 2 to 3
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
 
@@ -1298,6 +1298,12 @@
                         const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id", autoIncrement: true });
                         positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
                         appendDebugLog("Created 'Positions' object store with 'tickerSymbol' index.");
+                    } else {
+                        const positionsStore = request.transaction.objectStore(positionsStoreName);
+                        if (!positionsStore.indexNames.contains("tickerSymbol")) {
+                            positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
+                            appendDebugLog("Added 'tickerSymbol' index to 'Positions' object store.");
+                        }
                     }
 
                     if (!db.objectStoreNames.contains(settingsStoreName)) {
