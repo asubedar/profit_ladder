@@ -539,7 +539,7 @@
                 header.appendChild(sortArrowDesc);
 
                 // Add Event Listener for Sorting
-                header.addEventListener('click', () => {
+                header.addEventListener('click', async () => {
                     if (sortColumn === columnKey) {
                         sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
                     } else {
@@ -548,6 +548,22 @@
                     }
                     sortPositions();
                     renderPortfolio();
+
+                    // Save sort settings to IndexedDB
+                    try {
+                        const db = await openDatabase();
+                        const transaction = db.transaction(settingsStoreName, "readwrite");
+                        const store = transaction.objectStore(settingsStoreName);
+                        await new Promise((resolve, reject) => {
+                            store.put({ key: "sortColumn", value: sortColumn });
+                            store.put({ key: "sortDirection", value: sortDirection });
+                            resolve();
+                        });
+                        appendDebugLog("Sort settings saved.");
+                    } catch (error) {
+                        console.error("Error saving sort settings:", error);
+                        appendDebugLog(`Error saving sort settings: ${error}`);
+                    }
                 });
 
                 // Update sorted class
@@ -1110,8 +1126,8 @@
             appendDebugLog("Refresh interval buttons initialized.");
         }
 
-        // Function to Initialize Visible Columns on Page Load
-        async function initializeVisibleColumns() {
+        // Function to Initialize Visible Columns and Sort Settings on Page Load
+        async function initializeVisibleColumnsAndSortSettings() {
             const db = await openDatabase();
             const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
             const savedColumns = await new Promise((resolve, reject) => {
@@ -1128,169 +1144,34 @@
                 console.log("Loaded visibleColumns from settings:", visibleColumns);
                 appendDebugLog("Loaded visibleColumns from settings.");
             }
-        }
 
-        // Function to Fetch All Unique Tickers from IndexedDB
-        async function fetchAllTickers() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
-
-            return new Promise((resolve, reject) => {
-                const request = index.openCursor(null, "nextunique");
-                const tickers = [];
-                request.onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        tickers.push(cursor.key);
-                        cursor.continue();
-                    } else {
-                        resolve(tickers);
-                    }
-                };
+            // Load sort settings
+            const savedSortColumn = await new Promise((resolve, reject) => {
+                const request = store.get("sortColumn");
+                request.onsuccess = (event) => resolve(event.target.result?.value || null);
                 request.onerror = (event) => reject(event.target.error);
             });
-        }
-
-        // Function to Generate Filter Checkboxes
-        async function generateFilterCheckboxes(uniqueTickers) {
-            const filterCheckboxes = document.getElementById("filterCheckboxes");
-            filterCheckboxes.innerHTML = "";
-
-            const db = await openDatabase();
-            const store = db.transaction(positionsStoreName, "readonly").objectStore(positionsStoreName);
-
-            for (const ticker of uniqueTickers) {
-                const checkbox = document.createElement("div");
-                checkbox.className = "form-check form-check-inline filter-checkbox";
-                checkbox.innerHTML = `
-                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" checked>
-                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
-                `;
-
-                // Determine the initial checked state based on positions' hide attribute
-                const request = store.index && store.index("tickerSymbol") ? store.index("tickerSymbol").getAll(ticker) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === ticker);
-                    const isHidden = positions.every(pos => pos.hide); // Changed to 'every' for correct logic
-                    if (isHidden) {
-                        checkbox.querySelector('input').checked = false;
-                    } else {
-                        checkbox.querySelector('input').checked = true;
-                    }
-                };
-                request.onerror = (event) => {
-                    console.error(`Error fetching positions for ${ticker}:`, event.target.error);
-                };
-
-                // Add Event Listener for Checkbox Change
-                checkbox.querySelector('input').addEventListener("change", async () => {
-                    const ticker = checkbox.querySelector("input").value;
-                    const isChecked = checkbox.querySelector("input").checked;
-                    const hide = !isChecked;
-
-                    // Update the 'hide' attribute for all positions with this tickerSymbol
-                    try {
-                        await setHideForTickerSymbol(ticker, hide);
-                        console.log(`Set hide=${hide} for tickerSymbol=${ticker}`);
-                        appendDebugLog(`Set hide=${hide} for tickerSymbol=${ticker}`);
-
-                        // Reload portfolio after updating hide status
-                        await loadPortfolio();
-                    } catch (error) {
-                        console.error(`Error setting hide for tickerSymbol=${ticker}:`, error);
-                        appendDebugLog(`Error setting hide for tickerSymbol=${ticker}: ${error}`);
-                    }
-                });
-
-                filterCheckboxes.appendChild(checkbox);
-            }
-        }
-
-        // Function to Update the 'hide' Attribute for All Positions with a Specific Ticker Symbol
-        async function setHideForTickerSymbol(tickerSymbol, hide) {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readwrite");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
-
-            return new Promise((resolve, reject) => {
-                const request = index ? index.getAll(tickerSymbol) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === tickerSymbol);
-                    for (const position of positions) {
-                        position.hide = hide;
-                        const updateRequest = store.put(position);
-                        await new Promise((res, rej) => {
-                            updateRequest.onsuccess = () => res();
-                            updateRequest.onerror = (e) => rej(e.target.error);
-                        });
-                    }
-                    resolve();
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Start Auto-Refresh
-        async function startAutoRefresh() {
-            const interval = await getRefreshInterval();
-            if (refreshIntervalId) {
-                clearInterval(refreshIntervalId);
-            }
-
-            if (interval > 0) {
-                refreshIntervalId = setInterval(async () => {
-                    console.log("Auto-refreshing prices...");
-                    appendDebugLog("Auto-refreshing prices...");
-                    await loadPortfolio();
-                }, interval * 1000);
-                console.log(`Auto-refresh set to every ${interval} seconds.`);
-                appendDebugLog(`Auto-refresh set to every ${interval} seconds.`);
-            } else {
-                console.log("Auto-refresh stopped.");
-                appendDebugLog("Auto-refresh stopped.");
-            }
-        }
-
-        // Function to Get Refresh Interval from IndexedDB
-        async function getRefreshInterval() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("refreshInterval");
-                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Initialize Visible Columns on Page Load
-        async function initializeVisibleColumns() {
-            const db = await openDatabase();
-            const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
-            const savedColumns = await new Promise((resolve, reject) => {
-                const request = store.get("visibleColumns");
-                request.onsuccess = (event) => resolve(event.target.result?.value || []);
+            const savedSortDirection = await new Promise((resolve, reject) => {
+                const request = store.get("sortDirection");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 'asc');
                 request.onerror = (event) => reject(event.target.error);
             });
 
-            if (savedColumns.length > 0) {
-                visibleColumns = savedColumns;
-                // Ensure uniqueness
-                visibleColumns = [...new Set(visibleColumns)];
-
-                console.log("Loaded visibleColumns from settings:", visibleColumns);
-                appendDebugLog("Loaded visibleColumns from settings.");
+            if (savedSortColumn) {
+                sortColumn = savedSortColumn;
             }
+            if (savedSortDirection) {
+                sortDirection = savedSortDirection;
+            }
+
+            console.log("Loaded sort settings:", sortColumn, sortDirection);
+            appendDebugLog("Loaded sort settings.");
         }
 
         // Function to Open IndexedDB
         async function openDatabase() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 3); // Incremented from 2 to 3
+                const request = indexedDB.open(dbName, 3); // Incremented version from 2 to 3
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
 
@@ -1321,24 +1202,6 @@
                     appendDebugLog(`Database open failed: ${event.target.error}`);
                     reject(event.target.error);
                 };
-            });
-        }
-
-        // Function to Fetch Visible Positions from IndexedDB
-        async function fetchVisiblePositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => {
-                    const all = event.target.result;
-                    // Filter out positions where hide is true
-                    const visible = all.filter(position => !position.hide);
-                    resolve(visible);
-                };
-                request.onerror = (event) => reject(event.target.error);
             });
         }
 
@@ -1373,8 +1236,8 @@
 
         // Function to Initialize Everything on DOMContentLoaded
         document.addEventListener("DOMContentLoaded", async () => {
-            await initializeVisibleColumns(); // Load saved column order first
-            populateSortableColumns();        // Then populate the "Customize Columns" list based on saved order
+            await initializeVisibleColumnsAndSortSettings(); // Load saved column order and sort settings first
+            populateSortableColumns();                      // Then populate the "Customize Columns" list based on saved order
             await loadPortfolio();
             await initializeRefreshIntervalButtons();
             await startAutoRefresh();
@@ -1399,6 +1262,22 @@
             } catch (error) {
                 console.error("Error resetting visible columns:", error);
                 appendDebugLog(`Error resetting visible columns: ${error}`);
+            }
+
+            // Reset sort settings
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
+                await new Promise((resolve, reject) => {
+                    store.put({ key: "sortColumn", value: null });
+                    store.put({ key: "sortDirection", value: 'asc' });
+                    resolve();
+                });
+                appendDebugLog("Sort settings reset to default in settings.");
+            } catch (error) {
+                console.error("Error resetting sort settings:", error);
+                appendDebugLog(`Error resetting sort settings: ${error}`);
             }
 
             // Reset hide attribute for all positions
@@ -1438,6 +1317,40 @@
                 document.getElementById("settingsFeedback").style.display = "none";
             }, 3000);
         });
+
+        // Function to Start Auto-Refresh
+        async function startAutoRefresh() {
+            const interval = await getRefreshInterval();
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+            }
+
+            if (interval > 0) {
+                refreshIntervalId = setInterval(async () => {
+                    console.log("Auto-refreshing prices...");
+                    appendDebugLog("Auto-refreshing prices...");
+                    await loadPortfolio();
+                }, interval * 1000);
+                console.log(`Auto-refresh set to every ${interval} seconds.`);
+                appendDebugLog(`Auto-refresh set to every ${interval} seconds.`);
+            } else {
+                console.log("Auto-refresh stopped.");
+                appendDebugLog("Auto-refresh stopped.");
+            }
+        }
+
+        // Function to Get Refresh Interval from IndexedDB
+        async function getRefreshInterval() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.get("refreshInterval");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
     </script>
 </body>
 </html>
