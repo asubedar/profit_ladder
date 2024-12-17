@@ -176,13 +176,20 @@
 
         function openDatabase() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 3); // Ensure version matches `portfolio.html`
+                const request = indexedDB.open(dbName, 3); // Ensure version matches portfolio.html
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
 
                     if (!db.objectStoreNames.contains(storeName)) {
-                        db.createObjectStore(storeName, { keyPath: "id" });
-                        appendDebugLog("Created 'Positions' object store in index.html.");
+                        const positionsStore = db.createObjectStore(storeName, { keyPath: "id" });
+                        positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
+                        appendDebugLog("Created 'Positions' object store with 'tickerSymbol' index in index.html.");
+                    } else {
+                        const positionsStore = request.transaction.objectStore(storeName);
+                        if (!positionsStore.indexNames.contains("tickerSymbol")) {
+                            positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
+                            appendDebugLog("Added 'tickerSymbol' index to 'Positions' object store in index.html.");
+                        }
                     }
 
                     if (!db.objectStoreNames.contains("Settings")) {
