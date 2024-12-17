@@ -1107,7 +1107,7 @@
         }
 
         /**
-         * Renders the sortable columns and initializes sort settings.
+         * Initializes visible columns and sort settings from IndexedDB.
          */
         async function initializeVisibleColumnsAndSortSettings() {
             try {
@@ -1521,20 +1521,6 @@
         }
 
         /**
-         * Sorts the allPositions array based on sortColumn and sortDirection.
-         * (Note: Duplicate function removed)
-         */
-
-        /**
-         * Renders the sortable columns and initializes sort settings.
-         * (Note: Duplicate function removed)
-         */
-
-        /**
-         * Handles input filtering with debounce to optimize performance.
-         */
-
-        /**
          * Starts the auto-refresh interval based on settings.
          */
         async function startAutoRefresh() {
@@ -1583,11 +1569,6 @@
                 return 0;
             }
         }
-
-        /**
-         * Sets the auto-refresh interval based on setting.
-         * (Note: Removed duplicated content)
-         */
 
         /**
          * Exports all positions as a JSON file.
@@ -1672,10 +1653,9 @@
 
         /**
          * Initializes everything on DOMContentLoaded.
+         * (Note: This event listener is already defined above and does not need to be duplicated.)
          */
-        document.addEventListener("DOMContentLoaded", async () => {
-            // Note: Some initialization already handled above
-        });
+        // Removed duplicate DOMContentLoaded event listener
     </script>
 </body>
 </html>
