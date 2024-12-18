@@ -625,210 +625,202 @@
             // Fetch all unique tickers, including hidden ones
             const uniqueTickers = await fetchAllTickers();
             await generateFilterCheckboxes(uniqueTickers);
+            sortPositions(); // Ensure positions are sorted before rendering
             renderPortfolio();
         }
 
         // Function to Render Portfolio Table
-        // async function renderPortfolio() {
-        //     const portfolioBody = document.getElementById("portfolioBody");
-        //     portfolioBody.innerHTML = "";
+        async function renderPortfolio() {
+            const portfolioBody = document.getElementById("portfolioBody");
+            portfolioBody.innerHTML = "";
 
-        //     // Render Table Headers Dynamically
-        //     const portfolioHeaders = document.getElementById("portfolioHeaders");
-        //     portfolioHeaders.innerHTML = ""; // Clear existing headers
+            // Render Table Headers Dynamically
+            const portfolioHeaders = document.getElementById("portfolioHeaders");
+            portfolioHeaders.innerHTML = ""; // Clear existing headers
 
-        //     visibleColumns.forEach(columnKey => {
-        //         const header = document.createElement("th");
-        //         header.setAttribute("data-column", columnKey);
-        //         header.setAttribute("data-sort-type", getSortType(columnKey));
-        //         header.setAttribute("data-sort-key", columnKey);
-        //         header.setAttribute("data-col-index", visibleColumns.indexOf(columnKey));
+            visibleColumns.forEach(columnKey => {
+                const header = document.createElement("th");
+                header.setAttribute("data-column", columnKey);
+                header.setAttribute("data-sort-type", getSortType(columnKey));
+                header.setAttribute("data-sort-key", columnKey);
+                header.setAttribute("data-col-index", visibleColumns.indexOf(columnKey));
 
-        //         const thName = document.createElement("span");
-        //         thName.className = "th-name";
-        //         thName.textContent = getColumnDisplayName(columnKey);
+                const thName = document.createElement("span");
+                thName.className = "th-name";
+                thName.textContent = getColumnDisplayName(columnKey);
 
-        //         const sortArrowAsc = document.createElement("span");
-        //         sortArrowAsc.className = "sort-arrow asc";
-        //         sortArrowAsc.textContent = "▲";
+                const sortArrowAsc = document.createElement("span");
+                sortArrowAsc.className = "sort-arrow asc";
+                sortArrowAsc.textContent = "▲";
 
-        //         const sortArrowDesc = document.createElement("span");
-        //         sortArrowDesc.className = "sort-arrow desc";
-        //         sortArrowDesc.textContent = "▼";
+                const sortArrowDesc = document.createElement("span");
+                sortArrowDesc.className = "sort-arrow desc";
+                sortArrowDesc.textContent = "▼";
 
-        //         header.appendChild(thName);
-        //         header.appendChild(sortArrowAsc);
-        //         header.appendChild(sortArrowDesc);
+                header.appendChild(thName);
+                header.appendChild(sortArrowAsc);
+                header.appendChild(sortArrowDesc);
 
-        //         // Add Event Listener for Sorting
-        //         header.addEventListener('click', () => {
-        //             if (sortColumn === columnKey) {
-        //                 sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-        //             } else {
-        //                 sortColumn = columnKey;
-        //                 sortDirection = 'asc';
-        //             }
-        //             updateSortSettings(sortColumn, sortDirection);
-        //             sortPositions();
-        //             renderPortfolio();
-        //         });
+                // Add Event Listener for Sorting
+                header.addEventListener('click', () => {
+                    if (sortColumn === columnKey) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortColumn = columnKey;
+                        sortDirection = 'asc';
+                    }
+                    updateSortSettings(sortColumn, sortDirection);
+                    sortPositions();
+                    renderPortfolio();
+                });
 
-        //         // Update sorted class
-        //         if (sortColumn === columnKey) {
-        //             header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
-        //         } else {
-        //             header.classList.remove('sorted-asc', 'sorted-desc');
-        //         }
+                // Update sorted class
+                if (sortColumn === columnKey) {
+                    header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                } else {
+                    header.classList.remove('sorted-asc', 'sorted-desc');
+                }
 
-        //         portfolioHeaders.appendChild(header);
-        //     });
+                portfolioHeaders.appendChild(header);
+            });
 
-        //     if (allPositions.length === 0) {
-        //         portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
-        //         // Also clear the totals row
-        //         const totalsRow = document.getElementById("totalsRow");
-        //         totalsRow.innerHTML = ``;
-        //         return;
-        //     }
+            if (allPositions.length === 0) {
+                portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
+                // Also clear the totals row
+                const totalsRow = document.getElementById("totalsRow");
+                totalsRow.innerHTML = ``;
+                return;
+            }
 
-        //     // Fetch updated positions from IndexedDB
-        //     const db = await openDatabase();
-        //     const transaction = db.transaction(positionsStoreName, "readonly");
-        //     const store = transaction.objectStore(positionsStoreName);
-        //     const updatedPositions = await new Promise((resolve, reject) => {
-        //         const request = store.getAll();
-        //         request.onsuccess = (event) => resolve(event.target.result);
-        //         request.onerror = (event) => reject(event.target.error);
-        //     });
+            // Accumulate totals
+            let totals = {
+                costBasis: 0,
+                totalValue: 0,
+                profit: 0,
+                profitPct: 0,
+                changeToday: 0,
+                changePctToday: 0,
+                gapPct: 0
+            };
 
-        //     let totals = {
-        //         costBasis: 0,
-        //         totalValue: 0,
-        //         profit: 0,
-        //         profitPct: 0,
-        //         changeToday: 0,
-        //         changePctToday: 0,
-        //         gapPct: 0
-        //     };
+            allPositions.forEach((position) => {
+                const currentPrice = position.lastPrice || 0;
+                const lastTime = position.lastTime || "N/A";
+                const openPrice = position.openPrice || 0;
+                const prevClosePrice = position.prevClosePrice || 0;
 
-        //     updatedPositions.forEach((position) => {
-        //         const currentPrice = position.lastPrice || 0;
-        //         const lastTime = position.lastTime || "N/A";
-        //         const openPrice = position.openPrice || 0;
-        //         const prevClosePrice = position.prevClosePrice || 0;
+                // Update calculated fields
+                position.costBasis = position.avgPrice * position.numShares;
+                position.totalValue = currentPrice * position.numShares;
+                position.profit = position.totalValue - position.costBasis;
+                position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
+                position.changeToday = currentPrice - prevClosePrice;
+                position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
+                position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
+                position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
 
-        //         // Update calculated fields
-        //         position.costBasis = position.avgPrice * position.numShares;
-        //         position.totalValue = currentPrice * position.numShares;
-        //         position.profit = position.totalValue - position.costBasis;
-        //         position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
-        //         position.changeToday = currentPrice - prevClosePrice;
-        //         position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
-        //         position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
-        //         position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
+                // Accumulate totals
+                totals.costBasis += position.costBasis;
+                totals.totalValue += position.totalValue;
+                totals.profit += position.profit;
+                totals.profitPct += position.profitPct;
+                totals.changeToday += position.changeToday;
+                totals.changePctToday += position.changePctToday;
+                totals.gapPct += position.gapPct;
 
-        //         // Accumulate totals
-        //         totals.costBasis += position.costBasis;
-        //         totals.totalValue += position.totalValue;
-        //         totals.profit += position.profit;
-        //         totals.profitPct += position.profitPct;
-        //         totals.changeToday += position.changeToday;
-        //         totals.changePctToday += position.changePctToday;
-        //         totals.gapPct += position.gapPct;
+                const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
 
-        //         const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
+                // Generate table row based on visibleColumns order
+                let row = `<tr>`;
+                visibleColumns.forEach((columnKey) => {
+                    let cellContent = "";
+                    switch (columnKey) {
+                        case "tickerSymbol":
+                            cellContent = position.tickerSymbol;
+                            break;
+                        case "avgPrice":
+                            cellContent = position.avgPrice.toFixed(2);
+                            break;
+                        case "numShares":
+                            cellContent = position.numShares;
+                            break;
+                        case "lastPrice":
+                            cellContent = currentPrice.toFixed(2);
+                            break;
+                        case "costBasis":
+                            cellContent = position.costBasis.toFixed(2);
+                            break;
+                        case "totalValue":
+                            cellContent = position.totalValue.toFixed(2);
+                            break;
+                        case "profit":
+                            cellContent = `<span class="${profitClass}">${position.profit.toFixed(2)}</span>`;
+                            break;
+                        case "profitPct":
+                            cellContent = `${position.profitPct.toFixed(2)}%`;
+                            break;
+                        case "changeToday":
+                            cellContent = position.changeToday.toFixed(2);
+                            break;
+                        case "changePctToday":
+                            cellContent = `${position.changePctToday.toFixed(2)}%`;
+                            break;
+                        case "gapPct":
+                            cellContent = `${position.gapPct.toFixed(2)}%`;
+                            break;
+                        case "lastTime":
+                            cellContent = position.timeSinceLastTrade;
+                            break;
+                        default:
+                            cellContent = "";
+                    }
+                    row += `<td>${cellContent}</td>`;
+                });
+                row += `</tr>`;
+                portfolioBody.innerHTML += row;
+            });
 
-        //         // Generate table row based on visibleColumns order
-        //         let row = `<tr>`;
-        //         visibleColumns.forEach((columnKey) => {
-        //             let cellContent = "";
-        //             switch (columnKey) {
-        //                 case "tickerSymbol":
-        //                     cellContent = position.tickerSymbol;
-        //                     break;
-        //                 case "avgPrice":
-        //                     cellContent = position.avgPrice.toFixed(2);
-        //                     break;
-        //                 case "numShares":
-        //                     cellContent = position.numShares;
-        //                     break;
-        //                 case "lastPrice":
-        //                     cellContent = currentPrice.toFixed(2);
-        //                     break;
-        //                 case "costBasis":
-        //                     cellContent = position.costBasis.toFixed(2);
-        //                     break;
-        //                 case "totalValue":
-        //                     cellContent = position.totalValue.toFixed(2);
-        //                     break;
-        //                 case "profit":
-        //                     cellContent = `<span class="${profitClass}">${position.profit.toFixed(2)}</span>`;
-        //                     break;
-        //                 case "profitPct":
-        //                     cellContent = `${position.profitPct.toFixed(2)}%`;
-        //                     break;
-        //                 case "changeToday":
-        //                     cellContent = position.changeToday.toFixed(2);
-        //                     break;
-        //                 case "changePctToday":
-        //                     cellContent = `${position.changePctToday.toFixed(2)}%`;
-        //                     break;
-        //                 case "gapPct":
-        //                     cellContent = `${position.gapPct.toFixed(2)}%`;
-        //                     break;
-        //                 case "lastTime":
-        //                     cellContent = position.timeSinceLastTrade;
-        //                     break;
-        //                 default:
-        //                     cellContent = "";
-        //             }
-        //             row += `<td>${cellContent}</td>`;
-        //         });
-        //         row += `</tr>`;
-        //         portfolioBody.innerHTML += row;
-        //     });
+            // Calculate total profit percentage based on total cost basis
+            const totalProfitPct = totals.costBasis !== 0 ? (totals.profit / totals.costBasis) * 100 : 0;
 
-        //     // Calculate total profit percentage based on total cost basis
-        //     const totalProfitPct = totals.costBasis !== 0 ? (totals.profit / totals.costBasis) * 100 : 0;
+            // Update totals in the footer based on visibleColumns
+            const totalsRow = document.getElementById("totalsRow");
+            totalsRow.innerHTML = ""; // Clear existing cells
 
-        //     // Update totals in the footer based on visibleColumns
-        //     const totalsRow = document.getElementById("totalsRow");
-        //     totalsRow.innerHTML = ""; // Clear existing cells
-
-        //     visibleColumns.forEach(columnKey => {
-        //         if (columnKey === "tickerSymbol") {
-        //             totalsRow.innerHTML += `<td>Totals</td>`;
-        //         } else {
-        //             let footerContent = "";
-        //             switch (columnKey) {
-        //                 case "costBasis":
-        //                     footerContent = totals.costBasis.toFixed(2);
-        //                     break;
-        //                 case "totalValue":
-        //                     footerContent = totals.totalValue.toFixed(2);
-        //                     break;
-        //                 case "profit":
-        //                     footerContent = totals.profit.toFixed(2);
-        //                     break;
-        //                 case "profitPct":
-        //                     footerContent = totalProfitPct.toFixed(2) + "%";
-        //                     break;
-        //                 case "changeToday":
-        //                     footerContent = totals.changeToday.toFixed(2);
-        //                     break;
-        //                 case "changePctToday":
-        //                     footerContent = totals.changePctToday.toFixed(2) + "%";
-        //                     break;
-        //                 case "gapPct":
-        //                     footerContent = totals.gapPct.toFixed(2) + "%";
-        //                     break;
-        //                 default:
-        //                     footerContent = ""; // Empty for other columns
-        //             }
-        //             totalsRow.innerHTML += `<td>${footerContent}</td>`;
-        //         }
-        //     });
-        // }
+            visibleColumns.forEach(columnKey => {
+                if (columnKey === "tickerSymbol") {
+                    totalsRow.innerHTML += `<td>Totals</td>`;
+                } else {
+                    let footerContent = "";
+                    switch (columnKey) {
+                        case "costBasis":
+                            footerContent = totals.costBasis.toFixed(2);
+                            break;
+                        case "totalValue":
+                            footerContent = totals.totalValue.toFixed(2);
+                            break;
+                        case "profit":
+                            footerContent = totals.profit.toFixed(2);
+                            break;
+                        case "profitPct":
+                            footerContent = totalProfitPct.toFixed(2) + "%";
+                            break;
+                        case "changeToday":
+                            footerContent = totals.changeToday.toFixed(2);
+                            break;
+                        case "changePctToday":
+                            footerContent = totals.changePctToday.toFixed(2) + "%";
+                            break;
+                        case "gapPct":
+                            footerContent = totals.gapPct.toFixed(2) + "%";
+                            break;
+                        default:
+                            footerContent = ""; // Empty for other columns
+                    }
+                    totalsRow.innerHTML += `<td>${footerContent}</td>`;
+                }
+            });
+        }
 
         // Function to Get Sort Type Based on Column Key
         function getSortType(columnKey) {
@@ -1185,579 +1177,7 @@
             }
         }
 
-        // Function to Fetch Latest Data and Update Positions Store
-        async function fetchAndUpdatePositions() {
-            try {
-                const db = await openDatabase();
-                const visiblePositions = await fetchVisiblePositions();
-                const tickers = visiblePositions.map(pos => pos.tickerSymbol);
-                const uniqueTickers = [...new Set(tickers)];
-                const prices = await fetchCurrentPrices(uniqueTickers);
-                await updatePositionsStore(prices);
-            } catch (error) {
-                console.error("Error in fetchAndUpdatePositions:", error);
-                appendDebugLog(`Error in fetchAndUpdatePositions: ${error}`);
-            }
-        }
-
-        // Function to Render Portfolio Table
-        async function renderPortfolio() {
-            const portfolioBody = document.getElementById("portfolioBody");
-            portfolioBody.innerHTML = "";
-
-            // Render Table Headers Dynamically
-            const portfolioHeaders = document.getElementById("portfolioHeaders");
-            portfolioHeaders.innerHTML = ""; // Clear existing headers
-
-            visibleColumns.forEach(columnKey => {
-                const header = document.createElement("th");
-                header.setAttribute("data-column", columnKey);
-                header.setAttribute("data-sort-type", getSortType(columnKey));
-                header.setAttribute("data-sort-key", columnKey);
-                header.setAttribute("data-col-index", visibleColumns.indexOf(columnKey));
-
-                const thName = document.createElement("span");
-                thName.className = "th-name";
-                thName.textContent = getColumnDisplayName(columnKey);
-
-                const sortArrowAsc = document.createElement("span");
-                sortArrowAsc.className = "sort-arrow asc";
-                sortArrowAsc.textContent = "▲";
-
-                const sortArrowDesc = document.createElement("span");
-                sortArrowDesc.className = "sort-arrow desc";
-                sortArrowDesc.textContent = "▼";
-
-                header.appendChild(thName);
-                header.appendChild(sortArrowAsc);
-                header.appendChild(sortArrowDesc);
-
-                // Add Event Listener for Sorting
-                header.addEventListener('click', () => {
-                    if (sortColumn === columnKey) {
-                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        sortColumn = columnKey;
-                        sortDirection = 'asc';
-                    }
-                    updateSortSettings(sortColumn, sortDirection);
-                    sortPositions();
-                    renderPortfolio();
-                });
-
-                // Update sorted class
-                if (sortColumn === columnKey) {
-                    header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
-                } else {
-                    header.classList.remove('sorted-asc', 'sorted-desc');
-                }
-
-                portfolioHeaders.appendChild(header);
-            });
-
-            if (allPositions.length === 0) {
-                portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
-                // Also clear the totals row
-                const totalsRow = document.getElementById("totalsRow");
-                totalsRow.innerHTML = ``;
-                return;
-            }
-
-            // Fetch updated positions from IndexedDB
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const updatedPositions = await new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            let totals = {
-                costBasis: 0,
-                totalValue: 0,
-                profit: 0,
-                profitPct: 0,
-                changeToday: 0,
-                changePctToday: 0,
-                gapPct: 0
-            };
-
-            updatedPositions.forEach((position) => {
-                const currentPrice = position.lastPrice || 0;
-                const lastTime = position.lastTime || "N/A";
-                const openPrice = position.openPrice || 0;
-                const prevClosePrice = position.prevClosePrice || 0;
-
-                // Update calculated fields
-                position.costBasis = position.avgPrice * position.numShares;
-                position.totalValue = currentPrice * position.numShares;
-                position.profit = position.totalValue - position.costBasis;
-                position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
-                position.changeToday = currentPrice - prevClosePrice;
-                position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
-                position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
-                position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
-
-                // Accumulate totals
-                totals.costBasis += position.costBasis;
-                totals.totalValue += position.totalValue;
-                totals.profit += position.profit;
-                totals.profitPct += position.profitPct;
-                totals.changeToday += position.changeToday;
-                totals.changePctToday += position.changePctToday;
-                totals.gapPct += position.gapPct;
-
-                const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
-
-                // Generate table row based on visibleColumns order
-                let row = `<tr>`;
-                visibleColumns.forEach((columnKey) => {
-                    let cellContent = "";
-                    switch (columnKey) {
-                        case "tickerSymbol":
-                            cellContent = position.tickerSymbol;
-                            break;
-                        case "avgPrice":
-                            cellContent = position.avgPrice.toFixed(2);
-                            break;
-                        case "numShares":
-                            cellContent = position.numShares;
-                            break;
-                        case "lastPrice":
-                            cellContent = currentPrice.toFixed(2);
-                            break;
-                        case "costBasis":
-                            cellContent = position.costBasis.toFixed(2);
-                            break;
-                        case "totalValue":
-                            cellContent = position.totalValue.toFixed(2);
-                            break;
-                        case "profit":
-                            cellContent = `<span class="${profitClass}">${position.profit.toFixed(2)}</span>`;
-                            break;
-                        case "profitPct":
-                            cellContent = `${position.profitPct.toFixed(2)}%`;
-                            break;
-                        case "changeToday":
-                            cellContent = position.changeToday.toFixed(2);
-                            break;
-                        case "changePctToday":
-                            cellContent = `${position.changePctToday.toFixed(2)}%`;
-                            break;
-                        case "gapPct":
-                            cellContent = `${position.gapPct.toFixed(2)}%`;
-                            break;
-                        case "lastTime":
-                            cellContent = position.timeSinceLastTrade;
-                            break;
-                        default:
-                            cellContent = "";
-                    }
-                    row += `<td>${cellContent}</td>`;
-                });
-                row += `</tr>`;
-                portfolioBody.innerHTML += row;
-            });
-
-            // Calculate total profit percentage based on total cost basis
-            const totalProfitPct = totals.costBasis !== 0 ? (totals.profit / totals.costBasis) * 100 : 0;
-
-            // Update totals in the footer based on visibleColumns
-            const totalsRow = document.getElementById("totalsRow");
-            totalsRow.innerHTML = ""; // Clear existing cells
-
-            visibleColumns.forEach(columnKey => {
-                if (columnKey === "tickerSymbol") {
-                    totalsRow.innerHTML += `<td>Totals</td>`;
-                } else {
-                    let footerContent = "";
-                    switch (columnKey) {
-                        case "costBasis":
-                            footerContent = totals.costBasis.toFixed(2);
-                            break;
-                        case "totalValue":
-                            footerContent = totals.totalValue.toFixed(2);
-                            break;
-                        case "profit":
-                            footerContent = totals.profit.toFixed(2);
-                            break;
-                        case "profitPct":
-                            footerContent = totalProfitPct.toFixed(2) + "%";
-                            break;
-                        case "changeToday":
-                            footerContent = totals.changeToday.toFixed(2);
-                            break;
-                        case "changePctToday":
-                            footerContent = totals.changePctToday.toFixed(2) + "%";
-                            break;
-                        case "gapPct":
-                            footerContent = totals.gapPct.toFixed(2) + "%";
-                            break;
-                        default:
-                            footerContent = ""; // Empty for other columns
-                    }
-                    totalsRow.innerHTML += `<td>${footerContent}</td>`;
-                }
-            });
-        }
-
-        // Function to Get Sort Type Based on Column Key
-        function getSortType(columnKey) {
-            const stringColumns = ["tickerSymbol", "lastTime"];
-            if (stringColumns.includes(columnKey)) {
-                return "string";
-            }
-            return "number";
-        }
-
-        // Function to Get Display Name for Column
-        function getColumnDisplayName(columnKey) {
-            const mapping = {
-                "tickerSymbol": "Ticker",
-                "avgPrice": "Average Price",
-                "numShares": "Shares",
-                "lastPrice": "Current Price",
-                "costBasis": "Cost Basis",
-                "totalValue": "Total Value",
-                "profit": "Profit",
-                "profitPct": "Profit %",
-                "changeToday": "Change Today",
-                "changePctToday": "Change % Today",
-                "gapPct": "Gap %",
-                "lastTime": "Time Since Last Trade"
-            };
-            return mapping[columnKey] || columnKey;
-        }
-
-        // Function to Calculate Time Since Last Trade
-        function calculateTimeSinceLastTrade(lastTradeTime) {
-            if (lastTradeTime === "N/A") return "N/A";
-            const lastTradeDate = new Date(lastTradeTime);
-            const now = new Date();
-            const diffInSeconds = Math.round((now - lastTradeDate) / 1000);
-
-            if (diffInSeconds < 60) {
-                return `${diffInSeconds}s ago`;
-            } else if (diffInSeconds < 3600) {
-                const minutes = Math.round(diffInSeconds / 60);
-                return `${minutes}m ago`;
-            } else if (diffInSeconds < 86400) {
-                const hours = Math.round(diffInSeconds / 3600);
-                return `${hours}h ago`;
-            } else {
-                const days = Math.round(diffInSeconds / 86400);
-                return `${days}d ago`;
-            }
-        }
-
-        // Function to Sort Positions
-        // function sortPositions() {
-        //     if (!sortColumn) return;
-
-        //     // Sort the updated positions based on the selected column and direction
-        //     allPositions.sort((a, b) => {
-        //         let valA = a[sortColumn];
-        //         let valB = b[sortColumn];
-
-        //         if (getSortType(sortColumn) === "string") {
-        //             valA = (valA || "").toUpperCase(); // Handle undefined or null
-        //             valB = (valB || "").toUpperCase(); // Handle undefined or null
-        //             return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-        //         } else {
-        //             valA = valA || 0; // Handle undefined or null
-        //             valB = valB || 0; // Handle undefined or null
-        //             return sortDirection === 'asc' ? valA - valB : valB - valA;
-        //         }
-        //     });
-        //     // Persist sort settings to IndexedDB
-        //     updateSortSettings(sortColumn, sortDirection);
-        // }
-        
-        // Function to update sort settings in IndexedDB
-        async function updateSortSettings(column, direction) {
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(settingsStoreName, "readwrite");
-                const store = transaction.objectStore(settingsStoreName);
-
-                // Store sort column
-                await new Promise((resolve, reject) => {
-                    const request = store.put({ key: "sortColumn", value: column });
-                    request.onsuccess = () => resolve();
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                // Store sort direction
-                await new Promise((resolve, reject) => {
-                    const request = store.put({ key: "sortDirection", value: direction });
-                    request.onsuccess = () => resolve();
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                appendDebugLog(`Sort settings updated: column=${column}, direction=${direction}`);
-            } catch (error) {
-                console.error("Error updating sort settings:", error);
-                appendDebugLog(`Error updating sort settings: ${error}`);
-            }
-        }
-
-        // Function to Fetch Visible Positions from IndexedDB
-        async function fetchVisiblePositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => {
-                    const all = event.target.result;
-                    // Filter out positions where hide is true
-                    const visible = all.filter(position => !position.hide);
-                    resolve(visible);
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Fetch All Unique Tickers from IndexedDB
-        async function fetchAllTickers() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
-
-            return new Promise((resolve, reject) => {
-                const request = index.openCursor(null, "nextunique");
-                const tickers = [];
-                request.onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        tickers.push(cursor.key);
-                        cursor.continue();
-                    } else {
-                        resolve(tickers);
-                    }
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Generate Filter Checkboxes
-        async function generateFilterCheckboxes(uniqueTickers) {
-            const filterCheckboxes = document.getElementById("filterCheckboxes");
-            filterCheckboxes.innerHTML = "";
-
-            const db = await openDatabase();
-            const store = db.transaction(positionsStoreName, "readonly").objectStore(positionsStoreName);
-
-            for (const ticker of uniqueTickers) {
-                const checkbox = document.createElement("div");
-                checkbox.className = "form-check form-check-inline filter-checkbox";
-                checkbox.innerHTML = `
-                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" checked>
-                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
-                `;
-
-                // Determine the initial checked state based on positions' hide attribute
-                const request = store.index && store.index("tickerSymbol") ? store.index("tickerSymbol").getAll(ticker) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === ticker);
-                    const isHidden = positions.every(pos => pos.hide);
-                    if (isHidden) {
-                        checkbox.querySelector('input').checked = false;
-                    } else {
-                        checkbox.querySelector('input').checked = true;
-                    }
-                };
-                request.onerror = (event) => {
-                    console.error(`Error fetching positions for ${ticker}:`, event.target.error);
-                };
-
-                // Add Event Listener for Checkbox Change
-                checkbox.querySelector('input').addEventListener("change", async () => {
-                    const ticker = checkbox.querySelector("input").value;
-                    const isChecked = checkbox.querySelector("input").checked;
-                    const hide = !isChecked;
-
-                    // Update the 'hide' attribute for all positions with this tickerSymbol
-                    try {
-                        await setHideForTickerSymbol(ticker, hide);
-                        console.log(`Set hide=${hide} for tickerSymbol=${ticker}`);
-                        appendDebugLog(`Set hide=${hide} for tickerSymbol=${ticker}`);
-
-                        // Reload portfolio after updating hide status
-                        await loadPortfolio();
-                    } catch (error) {
-                        console.error(`Error setting hide for tickerSymbol=${ticker}:`, error);
-                        appendDebugLog(`Error setting hide for tickerSymbol=${ticker}: ${error}`);
-                    }
-                });
-
-                filterCheckboxes.appendChild(checkbox);
-            }
-        }
-
-        // Function to Update the 'hide' Attribute for All Positions with a Specific Ticker Symbol
-        async function setHideForTickerSymbol(tickerSymbol, hide) {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readwrite");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
-
-            return new Promise((resolve, reject) => {
-                const request = index ? index.getAll(tickerSymbol) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === tickerSymbol);
-                    for (const position of positions) {
-                        position.hide = hide;
-                        const updateRequest = store.put(position);
-                        await new Promise((res, rej) => {
-                            updateRequest.onsuccess = () => res();
-                            updateRequest.onerror = (e) => rej(e.target.error);
-                        });
-                    }
-                    resolve();
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Fetch Current Prices
-        async function fetchCurrentPrices(tickers) {
-            if (!tickers || tickers.length === 0) {
-                return {};
-            }
-
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(settingsStoreName, "readonly");
-                const store = transaction.objectStore(settingsStoreName);
-
-                const alpacaKey = await new Promise((resolve, reject) => {
-                    const request = store.get("APCA_API_KEY_ID");
-                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                const alpacaSecret = await new Promise((resolve, reject) => {
-                    const request = store.get("APCA_API_SECRET_KEY");
-                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                if (alpacaKey && alpacaSecret) {
-                    return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
-                }
-
-                console.warn("Alpaca credentials not available, falling back to Finnhub.");
-                appendDebugLog("Alpaca credentials not available, falling back to Finnhub.");
-                const finnhubKey = await new Promise((resolve, reject) => {
-                    const request = store.get("finnhubApiKey");
-                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                if (!finnhubKey) {
-                    console.error("Finnhub API Key is not set. Please configure it in the settings.");
-                    appendDebugLog("Finnhub API Key is not set. Please configure it in the settings.");
-                    return {};
-                }
-
-                return await fetchPricesFromFinnhub(tickers, finnhubKey);
-            } catch (error) {
-                console.error("Error fetching current prices:", error);
-                appendDebugLog(`Error fetching current prices: ${error}`);
-                return {};
-            }
-        }
-
-        // Fetch Prices from Alpaca
-        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
-            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        "APCA-API-KEY-ID": apiKey,
-                        "APCA-API-SECRET-KEY": apiSecret,
-                    },
-                });
-
-                if (!response.ok) {
-                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
-                    appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
-                    return {};
-                }
-
-                const data = await response.json();
-                const prices = {};
-
-                for (const [symbol, snapshot] of Object.entries(data)) {
-                    prices[symbol] = {
-                        price: snapshot.latestTrade?.p || 0,
-                        time: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).toLocaleString() : "N/A",
-                        open: snapshot.dailyBar?.o || 0,
-                        prevClose: snapshot.prevDailyBar?.c || 0,
-                    };
-                }
-
-                console.log("Fetched prices from Alpaca:", prices);
-                appendDebugLog("Fetched prices from Alpaca.");
-                return prices;
-            } catch (error) {
-                console.error("Error fetching snapshots from Alpaca:", error);
-                appendDebugLog(`Error fetching snapshots from Alpaca: ${error}`);
-                return {};
-            }
-        }
-
-        // Fetch Prices from Finnhub
-        async function fetchPricesFromFinnhub(tickers, apiKey) {
-            try {
-                const responses = await Promise.all(
-                    tickers.map(async (ticker) => {
-                        const [quoteResponse, prevCloseResponse] = await Promise.all([
-                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
-                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
-                        ]);
-
-                        if (!quoteResponse.ok) {
-                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
-                            appendDebugLog(`Failed to fetch quote data for ${ticker} from Finnhub: ${quoteResponse.statusText}`);
-                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
-                        }
-                        const quoteData = await quoteResponse.json();
-
-                        let prevClose = 0;
-                        if (!prevCloseResponse.ok) {
-                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
-                            appendDebugLog(`Failed to fetch previous close data for ${ticker} from Finnhub: ${prevCloseResponse.statusText}`);
-                        } else {
-                            const prevCloseData = await prevCloseResponse.json();
-                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
-                        }
-
-                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
-                    })
-                );
-
-                const prices = {};
-                responses.forEach((res) => {
-                    if (res.ticker) {
-                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
-                    }
-                });
-                console.log("Fetched prices from Finnhub:", prices);
-                appendDebugLog("Fetched prices from Finnhub.");
-                return prices;
-            } catch (error) {
-                console.error("Error fetching prices from Finnhub:", error);
-                appendDebugLog(`Error fetching prices from Finnhub: ${error}`);
-                return {};
-            }
-        }
-
-        // Function to Fetch Latest Data and Update Positions Store
+        // Function to Fetch and Update Positions
         async function fetchAndUpdatePositions() {
             try {
                 const db = await openDatabase();
