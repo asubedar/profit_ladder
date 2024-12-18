@@ -655,34 +655,34 @@
                             cellContent = position.tickerSymbol;
                             break;
                         case "avgPrice":
-                            cellContent = position.avgPrice.toFixed(2);
+                            cellContent = typeof position.avgPrice === 'number' ? position.avgPrice.toFixed(2) : 'N/A';
                             break;
                         case "numShares":
                             cellContent = position.numShares;
                             break;
                         case "lastPrice":
-                            cellContent = position.lastPrice.toFixed(2);
+                            cellContent = typeof position.lastPrice === 'number' ? position.lastPrice.toFixed(2) : 'N/A';
                             break;
                         case "costBasis":
-                            cellContent = position.costBasis.toFixed(2);
+                            cellContent = typeof position.costBasis === 'number' ? position.costBasis.toFixed(2) : 'N/A';
                             break;
                         case "totalValue":
-                            cellContent = position.totalValue.toFixed(2);
+                            cellContent = typeof position.totalValue === 'number' ? position.totalValue.toFixed(2) : 'N/A';
                             break;
                         case "profit":
-                            cellContent = `<span class="${profitClass}">${position.profit.toFixed(2)}</span>`;
+                            cellContent = typeof position.profit === 'number' ? `<span class="${profitClass}">${position.profit.toFixed(2)}</span>` : 'N/A';
                             break;
                         case "profitPct":
-                            cellContent = `${position.profitPct.toFixed(2)}%`;
+                            cellContent = typeof position.profitPct === 'number' ? `${position.profitPct.toFixed(2)}%` : 'N/A';
                             break;
                         case "changeToday":
-                            cellContent = position.changeToday.toFixed(2);
+                            cellContent = typeof position.changeToday === 'number' ? position.changeToday.toFixed(2) : 'N/A';
                             break;
                         case "changePctToday":
-                            cellContent = `${position.changePctToday.toFixed(2)}%`;
+                            cellContent = typeof position.changePctToday === 'number' ? `${position.changePctToday.toFixed(2)}%` : 'N/A';
                             break;
                         case "gapPct":
-                            cellContent = `${position.gapPct.toFixed(2)}%`;
+                            cellContent = typeof position.gapPct === 'number' ? `${position.gapPct.toFixed(2)}%` : 'N/A';
                             break;
                         case "lastTime":
                             cellContent = position.timeSinceLastTrade;
