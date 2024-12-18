@@ -601,7 +601,7 @@
             updatedPositions.forEach((position) => {
                 //const priceInfo = priceData[position.tickerSymbol] || {};
                 const currentPrice = position.lastPrice || 0;
-                const lastTime = pposition.lastTime || "N/A";
+                const lastTime = position.lastTime || "N/A";
                 const openPrice = position.openPrice || 0;
                 const prevClosePrice = position.prevClosePrice || 0;
 
