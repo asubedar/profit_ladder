@@ -1005,7 +1005,8 @@
                 const transaction = db.transaction(positionsStoreName, "readwrite");
                 const store = transaction.objectStore(positionsStoreName);
 
-                for (const [symbol, snapshot] of Object.entries(data)) {
+                // Use Promise.all to wait for all position updates to complete
+                await Promise.all(Object.entries(data).map(async ([symbol, snapshot]) => {
                     prices[symbol] = {
                         price: snapshot.latestTrade?.p || 0,
                         time: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).toLocaleString() : "N/A",
@@ -1039,7 +1040,7 @@
                         console.error(`Error updating position for ${symbol}:`, error);
                         appendDebugLog(`Error updating position for ${symbol}: ${error}`);
                     }
-                }
+                }));
 
                 console.log("Fetched prices from Alpaca:", prices);
                 appendDebugLog("Fetched prices from Alpaca.");
