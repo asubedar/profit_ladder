@@ -1869,6 +1869,9 @@
                     const uniqueTickers = await fetchAllTickers();
                     await fetchCurrentPrices(uniqueTickers);
 
+                    // Fetch and update allPositions with updated data from the database
+                    allPositions = await fetchVisiblePositions();
+
                     await loadPortfolio();
                 }, interval * 1000);
                 console.log(`Auto-refresh set to every ${interval} seconds.`);
