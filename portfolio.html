@@ -555,6 +555,7 @@
                         sortColumn = columnKey;
                         sortDirection = 'asc';
                     }
+                    updateSortSettings(sortColumn, sortDirection);
                     sortPositions();
                     renderPortfolio();
                 });
@@ -778,6 +779,37 @@
                     return sortDirection === 'asc' ? valA - valB : valB - valA;
                 }
             });
+
+            // Persist sort settings to IndexedDB
+            updateSortSettings(sortColumn, sortDirection); 
+        }
+        
+        // Function to update sort settings in IndexedDB
+        async function updateSortSettings(column, direction) {
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
+
+                // Store sort column
+                await new Promise((resolve, reject) => {
+                    const request = store.put({ key: "sortColumn", value: column });
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                // Store sort direction
+                await new Promise((resolve, reject) => {
+                    const request = store.put({ key: "sortDirection", value: direction });
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                appendDebugLog(`Sort settings updated: column=${column}, direction=${direction}`);
+            } catch (error) {
+                console.error("Error updating sort settings:", error);
+                appendDebugLog(`Error updating sort settings: ${error}`);
+            }
         }
 
         // Function to Fetch Visible Positions from IndexedDB
@@ -1852,9 +1884,38 @@
             });
         }
 
+        // Function to load sort settings from IndexedDB
+        async function loadSortSettings() {
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readonly");
+                const store = transaction.objectStore(settingsStoreName);
+
+                // Get sort column
+                sortColumn = await new Promise((resolve) => {
+                    const request = store.get("sortColumn");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || null);
+                    request.onerror = () => resolve(null);
+                });
+
+                // Get sort direction
+                sortDirection = await new Promise((resolve) => {
+                    const request = store.get("sortDirection");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || 'asc');
+                    request.onerror = () => resolve('asc');
+                });
+
+                appendDebugLog(`Loaded sort settings: column=${sortColumn}, direction=${sortDirection}`);
+            } catch (error) {
+                console.error("Error loading sort settings:", error);
+                appendDebugLog(`Error loading sort settings: ${error}`);
+            }
+        }
+
         // Function to Load Saved Columns from IndexedDB and Initialize UI
         async function initializeUI() {
             await initializeVisibleColumns();
+            await loadSortSettings();
             populateSortableColumns();
             initializeRefreshIntervalButtons();
             await startAutoRefresh();
