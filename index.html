@@ -200,7 +200,11 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="./"><i class="fas fa-calculator"></i> Profit Ladder</a>
-            <div class="collapse navbar-collapse">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         <a class="nav-link active" aria-current="page" href="./index.html">Profit Ladder</a>
@@ -359,6 +363,478 @@
             debugLogs.appendChild(logEntry);
         }
 
+        // Function to Open IndexedDB
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, 3); // Increment version if schema changes
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(positionsStoreName)) {
+                        const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id" });
+                        positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
+                    }
+                    if (!db.objectStoreNames.contains(settingsStoreName)) {
+                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+
+                request.onerror = (event) => {
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // Function to Save Position
+        async function savePosition() {
+            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
+            const numShares = parseInt(document.getElementById("numShares").value);
+            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
+            const levels = parseInt(document.getElementById("levels").value) || 5;
+
+            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
+                alert("Please fill in all required fields to save the position.");
+                appendDebugLog("Failed to save position: Missing or invalid fields.");
+                return;
+            }
+
+            const position = { id: tickerSymbol, tickerSymbol, avgPrice, numShares, priceStep, levels };
+
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readwrite");
+                const store = transaction.objectStore(positionsStoreName);
+                const request = store.put(position);
+
+                request.onsuccess = () => {
+                    appendDebugLog(`Position saved: ${JSON.stringify(position)}`);
+                    alert(`Position for ${tickerSymbol} saved successfully.`);
+                    loadSavedPositions();
+                    loadPortfolio();
+                };
+
+                request.onerror = (event) => {
+                    appendDebugLog(`Failed to save position for ${tickerSymbol}: ${event.target.error}`);
+                    alert("Failed to save the position. Please try again.");
+                };
+            } catch (error) {
+                appendDebugLog(`Error saving position: ${error}`);
+                alert("An error occurred while saving the position.");
+            }
+        }
+
+        // Event Listener for Save Position Button
+        document.getElementById("savePosition").addEventListener("click", savePosition);
+
+        // Function to Load Saved Positions
+        async function loadSavedPositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const request = store.getAll();
+
+            const container = document.getElementById("savedPositionsContainer");
+            container.innerHTML = ""; // Clear existing tabs
+
+            request.onsuccess = () => {
+                request.result.forEach((position) => {
+                    const tab = document.createElement("div");
+                    tab.className = "tab";
+
+                    const label = document.createElement("span");
+                    label.textContent = position.tickerSymbol;
+
+                    const deleteButton = document.createElement("button");
+                    deleteButton.textContent = "X";
+                    deleteButton.className = "btn-delete btn btn-sm btn-danger ms-2";
+                    deleteButton.addEventListener("click", async (event) => {
+                        event.stopPropagation();
+                        await deletePosition(position.id);
+                        alert(`Position ${position.tickerSymbol} deleted successfully.`);
+                        loadSavedPositions();
+                        loadPortfolio();
+                    });
+
+                    tab.appendChild(label);
+                    tab.appendChild(deleteButton);
+
+                    tab.addEventListener("click", () => {
+                        document.getElementById("tickerSymbol").value = position.tickerSymbol;
+                        document.getElementById("averagePrice").value = position.avgPrice;
+                        document.getElementById("numShares").value = position.numShares;
+                        document.getElementById("priceStep").value = position.priceStep;
+                        document.getElementById("levels").value = position.levels;
+                        calculateResults();
+                    });
+
+                    container.appendChild(tab);
+                });
+            };
+
+            request.onerror = (event) => {
+                console.error("Failed to load saved positions:", event.target.error);
+                appendDebugLog(`Failed to load saved positions: ${event.target.error}`);
+            };
+        }
+
+        // Function to Delete a Position
+        async function deletePosition(id) {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+            const request = store.delete(id);
+
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Fetch Visible Positions from IndexedDB
+        async function fetchVisiblePositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = (event) => {
+                    const all = event.target.result;
+                    // Filter out positions where hide is true
+                    const visible = all.filter(position => !position.hide);
+                    resolve(visible);
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Fetch All Unique Tickers from IndexedDB
+        async function fetchAllTickers() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const index = store.index("tickerSymbol");
+
+            return new Promise((resolve, reject) => {
+                const request = index.openCursor(null, "nextunique");
+                const tickers = [];
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        tickers.push(cursor.key);
+                        cursor.continue();
+                    } else {
+                        resolve(tickers);
+                    }
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Generate Filter Checkboxes
+        async function generateFilterCheckboxes(uniqueTickers) {
+            const filterCheckboxes = document.getElementById("filterCheckboxes");
+            filterCheckboxes.innerHTML = "";
+
+            const db = await openDatabase();
+            const store = db.transaction(positionsStoreName, "readonly").objectStore(positionsStoreName);
+
+            for (const ticker of uniqueTickers) {
+                const checkbox = document.createElement("div");
+                checkbox.className = "form-check form-check-inline filter-checkbox";
+                checkbox.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" checked>
+                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
+                `;
+
+                // Determine the initial checked state based on positions' hide attribute
+                const request = store.index && store.index("tickerSymbol") ? store.index("tickerSymbol").getAll(ticker) : store.getAll();
+                request.onsuccess = async (event) => {
+                    const positions = event.target.result.filter(pos => pos.tickerSymbol === ticker);
+                    const isHidden = positions.every(pos => pos.hide);
+                    if (isHidden) {
+                        checkbox.querySelector('input').checked = false;
+                    } else {
+                        checkbox.querySelector('input').checked = true;
+                    }
+                };
+                request.onerror = (event) => {
+                    console.error(`Error fetching positions for ${ticker}:`, event.target.error);
+                };
+
+                // Add Event Listener for Checkbox Change
+                checkbox.querySelector('input').addEventListener("change", async () => {
+                    const ticker = checkbox.querySelector("input").value;
+                    const isChecked = checkbox.querySelector("input").checked;
+                    const hide = !isChecked;
+
+                    // Update the 'hide' attribute for all positions with this tickerSymbol
+                    try {
+                        await setHideForTickerSymbol(ticker, hide);
+                        console.log(`Set hide=${hide} for tickerSymbol=${ticker}`);
+                        appendDebugLog(`Set hide=${hide} for tickerSymbol=${ticker}`);
+
+                        // Reload portfolio after updating hide status
+                        await loadPortfolio();
+                    } catch (error) {
+                        console.error(`Error setting hide for tickerSymbol=${ticker}:`, error);
+                        appendDebugLog(`Error setting hide for tickerSymbol=${ticker}: ${error}`);
+                    }
+                });
+
+                filterCheckboxes.appendChild(checkbox);
+            }
+        }
+
+        // Function to Update the 'hide' Attribute for All Positions with a Specific Ticker Symbol
+        async function setHideForTickerSymbol(tickerSymbol, hide) {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+            const index = store.index("tickerSymbol");
+
+            return new Promise((resolve, reject) => {
+                const request = index ? index.getAll(tickerSymbol) : store.getAll();
+                request.onsuccess = async (event) => {
+                    const positions = event.target.result.filter(pos => pos.tickerSymbol === tickerSymbol);
+                    for (const position of positions) {
+                        position.hide = hide;
+                        const updateRequest = store.put(position);
+                        await new Promise((res, rej) => {
+                            updateRequest.onsuccess = () => res();
+                            updateRequest.onerror = (e) => rej(e.target.error);
+                        });
+                    }
+                    resolve();
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Fetch Current Prices
+        async function fetchCurrentPrices(tickers) {
+            if (!tickers || tickers.length === 0) {
+                return {};
+            }
+
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readonly");
+                const store = transaction.objectStore(settingsStoreName);
+
+                const alpacaKey = await new Promise((resolve, reject) => {
+                    const request = store.get("APCA_API_KEY_ID");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                const alpacaSecret = await new Promise((resolve, reject) => {
+                    const request = store.get("APCA_API_SECRET_KEY");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                if (alpacaKey && alpacaSecret) {
+                    return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
+                }
+
+                console.warn("Alpaca credentials not available, falling back to Finnhub.");
+                appendDebugLog("Alpaca credentials not available, falling back to Finnhub.");
+                const finnhubKey = await new Promise((resolve, reject) => {
+                    const request = store.get("finnhubApiKey");
+                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                    request.onerror = (event) => reject(event.target.error);
+                });
+
+                if (!finnhubKey) {
+                    console.error("Finnhub API Key is not set. Please configure it in the settings.");
+                    appendDebugLog("Finnhub API Key is not set. Please configure it in the settings.");
+                    return {};
+                }
+
+                return await fetchPricesFromFinnhub(tickers, finnhubKey);
+            } catch (error) {
+                console.error("Error fetching current prices:", error);
+                appendDebugLog(`Error fetching current prices: ${error}`);
+                return {};
+            }
+        }
+
+        // Fetch Prices from Alpaca
+        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
+            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        "APCA-API-KEY-ID": apiKey,
+                        "APCA-API-SECRET-KEY": apiSecret,
+                    },
+                });
+
+                if (!response.ok) {
+                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
+                    appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
+                    return {};
+                }
+
+                const data = await response.json();
+                const prices = {};
+
+                for (const [symbol, snapshot] of Object.entries(data)) {
+                    prices[symbol] = {
+                        price: snapshot.latestTrade?.p || 0,
+                        time: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).toLocaleString() : "N/A",
+                        open: snapshot.dailyBar?.o || 0,
+                        prevClose: snapshot.prevDailyBar?.c || 0,
+                    };
+                }
+
+                console.log("Fetched prices from Alpaca:", prices);
+                appendDebugLog("Fetched prices from Alpaca.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching snapshots from Alpaca:", error);
+                appendDebugLog(`Error fetching snapshots from Alpaca: ${error}`);
+                return {};
+            }
+        }
+
+        // Fetch Prices from Finnhub
+        async function fetchPricesFromFinnhub(tickers, apiKey) {
+            try {
+                const responses = await Promise.all(
+                    tickers.map(async (ticker) => {
+                        const [quoteResponse, prevCloseResponse] = await Promise.all([
+                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
+                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
+                        ]);
+
+                        if (!quoteResponse.ok) {
+                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
+                            appendDebugLog(`Failed to fetch quote data for ${ticker} from Finnhub: ${quoteResponse.statusText}`);
+                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
+                        }
+                        const quoteData = await quoteResponse.json();
+
+                        let prevClose = 0;
+                        if (!prevCloseResponse.ok) {
+                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
+                            appendDebugLog(`Failed to fetch previous close data for ${ticker} from Finnhub: ${prevCloseResponse.statusText}`);
+                        } else {
+                            const prevCloseData = await prevCloseResponse.json();
+                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
+                        }
+
+                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
+                    })
+                );
+
+                const prices = {};
+                responses.forEach((res) => {
+                    if (res.ticker) {
+                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
+                    }
+                });
+                console.log("Fetched prices from Finnhub:", prices);
+                appendDebugLog("Fetched prices from Finnhub.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching prices from Finnhub:", error);
+                appendDebugLog(`Error fetching prices from Finnhub: ${error}`);
+                return {};
+            }
+        }
+
+        // Function to Calculate Results
+        async function calculateResults() {
+            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
+            const numShares = parseInt(document.getElementById("numShares").value);
+            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
+            const levels = parseInt(document.getElementById("levels").value) || 5;
+
+            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
+                alert("Please fill in all required fields to calculate.");
+                appendDebugLog("Failed to calculate results: Missing or invalid fields.");
+                return;
+            }
+
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const position = await new Promise((resolve, reject) => {
+                const request = store.get(tickerSymbol);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            const lastPrice = position?.lastPrice || avgPrice; // Use lastPrice if available, fallback to avgPrice
+
+            const resultsDiv = document.getElementById("results");
+            let html = '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
+
+            let closestRowHtml = "";
+            let smallestDifference = Infinity;
+            let closestRowElement = null;
+
+            for (let i = -levels; i <= levels; i++) {
+                const priceLevel = avgPrice + i * priceStep;
+                if (priceLevel < 0) continue;
+                const profitLoss = (priceLevel - avgPrice) * numShares;
+                const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
+
+                const rowHtml = `
+                    <tr data-price-level="${priceLevel}">
+                        <td>${priceLevel.toFixed(2)}</td>
+                        <td>${profitLoss.toFixed(2)}</td>
+                        <td>${percentChange.toFixed(2)}%</td>
+                    </tr>
+                `;
+
+                const difference = Math.abs(priceLevel - lastPrice);
+                if (difference < smallestDifference) {
+                    smallestDifference = difference;
+                    closestRowHtml = rowHtml;
+                }
+
+                html += rowHtml;
+            }
+
+            html += '</tbody></table>';
+            resultsDiv.innerHTML = html;
+
+            // Highlight the closest row
+            const table = resultsDiv.querySelector("table");
+            const rows = table.querySelectorAll("tr[data-price-level]");
+            rows.forEach((row) => {
+                const priceLevel = parseFloat(row.getAttribute("data-price-level"));
+                const regex = /data-price-level="([\d.-]+)"/;
+                const match = closestRowHtml.match(regex);
+                if (match && priceLevel === parseFloat(match[1])) {
+                    row.classList.add("highlight-row");
+                    closestRowElement = row;
+                }
+            });
+
+            // Scroll to the highlighted row
+            if (closestRowElement) {
+                closestRowElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+
+            appendDebugLog("Calculated results based on input.");
+        }
+
+        // Event Listener for Form Submission (Calculate)
+        document.getElementById("profitForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            calculateResults();
+        });
+
         // Function to Populate Sortable Columns
         function populateSortableColumns() {
             const sortableColumns = document.getElementById("sortableColumns");
@@ -508,894 +984,6 @@
                 console.error("Error saving visible columns:", error);
                 appendDebugLog(`Error saving visible columns: ${error}`);
             }
-        }
-
-        // Function to Open IndexedDB
-        function openDatabase() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 3); // Increment version if schema changes
-
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(positionsStoreName)) {
-                        const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id" });
-                        positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
-                    }
-                    if (!db.objectStoreNames.contains(settingsStoreName)) {
-                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
-                    }
-                };
-
-                request.onsuccess = (event) => {
-                    resolve(event.target.result);
-                };
-
-                request.onerror = (event) => {
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        // Function to Save Position
-        async function savePosition() {
-            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
-            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
-            const numShares = parseInt(document.getElementById("numShares").value);
-            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
-            const levels = parseInt(document.getElementById("levels").value) || 5;
-
-            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
-                alert("Please fill in all required fields to save the position.");
-                appendDebugLog("Failed to save position: Missing or invalid fields.");
-                return;
-            }
-
-            const position = { id: tickerSymbol, tickerSymbol, avgPrice, numShares, priceStep, levels };
-
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(positionsStoreName, "readwrite");
-                const store = transaction.objectStore(positionsStoreName);
-                const request = store.put(position);
-
-                request.onsuccess = () => {
-                    appendDebugLog(`Position saved: ${JSON.stringify(position)}`);
-                    alert(`Position for ${tickerSymbol} saved successfully.`);
-                    loadSavedPositions();
-                };
-
-                request.onerror = (event) => {
-                    appendDebugLog(`Failed to save position for ${tickerSymbol}: ${event.target.error}`);
-                    alert("Failed to save the position. Please try again.");
-                };
-            } catch (error) {
-                appendDebugLog(`Error saving position: ${error}`);
-                alert("An error occurred while saving the position.");
-            }
-        }
-
-        // Event Listener for Save Position Button
-        document.getElementById("savePosition").addEventListener("click", savePosition);
-
-        // Function to Load Saved Positions
-        async function loadSavedPositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const request = store.getAll();
-
-            const container = document.getElementById("savedPositionsContainer");
-            container.innerHTML = ""; // Clear existing tabs
-
-            request.onsuccess = () => {
-                request.result.forEach((position) => {
-                    const tab = document.createElement("div");
-                    tab.className = "tab";
-
-                    const label = document.createElement("span");
-                    label.textContent = position.tickerSymbol;
-
-                    const deleteButton = document.createElement("button");
-                    deleteButton.textContent = "X";
-                    deleteButton.className = "btn-delete";
-                    deleteButton.addEventListener("click", async (event) => {
-                        event.stopPropagation();
-                        await deletePosition(position.id);
-                        alert(`Position ${position.tickerSymbol} deleted successfully.`);
-                        loadSavedPositions();
-                    });
-
-                    tab.appendChild(label);
-                    tab.appendChild(deleteButton);
-
-                    tab.addEventListener("click", () => {
-                        document.getElementById("tickerSymbol").value = position.tickerSymbol;
-                        document.getElementById("averagePrice").value = position.avgPrice;
-                        document.getElementById("numShares").value = position.numShares;
-                        document.getElementById("priceStep").value = position.priceStep;
-                        document.getElementById("levels").value = position.levels;
-                        calculateResults();
-                    });
-
-                    container.appendChild(tab);
-                });
-            };
-
-            request.onerror = (event) => {
-                console.error("Failed to load saved positions:", event.target.error);
-                appendDebugLog(`Failed to load saved positions: ${event.target.error}`);
-            };
-        }
-
-        // Function to Delete a Position
-        async function deletePosition(id) {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readwrite");
-            const store = transaction.objectStore(positionsStoreName);
-            const request = store.delete(id);
-
-            return new Promise((resolve, reject) => {
-                request.onsuccess = () => resolve();
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Calculate Results
-        async function calculateResults() {
-            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
-            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
-            const numShares = parseInt(document.getElementById("numShares").value);
-            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
-            const levels = parseInt(document.getElementById("levels").value) || 5;
-
-            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
-                alert("Please fill in all required fields to calculate.");
-                appendDebugLog("Failed to calculate results: Missing or invalid fields.");
-                return;
-            }
-
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const position = await new Promise((resolve, reject) => {
-                const request = store.get(tickerSymbol);
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            const lastPrice = position?.lastPrice || avgPrice; // Use lastPrice if available, fallback to avgPrice
-
-            const resultsDiv = document.getElementById("results");
-            let html = '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
-
-            let closestRowHtml = "";
-            let smallestDifference = Infinity;
-            let closestRowElement = null;
-
-            for (let i = -levels; i <= levels; i++) {
-                const priceLevel = avgPrice + i * priceStep;
-                if (priceLevel < 0) continue;
-                const profitLoss = (priceLevel - avgPrice) * numShares;
-                const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
-
-                const rowHtml = `
-                    <tr data-price-level="${priceLevel}">
-                        <td>${priceLevel.toFixed(2)}</td>
-                        <td>${profitLoss.toFixed(2)}</td>
-                        <td>${percentChange.toFixed(2)}%</td>
-                    </tr>
-                `;
-
-                const difference = Math.abs(priceLevel - lastPrice);
-                if (difference < smallestDifference) {
-                    smallestDifference = difference;
-                    closestRowHtml = rowHtml;
-                }
-
-                html += rowHtml;
-            }
-
-            html += '</tbody></table>';
-            resultsDiv.innerHTML = html;
-
-            // Highlight the closest row
-            const table = resultsDiv.querySelector("table");
-            const rows = table.querySelectorAll("tr[data-price-level]");
-            rows.forEach((row) => {
-                const priceLevel = parseFloat(row.getAttribute("data-price-level"));
-                const regex = /data-price-level="([\d.-]+)"/;
-                const match = closestRowHtml.match(regex);
-                if (match && priceLevel === parseFloat(match[1])) {
-                    row.classList.add("highlight-row");
-                    closestRowElement = row;
-                }
-            });
-
-            // Scroll to the highlighted row
-            if (closestRowElement) {
-                closestRowElement.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-
-            appendDebugLog("Calculated results based on input.");
-        }
-
-        // Event Listener for Form Submission (Calculate)
-        document.getElementById("profitForm").addEventListener("submit", (event) => {
-            event.preventDefault();
-            calculateResults();
-        });
-
-        // Function to Initialize Visible Columns on Page Load
-        async function initializeVisibleColumns() {
-            const db = await openDatabase();
-            const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
-            const savedColumns = await new Promise((resolve, reject) => {
-                const request = store.get("visibleColumns");
-                request.onsuccess = (event) => resolve(event.target.result?.value || []);
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (savedColumns.length > 0) {
-                visibleColumns = savedColumns;
-                // Ensure uniqueness
-                visibleColumns = [...new Set(visibleColumns)];
-
-                console.log("Loaded visibleColumns from settings:", visibleColumns);
-                appendDebugLog("Loaded visibleColumns from settings.");
-            }
-        }
-
-        // Function to Sort Positions
-        function sortPositions() {
-            if (!sortColumn) return;
-            allPositions.sort((a, b) => {
-                let valA = a[sortColumn];
-                let valB = b[sortColumn];
-
-                if (getSortType(sortColumn) === "string") {
-                    valA = valA.toUpperCase();
-                    valB = valB.toUpperCase();
-                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-                    return 0;
-                } else {
-                    return sortDirection === 'asc' ? valA - valB : valB - valA;
-                }
-            });
-        }
-
-        // Function to Start Auto-Refresh
-        async function startAutoRefresh() {
-            const interval = await getRefreshInterval();
-            if (refreshIntervalId) {
-                clearInterval(refreshIntervalId);
-            }
-
-            if (interval > 0) {
-                refreshIntervalId = setInterval(async () => {
-                    console.log("Auto-refreshing prices...");
-                    appendDebugLog("Auto-refreshing prices...");
-                    await loadPortfolio();
-                }, interval * 1000);
-                console.log(`Auto-refresh set to every ${interval} seconds.`);
-                appendDebugLog(`Auto-refresh set to every ${interval} seconds.`);
-            } else {
-                console.log("Auto-refresh stopped.");
-                appendDebugLog("Auto-refresh stopped.");
-            }
-        }
-
-        // Function to Get Refresh Interval from IndexedDB
-        async function getRefreshInterval() {
-            const db = await openDatabase();
-            const transaction = db.transaction(settingsStoreName, "readonly");
-            const store = transaction.objectStore(settingsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.get("refreshInterval");
-                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Initialize Auto-Refresh Interval Buttons
-        async function initializeRefreshIntervalButtons() {
-            const buttons = document.querySelectorAll('.refresh-interval-button');
-            const db = await openDatabase();
-            const store = db.transaction(settingsStoreName, "readwrite").objectStore(settingsStoreName);
-            const currentInterval = await new Promise((resolve, reject) => {
-                const request = store.get("refreshInterval");
-                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            buttons.forEach(button => {
-                if (parseInt(button.getAttribute('data-interval')) === currentInterval) {
-                    button.classList.add('active');
-                }
-
-                button.addEventListener('click', async () => {
-                    try {
-                        const interval = parseInt(button.getAttribute('data-interval'));
-                        
-                        // Open a new transaction for each put operation
-                        const newTransaction = db.transaction(settingsStoreName, "readwrite");
-                        const newStore = newTransaction.objectStore(settingsStoreName);
-                        
-                        // Await the completion of store.put within the new transaction
-                        await new Promise((resolve, reject) => {
-                            const request = newStore.put({ key: "refreshInterval", value: interval });
-                            request.onsuccess = () => resolve();
-                            request.onerror = (event) => reject(event.target.error);
-                        });
-
-                        appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
-
-                        // Update button styles
-                        buttons.forEach(btn => btn.classList.remove('active'));
-                        button.classList.add('active');
-
-                        // Restart auto-refresh with the new interval
-                        await startAutoRefresh();
-
-                        // Provide user feedback
-                        document.getElementById("settingsFeedback").textContent = interval === 0 ? "Auto-refresh stopped." : `Auto-refresh interval set to ${interval} seconds.`;
-                        document.getElementById("settingsFeedback").style.display = "block";
-                        setTimeout(() => {
-                            document.getElementById("settingsFeedback").style.display = "none";
-                        }, 3000);
-                    } catch (error) {
-                        console.error("Error setting refresh interval:", error);
-                        appendDebugLog(`Error setting refresh interval: ${error}`);
-                        document.getElementById("settingsFeedback").textContent = "Failed to set refresh interval.";
-                        document.getElementById("settingsFeedback").style.display = "block";
-                        setTimeout(() => {
-                            document.getElementById("settingsFeedback").style.display = "none";
-                        }, 3000);
-                    }
-                });
-            });
-
-            console.log("Refresh interval buttons initialized.");
-            appendDebugLog("Refresh interval buttons initialized.");
-        }
-
-        // Function to Handle Reset Settings to Default
-        document.getElementById("resetSettings").addEventListener("click", async () => {
-            if (confirm("Are you sure you want to reset all settings to default?")) {
-                try {
-                    const db = await openDatabase();
-                    const transaction = db.transaction(settingsStoreName, "readwrite");
-                    const store = transaction.objectStore(settingsStoreName);
-
-                    // Clear all settings
-                    const clearRequest = store.clear();
-                    clearRequest.onsuccess = () => {
-                        appendDebugLog("Settings have been reset to default.");
-                        alert("Settings have been reset to default.");
-                        window.location.reload();
-                    };
-                    clearRequest.onerror = (event) => {
-                        appendDebugLog(`Failed to reset settings: ${event.target.error}`);
-                        alert("Failed to reset settings.");
-                    };
-                } catch (error) {
-                    appendDebugLog(`Error resetting settings: ${error}`);
-                    alert("An error occurred while resetting settings.");
-                }
-            }
-        });
-
-        // Function to Handle Reset Database
-        document.getElementById("resetDatabase").addEventListener("click", async () => {
-            if (confirm("Are you sure you want to reset the entire database? This will delete all saved positions and settings.")) {
-                try {
-                    const deleteRequest = indexedDB.deleteDatabase(dbName);
-                    deleteRequest.onsuccess = () => {
-                        appendDebugLog("Database deleted successfully.");
-                        alert("Database has been reset. The page will now reload.");
-                        window.location.reload();
-                    };
-                    deleteRequest.onerror = (event) => {
-                        appendDebugLog(`Failed to delete database: ${event.target.error}`);
-                        alert("Failed to reset the database.");
-                    };
-                    deleteRequest.onblocked = () => {
-                        appendDebugLog("Database deletion blocked.");
-                        alert("Database deletion is blocked. Please close all other tabs with this site open and try again.");
-                    };
-                } catch (error) {
-                    appendDebugLog(`Error resetting database: ${error}`);
-                    alert("An error occurred while resetting the database.");
-                }
-            }
-        });
-
-        // Function to Handle Filter Input with Debounce
-        let debounceTimeout;
-        document.getElementById("filterInput").addEventListener("input", () => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                renderPortfolio();
-            }, 300); // Adjust the debounce delay as needed
-        });
-
-        // Function to Export to JSON File
-        document.getElementById("exportToFile").addEventListener("click", async () => {
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(positionsStoreName, "readonly");
-                const store = transaction.objectStore(positionsStoreName);
-                const request = store.getAll();
-
-                request.onsuccess = () => {
-                    const data = request.result;
-                    const json = JSON.stringify(data, null, 2);
-                    const blob = new Blob([json], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "portfolio_data.json";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    appendDebugLog("Exported portfolio data to JSON file.");
-                    alert("Portfolio data exported successfully.");
-                };
-
-                request.onerror = (event) => {
-                    console.error("Failed to export data:", event.target.error);
-                    appendDebugLog(`Failed to export data: ${event.target.error}`);
-                    alert("Failed to export data.");
-                };
-            } catch (error) {
-                console.error("Error exporting data:", error);
-                appendDebugLog(`Error exporting data: ${error}`);
-                alert("An error occurred while exporting data.");
-            }
-        });
-
-        // Function to Import from JSON URL
-        document.getElementById("importButton").addEventListener("click", async () => {
-            const jsonUrl = document.getElementById("jsonUrl").value.trim();
-            if (!jsonUrl) {
-                alert("Please enter a valid JSON URL.");
-                return;
-            }
-
-            try {
-                const response = await fetch(jsonUrl);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch JSON data: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                if (!Array.isArray(data)) {
-                    throw new Error("Invalid JSON format. Expected an array of positions.");
-                }
-
-                const db = await openDatabase();
-                const transaction = db.transaction(positionsStoreName, "readwrite");
-                const store = transaction.objectStore(positionsStoreName);
-
-                for (const position of data) {
-                    if (position.id && position.tickerSymbol) {
-                        await new Promise((resolve, reject) => {
-                            const request = store.put(position);
-                            request.onsuccess = () => resolve();
-                            request.onerror = (event) => reject(event.target.error);
-                        });
-                    }
-                }
-
-                appendDebugLog("Imported portfolio data from JSON URL.");
-                alert("Imported portfolio data successfully.");
-                loadSavedPositions();
-                loadPortfolio();
-            } catch (error) {
-                console.error("Error importing data:", error);
-                appendDebugLog(`Error importing data: ${error}`);
-                alert(`Failed to import data: ${error.message}`);
-            }
-        });
-
-        // Function to Save API Keys
-        document.getElementById("saveKeys").addEventListener("click", async () => {
-            const alpacaApiKey = document.getElementById("alpacaApiKey").value.trim();
-            const alpacaApiSecret = document.getElementById("alpacaApiSecret").value.trim();
-            const finnhubApiKey = document.getElementById("finnhubApiKey").value.trim();
-
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(settingsStoreName, "readwrite");
-                const store = transaction.objectStore(settingsStoreName);
-
-                if (alpacaApiKey) {
-                    await new Promise((resolve, reject) => {
-                        const request = store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
-                        request.onsuccess = () => resolve();
-                        request.onerror = (event) => reject(event.target.error);
-                    });
-                }
-
-                if (alpacaApiSecret) {
-                    await new Promise((resolve, reject) => {
-                        const request = store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
-                        request.onsuccess = () => resolve();
-                        request.onerror = (event) => reject(event.target.error);
-                    });
-                }
-
-                if (finnhubApiKey) {
-                    await new Promise((resolve, reject) => {
-                        const request = store.put({ key: "finnhubApiKey", value: finnhubApiKey });
-                        request.onsuccess = () => resolve();
-                        request.onerror = (event) => reject(event.target.error);
-                    });
-                }
-
-                appendDebugLog("API keys saved successfully.");
-                alert("Settings saved successfully.");
-            } catch (error) {
-                console.error("Error saving API keys:", error);
-                appendDebugLog(`Error saving API keys: ${error}`);
-                alert("Failed to save settings.");
-            }
-        });
-
-        // Function to Load Position Based on Query Parameter
-        async function loadPositionFromQuery() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const symbol = urlParams.get("symbol")?.toUpperCase();
-            if (!symbol) {
-                appendDebugLog("No symbol provided in query parameters.");
-                return;
-            }
-
-            appendDebugLog(`Loading position for symbol: ${symbol}`);
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(positionsStoreName, "readonly");
-                const store = transaction.objectStore(positionsStoreName);
-                const position = await new Promise((resolve, reject) => {
-                    const request = store.get(symbol);
-                    request.onsuccess = (event) => resolve(event.target.result);
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                if (position) {
-                    appendDebugLog(`Position found for ${symbol}: ${JSON.stringify(position)}`);
-                    document.getElementById("tickerSymbol").value = position.tickerSymbol;
-                    document.getElementById("averagePrice").value = position.avgPrice;
-                    document.getElementById("numShares").value = position.numShares;
-                    document.getElementById("priceStep").value = position.priceStep;
-                    document.getElementById("levels").value = position.levels;
-
-                    calculateResults();
-                } else {
-                    appendDebugLog(`No saved position found for symbol: ${symbol}`);
-                    alert(`No saved position found for symbol: ${symbol}`);
-                }
-            } catch (error) {
-                appendDebugLog(`Error loading position for symbol ${symbol}: ${error}`);
-                console.error(`Error loading position for symbol ${symbol}:`, error);
-            }
-        }
-
-        // Function to Load Saved Positions on Initialization
-        document.addEventListener("DOMContentLoaded", async () => {
-            await initializeVisibleColumns();
-            populateSortableColumns();
-            initializeRefreshIntervalButtons();
-            await startAutoRefresh();
-            await loadPortfolio();
-            await loadSavedPositions();
-            await loadPositionFromQuery();
-        });
-
-        // Function to Fetch Current Prices
-        async function fetchCurrentPrices(tickers) {
-            if (!tickers || tickers.length === 0) {
-                return {};
-            }
-
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(settingsStoreName, "readonly");
-                const store = transaction.objectStore(settingsStoreName);
-
-                const alpacaKey = await new Promise((resolve, reject) => {
-                    const request = store.get("APCA_API_KEY_ID");
-                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                const alpacaSecret = await new Promise((resolve, reject) => {
-                    const request = store.get("APCA_API_SECRET_KEY");
-                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                if (alpacaKey && alpacaSecret) {
-                    return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
-                }
-
-                console.warn("Alpaca credentials not available, falling back to Finnhub.");
-                appendDebugLog("Alpaca credentials not available, falling back to Finnhub.");
-                const finnhubKey = await new Promise((resolve, reject) => {
-                    const request = store.get("finnhubApiKey");
-                    request.onsuccess = (event) => resolve(event.target.result?.value || "");
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                if (!finnhubKey) {
-                    console.error("Finnhub API Key is not set. Please configure it in the settings.");
-                    appendDebugLog("Finnhub API Key is not set. Please configure it in the settings.");
-                    return {};
-                }
-
-                return await fetchPricesFromFinnhub(tickers, finnhubKey);
-            } catch (error) {
-                console.error("Error fetching current prices:", error);
-                appendDebugLog(`Error fetching current prices: ${error}`);
-                return {};
-            }
-        }
-
-        // Fetch Prices from Alpaca
-        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
-            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        "APCA-API-KEY-ID": apiKey,
-                        "APCA-API-SECRET-KEY": apiSecret,
-                    },
-                });
-
-                if (!response.ok) {
-                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
-                    appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
-                    return {};
-                }
-
-                const data = await response.json();
-                const prices = {};
-
-                for (const [symbol, snapshot] of Object.entries(data)) {
-                    prices[symbol] = {
-                        price: snapshot.latestTrade?.p || 0,
-                        time: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).toLocaleString() : "N/A",
-                        open: snapshot.dailyBar?.o || 0,
-                        prevClose: snapshot.prevDailyBar?.c || 0,
-                    };
-                }
-
-                console.log("Fetched prices from Alpaca:", prices);
-                appendDebugLog("Fetched prices from Alpaca.");
-                return prices;
-            } catch (error) {
-                console.error("Error fetching snapshots from Alpaca:", error);
-                appendDebugLog(`Error fetching snapshots from Alpaca: ${error}`);
-                return {};
-            }
-        }
-
-        // Fetch Prices from Finnhub
-        async function fetchPricesFromFinnhub(tickers, apiKey) {
-            try {
-                const responses = await Promise.all(
-                    tickers.map(async (ticker) => {
-                        const [quoteResponse, prevCloseResponse] = await Promise.all([
-                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
-                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
-                        ]);
-
-                        if (!quoteResponse.ok) {
-                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
-                            appendDebugLog(`Failed to fetch quote data for ${ticker} from Finnhub: ${quoteResponse.statusText}`);
-                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
-                        }
-                        const quoteData = await quoteResponse.json();
-
-                        let prevClose = 0;
-                        if (!prevCloseResponse.ok) {
-                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
-                            appendDebugLog(`Failed to fetch previous close data for ${ticker} from Finnhub: ${prevCloseResponse.statusText}`);
-                        } else {
-                            const prevCloseData = await prevCloseResponse.json();
-                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
-                        }
-
-                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
-                    })
-                );
-
-                const prices = {};
-                responses.forEach((res) => {
-                    if (res.ticker) {
-                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
-                    }
-                });
-                console.log("Fetched prices from Finnhub:", prices);
-                appendDebugLog("Fetched prices from Finnhub.");
-                return prices;
-            } catch (error) {
-                console.error("Error fetching prices from Finnhub:", error);
-                appendDebugLog(`Error fetching prices from Finnhub: ${error}`);
-                return {};
-            }
-        }
-
-        // Function to Load Position Based on Query Parameter
-        async function loadPositionFromQuery() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const symbol = urlParams.get("symbol")?.toUpperCase();
-            if (!symbol) {
-                appendDebugLog("No symbol provided in query parameters.");
-                return;
-            }
-
-            appendDebugLog(`Loading position for symbol: ${symbol}`);
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(positionsStoreName, "readonly");
-                const store = transaction.objectStore(positionsStoreName);
-                const position = await new Promise((resolve, reject) => {
-                    const request = store.get(symbol);
-                    request.onsuccess = (event) => resolve(event.target.result);
-                    request.onerror = (event) => reject(event.target.error);
-                });
-
-                if (position) {
-                    appendDebugLog(`Position found for ${symbol}: ${JSON.stringify(position)}`);
-                    document.getElementById("tickerSymbol").value = position.tickerSymbol;
-                    document.getElementById("averagePrice").value = position.avgPrice;
-                    document.getElementById("numShares").value = position.numShares;
-                    document.getElementById("priceStep").value = position.priceStep;
-                    document.getElementById("levels").value = position.levels;
-
-                    calculateResults();
-                } else {
-                    appendDebugLog(`No saved position found for symbol: ${symbol}`);
-                    alert(`No saved position found for symbol: ${symbol}`);
-                }
-            } catch (error) {
-                appendDebugLog(`Error loading position for symbol ${symbol}: ${error}`);
-                console.error(`Error loading position for symbol ${symbol}:`, error);
-            }
-        }
-
-        // Function to Load Saved Positions on Initialization
-        document.addEventListener("DOMContentLoaded", async () => {
-            await initializeVisibleColumns();
-            populateSortableColumns();
-            initializeRefreshIntervalButtons();
-            await startAutoRefresh();
-            await loadPortfolio();
-            await loadSavedPositions();
-            await loadPositionFromQuery();
-        });
-
-        // Function to Fetch Visible Positions from IndexedDB
-        async function fetchVisiblePositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => {
-                    const all = event.target.result;
-                    // Filter out positions where hide is true
-                    const visible = all.filter(position => !position.hide);
-                    resolve(visible);
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Fetch All Unique Tickers from IndexedDB
-        async function fetchAllTickers() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
-
-            return new Promise((resolve, reject) => {
-                const request = index.openCursor(null, "nextunique");
-                const tickers = [];
-                request.onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        tickers.push(cursor.key);
-                        cursor.continue();
-                    } else {
-                        resolve(tickers);
-                    }
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Generate Filter Checkboxes
-        async function generateFilterCheckboxes(uniqueTickers) {
-            const filterCheckboxes = document.getElementById("filterInput").parentElement.querySelector("#filterCheckboxes");
-            filterCheckboxes.innerHTML = "";
-
-            const db = await openDatabase();
-            const store = db.transaction(positionsStoreName, "readonly").objectStore(positionsStoreName);
-
-            for (const ticker of uniqueTickers) {
-                const checkbox = document.createElement("div");
-                checkbox.className = "form-check form-check-inline filter-checkbox";
-                checkbox.innerHTML = `
-                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" checked>
-                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
-                `;
-
-                // Determine the initial checked state based on positions' hide attribute
-                const request = store.index && store.index("tickerSymbol") ? store.index("tickerSymbol").getAll(ticker) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === ticker);
-                    const isHidden = positions.every(pos => pos.hide);
-                    if (isHidden) {
-                        checkbox.querySelector('input').checked = false;
-                    } else {
-                        checkbox.querySelector('input').checked = true;
-                    }
-                };
-                request.onerror = (event) => {
-                    console.error(`Error fetching positions for ${ticker}:`, event.target.error);
-                };
-
-                // Add Event Listener for Checkbox Change
-                checkbox.querySelector('input').addEventListener("change", async () => {
-                    const ticker = checkbox.querySelector("input").value;
-                    const isChecked = checkbox.querySelector("input").checked;
-                    const hide = !isChecked;
-
-                    // Update the 'hide' attribute for all positions with this tickerSymbol
-                    try {
-                        await setHideForTickerSymbol(ticker, hide);
-                        console.log(`Set hide=${hide} for tickerSymbol=${ticker}`);
-                        appendDebugLog(`Set hide=${hide} for tickerSymbol=${ticker}`);
-
-                        // Reload portfolio after updating hide status
-                        await loadPortfolio();
-                    } catch (error) {
-                        console.error(`Error setting hide for tickerSymbol=${ticker}:`, error);
-                        appendDebugLog(`Error setting hide for tickerSymbol=${ticker}: ${error}`);
-                    }
-                });
-
-                filterCheckboxes.appendChild(checkbox);
-            }
-        }
-
-        // Function to Update the 'hide' Attribute for All Positions with a Specific Ticker Symbol
-        async function setHideForTickerSymbol(tickerSymbol, hide) {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readwrite");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
-
-            return new Promise((resolve, reject) => {
-                const request = index ? index.getAll(tickerSymbol) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === tickerSymbol);
-                    for (const position of positions) {
-                        position.hide = hide;
-                        const updateRequest = store.put(position);
-                        await new Promise((res, rej) => {
-                            updateRequest.onsuccess = () => res();
-                            updateRequest.onerror = (e) => rej(e.target.error);
-                        });
-                    }
-                    resolve();
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
         }
 
         // Function to Load Portfolio Data
@@ -1698,6 +1286,26 @@
             });
         }
 
+        // Function to Initialize Visible Columns on Page Load
+        async function initializeVisibleColumns() {
+            const db = await openDatabase();
+            const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
+            const savedColumns = await new Promise((resolve, reject) => {
+                const request = store.get("visibleColumns");
+                request.onsuccess = (event) => resolve(event.target.result?.value || []);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (savedColumns.length > 0) {
+                visibleColumns = savedColumns;
+                // Ensure uniqueness
+                visibleColumns = [...new Set(visibleColumns)];
+
+                console.log("Loaded visibleColumns from settings:", visibleColumns);
+                appendDebugLog("Loaded visibleColumns from settings.");
+            }
+        }
+
         // Function to Start Auto-Refresh
         async function startAutoRefresh() {
             const interval = await getRefreshInterval();
@@ -1751,11 +1359,11 @@
                 button.addEventListener('click', async () => {
                     try {
                         const interval = parseInt(button.getAttribute('data-interval'));
-                        
+
                         // Open a new transaction for each put operation
                         const newTransaction = db.transaction(settingsStoreName, "readwrite");
                         const newStore = newTransaction.objectStore(settingsStoreName);
-                        
+
                         // Await the completion of store.put within the new transaction
                         await new Promise((resolve, reject) => {
                             const request = newStore.put({ key: "refreshInterval", value: interval });
@@ -1795,29 +1403,534 @@
         }
 
         // Function to Handle Reset Settings to Default
-        // [Already defined above]
+        document.getElementById("resetSettings").addEventListener("click", async () => {
+            if (confirm("Are you sure you want to reset all settings to default?")) {
+                try {
+                    const db = await openDatabase();
+                    const transaction = db.transaction(settingsStoreName, "readwrite");
+                    const store = transaction.objectStore(settingsStoreName);
+
+                    // Clear all settings
+                    const clearRequest = store.clear();
+                    clearRequest.onsuccess = () => {
+                        appendDebugLog("Settings have been reset to default.");
+                        alert("Settings have been reset to default.");
+                        window.location.reload();
+                    };
+                    clearRequest.onerror = (event) => {
+                        appendDebugLog(`Failed to reset settings: ${event.target.error}`);
+                        alert("Failed to reset settings.");
+                    };
+                } catch (error) {
+                    appendDebugLog(`Error resetting settings: ${error}`);
+                    alert("An error occurred while resetting settings.");
+                }
+            }
+        });
 
         // Function to Handle Reset Database
-        // [Already defined above]
+        document.getElementById("resetDatabase").addEventListener("click", async () => {
+            if (confirm("Are you sure you want to reset the entire database? This will delete all saved positions and settings.")) {
+                try {
+                    const deleteRequest = indexedDB.deleteDatabase(dbName);
+                    deleteRequest.onsuccess = () => {
+                        appendDebugLog("Database deleted successfully.");
+                        alert("Database has been reset. The page will now reload.");
+                        window.location.reload();
+                    };
+                    deleteRequest.onerror = (event) => {
+                        appendDebugLog(`Failed to delete database: ${event.target.error}`);
+                        alert("Failed to reset the database.");
+                    };
+                    deleteRequest.onblocked = () => {
+                        appendDebugLog("Database deletion blocked.");
+                        alert("Database deletion is blocked. Please close all other tabs with this site open and try again.");
+                    };
+                } catch (error) {
+                    appendDebugLog(`Error resetting database: ${error}`);
+                    alert("An error occurred while resetting the database.");
+                }
+            }
+        });
 
         // Function to Handle Filter Input with Debounce
-        // [Already defined above]
+        let debounceTimeout;
+        document.getElementById("filterInput").addEventListener("input", () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                renderPortfolio();
+            }, 300); // Adjust the debounce delay as needed
+        });
 
         // Function to Export to JSON File
-        // [Already defined above]
+        document.getElementById("exportToFile").addEventListener("click", async () => {
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readonly");
+                const store = transaction.objectStore(positionsStoreName);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    const data = request.result;
+                    const json = JSON.stringify(data, null, 2);
+                    const blob = new Blob([json], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "portfolio_data.json";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    appendDebugLog("Exported portfolio data to JSON file.");
+                    alert("Portfolio data exported successfully.");
+                };
+
+                request.onerror = (event) => {
+                    console.error("Failed to export data:", event.target.error);
+                    appendDebugLog(`Failed to export data: ${event.target.error}`);
+                    alert("Failed to export data.");
+                };
+            } catch (error) {
+                console.error("Error exporting data:", error);
+                appendDebugLog(`Error exporting data: ${error}`);
+                alert("An error occurred while exporting data.");
+            }
+        });
 
         // Function to Import from JSON URL
-        // [Already defined above]
+        document.getElementById("importButton").addEventListener("click", async () => {
+            const jsonUrl = document.getElementById("jsonUrl").value.trim();
+            if (!jsonUrl) {
+                alert("Please enter a valid JSON URL.");
+                return;
+            }
+
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch JSON data: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+                    throw new Error("Invalid JSON format. Expected an array of positions.");
+                }
+
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readwrite");
+                const store = transaction.objectStore(positionsStoreName);
+
+                for (const position of data) {
+                    if (position.id && position.tickerSymbol) {
+                        await new Promise((resolve, reject) => {
+                            const request = store.put(position);
+                            request.onsuccess = () => resolve();
+                            request.onerror = (event) => reject(event.target.error);
+                        });
+                    }
+                }
+
+                appendDebugLog("Imported portfolio data from JSON URL.");
+                alert("Imported portfolio data successfully.");
+                loadSavedPositions();
+                loadPortfolio();
+            } catch (error) {
+                console.error("Error importing data:", error);
+                appendDebugLog(`Error importing data: ${error}`);
+                alert(`Failed to import data: ${error.message}`);
+            }
+        });
 
         // Function to Save API Keys
-        // [Already defined above]
+        document.getElementById("saveKeys").addEventListener("click", async () => {
+            const alpacaApiKey = document.getElementById("alpacaApiKey").value.trim();
+            const alpacaApiSecret = document.getElementById("alpacaApiSecret").value.trim();
+            const finnhubApiKey = document.getElementById("finnhubApiKey").value.trim();
 
-        // Function to Load Position Based on Query Parameter
-        // [Already defined above]
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
+
+                if (alpacaApiKey) {
+                    await new Promise((resolve, reject) => {
+                        const request = store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
+                        request.onsuccess = () => resolve();
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+                }
+
+                if (alpacaApiSecret) {
+                    await new Promise((resolve, reject) => {
+                        const request = store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
+                        request.onsuccess = () => resolve();
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+                }
+
+                if (finnhubApiKey) {
+                    await new Promise((resolve, reject) => {
+                        const request = store.put({ key: "finnhubApiKey", value: finnhubApiKey });
+                        request.onsuccess = () => resolve();
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+                }
+
+                appendDebugLog("API keys saved successfully.");
+                alert("Settings saved successfully.");
+            } catch (error) {
+                console.error("Error saving API keys:", error);
+                appendDebugLog(`Error saving API keys: ${error}`);
+                alert("Failed to save settings.");
+            }
+        });
+
+        // Function to Initialize Visible Columns on Page Load
+        async function initializeVisibleColumns() {
+            const db = await openDatabase();
+            const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
+            const savedColumns = await new Promise((resolve, reject) => {
+                const request = store.get("visibleColumns");
+                request.onsuccess = (event) => resolve(event.target.result?.value || []);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (savedColumns.length > 0) {
+                visibleColumns = savedColumns;
+                // Ensure uniqueness
+                visibleColumns = [...new Set(visibleColumns)];
+
+                console.log("Loaded visibleColumns from settings:", visibleColumns);
+                appendDebugLog("Loaded visibleColumns from settings.");
+            }
+        }
+
+        // Function to Start Auto-Refresh
+        async function startAutoRefresh() {
+            const interval = await getRefreshInterval();
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+            }
+
+            if (interval > 0) {
+                refreshIntervalId = setInterval(async () => {
+                    console.log("Auto-refreshing prices...");
+                    appendDebugLog("Auto-refreshing prices...");
+                    await loadPortfolio();
+                }, interval * 1000);
+                console.log(`Auto-refresh set to every ${interval} seconds.`);
+                appendDebugLog(`Auto-refresh set to every ${interval} seconds.`);
+            } else {
+                console.log("Auto-refresh stopped.");
+                appendDebugLog("Auto-refresh stopped.");
+            }
+        }
+
+        // Function to Get Refresh Interval from IndexedDB
+        async function getRefreshInterval() {
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.get("refreshInterval");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Initialize Auto-Refresh Interval Buttons
+        async function initializeRefreshIntervalButtons() {
+            const buttons = document.querySelectorAll('.refresh-interval-button');
+            const db = await openDatabase();
+            const store = db.transaction(settingsStoreName, "readwrite").objectStore(settingsStoreName);
+            const currentInterval = await new Promise((resolve, reject) => {
+                const request = store.get("refreshInterval");
+                request.onsuccess = (event) => resolve(event.target.result?.value || 0);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            buttons.forEach(button => {
+                if (parseInt(button.getAttribute('data-interval')) === currentInterval) {
+                    button.classList.add('active');
+                }
+
+                button.addEventListener('click', async () => {
+                    try {
+                        const interval = parseInt(button.getAttribute('data-interval'));
+
+                        // Open a new transaction for each put operation
+                        const newTransaction = db.transaction(settingsStoreName, "readwrite");
+                        const newStore = newTransaction.objectStore(settingsStoreName);
+
+                        // Await the completion of store.put within the new transaction
+                        await new Promise((resolve, reject) => {
+                            const request = newStore.put({ key: "refreshInterval", value: interval });
+                            request.onsuccess = () => resolve();
+                            request.onerror = (event) => reject(event.target.error);
+                        });
+
+                        appendDebugLog(`Auto-refresh interval set to ${interval} seconds.`);
+
+                        // Update button styles
+                        buttons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+
+                        // Restart auto-refresh with the new interval
+                        await startAutoRefresh();
+
+                        // Provide user feedback
+                        document.getElementById("settingsFeedback").textContent = interval === 0 ? "Auto-refresh stopped." : `Auto-refresh interval set to ${interval} seconds.`;
+                        document.getElementById("settingsFeedback").style.display = "block";
+                        setTimeout(() => {
+                            document.getElementById("settingsFeedback").style.display = "none";
+                        }, 3000);
+                    } catch (error) {
+                        console.error("Error setting refresh interval:", error);
+                        appendDebugLog(`Error setting refresh interval: ${error}`);
+                        document.getElementById("settingsFeedback").textContent = "Failed to set refresh interval.";
+                        document.getElementById("settingsFeedback").style.display = "block";
+                        setTimeout(() => {
+                            document.getElementById("settingsFeedback").style.display = "none";
+                        }, 3000);
+                    }
+                });
+            });
+
+            console.log("Refresh interval buttons initialized.");
+            appendDebugLog("Refresh interval buttons initialized.");
+        }
+
+        // Function to Handle Reset Settings to Default
+        document.getElementById("resetSettings").addEventListener("click", async () => {
+            if (confirm("Are you sure you want to reset all settings to default?")) {
+                try {
+                    const db = await openDatabase();
+                    const transaction = db.transaction(settingsStoreName, "readwrite");
+                    const store = transaction.objectStore(settingsStoreName);
+
+                    // Clear all settings
+                    const clearRequest = store.clear();
+                    clearRequest.onsuccess = () => {
+                        appendDebugLog("Settings have been reset to default.");
+                        alert("Settings have been reset to default.");
+                        window.location.reload();
+                    };
+                    clearRequest.onerror = (event) => {
+                        appendDebugLog(`Failed to reset settings: ${event.target.error}`);
+                        alert("Failed to reset settings.");
+                    };
+                } catch (error) {
+                    appendDebugLog(`Error resetting settings: ${error}`);
+                    alert("An error occurred while resetting settings.");
+                }
+            }
+        });
+
+        // Function to Handle Reset Database
+        document.getElementById("resetDatabase").addEventListener("click", async () => {
+            if (confirm("Are you sure you want to reset the entire database? This will delete all saved positions and settings.")) {
+                try {
+                    const deleteRequest = indexedDB.deleteDatabase(dbName);
+                    deleteRequest.onsuccess = () => {
+                        appendDebugLog("Database deleted successfully.");
+                        alert("Database has been reset. The page will now reload.");
+                        window.location.reload();
+                    };
+                    deleteRequest.onerror = (event) => {
+                        appendDebugLog(`Failed to delete database: ${event.target.error}`);
+                        alert("Failed to reset the database.");
+                    };
+                    deleteRequest.onblocked = () => {
+                        appendDebugLog("Database deletion blocked.");
+                        alert("Database deletion is blocked. Please close all other tabs with this site open and try again.");
+                    };
+                } catch (error) {
+                    appendDebugLog(`Error resetting database: ${error}`);
+                    alert("An error occurred while resetting the database.");
+                }
+            }
+        });
+
+        // Function to Handle Filter Input with Debounce
+        document.getElementById("filterInput").addEventListener("input", () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                renderPortfolio();
+            }, 300); // Adjust the debounce delay as needed
+        });
+
+        // Function to Export to JSON File
+        document.getElementById("exportToFile").addEventListener("click", async () => {
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readonly");
+                const store = transaction.objectStore(positionsStoreName);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    const data = request.result;
+                    const json = JSON.stringify(data, null, 2);
+                    const blob = new Blob([json], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "portfolio_data.json";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    appendDebugLog("Exported portfolio data to JSON file.");
+                    alert("Portfolio data exported successfully.");
+                };
+
+                request.onerror = (event) => {
+                    console.error("Failed to export data:", event.target.error);
+                    appendDebugLog(`Failed to export data: ${event.target.error}`);
+                    alert("Failed to export data.");
+                };
+            } catch (error) {
+                console.error("Error exporting data:", error);
+                appendDebugLog(`Error exporting data: ${error}`);
+                alert("An error occurred while exporting data.");
+            }
+        });
+
+        // Function to Import from JSON URL
+        document.getElementById("importButton").addEventListener("click", async () => {
+            const jsonUrl = document.getElementById("jsonUrl").value.trim();
+            if (!jsonUrl) {
+                alert("Please enter a valid JSON URL.");
+                return;
+            }
+
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch JSON data: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+                    throw new Error("Invalid JSON format. Expected an array of positions.");
+                }
+
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readwrite");
+                const store = transaction.objectStore(positionsStoreName);
+
+                for (const position of data) {
+                    if (position.id && position.tickerSymbol) {
+                        await new Promise((resolve, reject) => {
+                            const request = store.put(position);
+                            request.onsuccess = () => resolve();
+                            request.onerror = (event) => reject(event.target.error);
+                        });
+                    }
+                }
+
+                appendDebugLog("Imported portfolio data from JSON URL.");
+                alert("Imported portfolio data successfully.");
+                loadSavedPositions();
+                loadPortfolio();
+            } catch (error) {
+                console.error("Error importing data:", error);
+                appendDebugLog(`Error importing data: ${error}`);
+                alert(`Failed to import data: ${error.message}`);
+            }
+        });
+
+        // Function to Save API Keys
+        document.getElementById("saveKeys").addEventListener("click", async () => {
+            const alpacaApiKey = document.getElementById("alpacaApiKey").value.trim();
+            const alpacaApiSecret = document.getElementById("alpacaApiSecret").value.trim();
+            const finnhubApiKey = document.getElementById("finnhubApiKey").value.trim();
+
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readwrite");
+                const store = transaction.objectStore(settingsStoreName);
+
+                if (alpacaApiKey) {
+                    await new Promise((resolve, reject) => {
+                        const request = store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
+                        request.onsuccess = () => resolve();
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+                }
+
+                if (alpacaApiSecret) {
+                    await new Promise((resolve, reject) => {
+                        const request = store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
+                        request.onsuccess = () => resolve();
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+                }
+
+                if (finnhubApiKey) {
+                    await new Promise((resolve, reject) => {
+                        const request = store.put({ key: "finnhubApiKey", value: finnhubApiKey });
+                        request.onsuccess = () => resolve();
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+                }
+
+                appendDebugLog("API keys saved successfully.");
+                alert("Settings saved successfully.");
+            } catch (error) {
+                console.error("Error saving API keys:", error);
+                appendDebugLog(`Error saving API keys: ${error}`);
+                alert("Failed to save settings.");
+            }
+        });
+
+        // Function to Initialize Visible Columns on Page Load
+        async function initializeVisibleColumns() {
+            const db = await openDatabase();
+            const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
+            const savedColumns = await new Promise((resolve, reject) => {
+                const request = store.get("visibleColumns");
+                request.onsuccess = (event) => resolve(event.target.result?.value || []);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (savedColumns.length > 0) {
+                visibleColumns = savedColumns;
+                // Ensure uniqueness
+                visibleColumns = [...new Set(visibleColumns)];
+
+                console.log("Loaded visibleColumns from settings:", visibleColumns);
+                appendDebugLog("Loaded visibleColumns from settings.");
+            }
+        }
+
+        // Function to Sort Positions
+        function sortPositions() {
+            if (!sortColumn) return;
+            allPositions.sort((a, b) => {
+                let valA = a[sortColumn];
+                let valB = b[sortColumn];
+
+                if (getSortType(sortColumn) === "string") {
+                    valA = valA.toUpperCase();
+                    valB = valB.toUpperCase();
+                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                } else {
+                    return sortDirection === 'asc' ? valA - valB : valB - valA;
+                }
+            });
+        }
 
         // Function to Initialize the Application
-        // [Already included in DOMContentLoaded event listener]
-
+        document.addEventListener("DOMContentLoaded", async () => {
+            await initializeVisibleColumns();
+            populateSortableColumns();
+            initializeRefreshIntervalButtons();
+            await startAutoRefresh();
+            await loadPortfolio();
+            await loadSavedPositions();
+        });
     </script>
 </body>
 </html>
