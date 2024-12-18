@@ -578,10 +578,15 @@
                 return;
             }
 
-            // Fetch batched prices for all symbols
-            const uniqueTickers = [...new Set(allPositions.map((p) => p.tickerSymbol))];
-            const priceData = await fetchCurrentPrices(uniqueTickers);
-            console.log("Price Data:", priceData); // Debug log
+            // Fetch updated positions from IndexedDB
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const updatedPositions = await new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
 
             let totals = {
                 costBasis: 0,
@@ -593,12 +598,12 @@
                 gapPct: 0
             };
 
-            allPositions.forEach((position) => {
-                const priceInfo = priceData[position.tickerSymbol] || {};
-                const currentPrice = priceInfo.price || position.lastPrice || 0;
-                const lastTime = priceInfo.time || "N/A";
-                const openPrice = priceInfo.open || position.openPrice || 0;
-                const prevClosePrice = priceInfo.prevClose || position.prevClosePrice || 0;
+            updatedPositions.forEach((position) => {
+                //const priceInfo = priceData[position.tickerSymbol] || {};
+                const currentPrice = position.lastPrice || 0;
+                const lastTime = pposition.lastTime || "N/A";
+                const openPrice = position.openPrice || 0;
+                const prevClosePrice = position.prevClosePrice || 0;
 
                 // Update calculated fields
                 position.costBasis = position.avgPrice * position.numShares;
@@ -996,6 +1001,10 @@
                 const data = await response.json();
                 const prices = {};
 
+                const db = await openDatabase();
+                const transaction = db.transaction(positionsStoreName, "readwrite");
+                const store = transaction.objectStore(positionsStoreName);
+
                 for (const [symbol, snapshot] of Object.entries(data)) {
                     prices[symbol] = {
                         price: snapshot.latestTrade?.p || 0,
@@ -1003,6 +1012,33 @@
                         open: snapshot.dailyBar?.o || 0,
                         prevClose: snapshot.prevDailyBar?.c || 0,
                     };
+
+                    // Update the position in the Positions store
+                    try {
+                        const existingPosition = await new Promise((resolve, reject) => {
+                            const getRequest = store.get(symbol);
+                            getRequest.onsuccess = () => resolve(getRequest.result);
+                            getRequest.onerror = (event) => reject(event.target.error);
+                        });
+
+                        if (existingPosition) {
+                            existingPosition.lastPrice = prices[symbol].price;
+                            existingPosition.lastTime = prices[symbol].time;
+                            existingPosition.openPrice = prices[symbol].open;
+                            existingPosition.prevClosePrice = prices[symbol].prevClose;
+
+                            await new Promise((resolve, reject) => {
+                                const putRequest = store.put(existingPosition);
+                                putRequest.onsuccess = () => resolve();
+                                putRequest.onerror = (event) => reject(event.target.error);
+                            });
+
+                            appendDebugLog(`Updated position for ${symbol} in IndexedDB.`);
+                        }
+                    } catch (error) {
+                        console.error(`Error updating position for ${symbol}:`, error);
+                        appendDebugLog(`Error updating position for ${symbol}: ${error}`);
+                    }
                 }
 
                 console.log("Fetched prices from Alpaca:", prices);
