@@ -1021,10 +1021,7 @@
 
                 const data = await response.json();
                 const prices = {};
-
                 const db = await openDatabase();
-                const transaction = db.transaction(positionsStoreName, "readwrite");
-                const store = transaction.objectStore(positionsStoreName);
 
                 // Use Promise.all to wait for all position updates to complete
                 await Promise.all(Object.entries(data).map(async ([symbol, snapshot]) => {
@@ -1035,7 +1032,9 @@
                         prevClose: snapshot.prevDailyBar?.c || 0,
                     };
 
-                    // Update the position in the Positions store
+                    // Update the position in the Positions store within individual transactions
+                    const transaction = db.transaction(positionsStoreName, "readwrite");
+                    const store = transaction.objectStore(positionsStoreName);
                     try {
                         const existingPosition = await new Promise((resolve, reject) => {
                             const getRequest = store.get(symbol);
