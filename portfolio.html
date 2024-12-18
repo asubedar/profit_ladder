@@ -569,14 +569,6 @@
                 portfolioHeaders.appendChild(header);
             });
 
-            if (allPositions.length === 0) {
-                portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
-                // Also clear the totals row
-                const totalsRow = document.getElementById("totalsRow");
-                totalsRow.innerHTML = ``;
-                return;
-            }
-
             // Fetch updated positions from IndexedDB
             const db = await openDatabase();
             const transaction = db.transaction(positionsStoreName, "readonly");
@@ -586,6 +578,17 @@
                 request.onsuccess = (event) => resolve(event.target.result);
                 request.onerror = (event) => reject(event.target.error);
             });
+
+            // Update allPositions with the fresh data from the database
+            allPositions = updatedPositions;
+
+            if (allPositions.length === 0) {
+                portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
+                // Also clear the totals row
+                const totalsRow = document.getElementById("totalsRow");
+                totalsRow.innerHTML = ``;
+                return;
+            }
 
             let totals = {
                 costBasis: 0,
@@ -597,32 +600,50 @@
                 gapPct: 0
             };
 
-            updatedPositions.forEach((position) => {
-                //const priceInfo = priceData[position.tickerSymbol] || {};
+            // Create a new array for rendering
+            const positionsToRender = updatedPositions.map(position => {
                 const currentPrice = position.lastPrice || 0;
                 const lastTime = position.lastTime || "N/A";
                 const openPrice = position.openPrice || 0;
                 const prevClosePrice = position.prevClosePrice || 0;
 
-                // Update calculated fields
-                position.costBasis = position.avgPrice * position.numShares;
-                position.totalValue = currentPrice * position.numShares;
-                position.profit = position.totalValue - position.costBasis;
-                position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
-                position.changeToday = currentPrice - prevClosePrice;
-                position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
-                position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
-                position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
+                // Calculate derived fields
+                const costBasis = position.avgPrice * position.numShares;
+                const totalValue = currentPrice * position.numShares;
+                const profit = totalValue - costBasis;
+                const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
+                const changeToday = currentPrice - prevClosePrice;
+                const changePctToday = prevClosePrice !== 0 ? (changeToday / prevClosePrice) * 100 : 0;
+                const gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
+                const timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
 
                 // Accumulate totals
-                totals.costBasis += position.costBasis;
-                totals.totalValue += position.totalValue;
-                totals.profit += position.profit;
-                totals.profitPct += position.profitPct;
-                totals.changeToday += position.changeToday;
-                totals.changePctToday += position.changePctToday;
-                totals.gapPct += position.gapPct;
+                totals.costBasis += costBasis;
+                totals.totalValue += totalValue;
+                totals.profit += profit;
+                totals.profitPct += profitPct;
+                totals.changeToday += changeToday;
+                totals.changePctToday += changePctToday;
+                totals.gapPct += gapPct;
 
+                return {
+                    ...position,
+                    costBasis,
+                    totalValue,
+                    profit,
+                    profitPct,
+                    changeToday,
+                    changePctToday,
+                    gapPct,
+                    timeSinceLastTrade
+                };
+            });
+
+            // Sort the positions to render
+            sortPositions();
+
+            // Render the table rows using the new array
+            positionsToRender.forEach(position => {
                 const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
 
                 // Generate table row based on visibleColumns order
@@ -640,7 +661,7 @@
                             cellContent = position.numShares;
                             break;
                         case "lastPrice":
-                            cellContent = currentPrice.toFixed(2);
+                            cellContent = position.lastPrice.toFixed(2);
                             break;
                         case "costBasis":
                             cellContent = position.costBasis.toFixed(2);
