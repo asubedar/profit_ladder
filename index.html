@@ -1453,15 +1453,6 @@
             }
         });
 
-        // Function to Handle Filter Input with Debounce
-        let debounceTimeout;
-        document.getElementById("filterInput").addEventListener("input", () => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                renderPortfolio();
-            }, 300); // Adjust the debounce delay as needed
-        });
-
         // Function to Export to JSON File
         document.getElementById("exportToFile").addEventListener("click", async () => {
             try {

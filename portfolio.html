@@ -1683,15 +1683,6 @@
             }
         });
 
-        // Function to Handle Filter Input with Debounce
-        let debounceTimeout;
-        document.getElementById("filterInput").addEventListener("input", () => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                renderPortfolio();
-            }, 300); // Adjust the debounce delay as needed
-        });
-
         // Function to Initialize Auto-Refresh Interval Buttons
         async function initializeRefreshIntervalButtons() {
             const buttons = document.querySelectorAll('.refresh-interval-button');
@@ -1873,6 +1864,14 @@
         // Initialize the application
         document.addEventListener("DOMContentLoaded", async () => {
             await initializeUI();
+            // Function to Handle Filter Input with Debounce
+            let debounceTimeout;
+            document.getElementById("filterInput").addEventListener("input", () => {
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(() => {
+                    renderPortfolio();
+                }, 300); // Adjust the debounce delay as needed
+            });
         });
     </script>
 </body>
