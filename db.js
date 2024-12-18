@@ -1,6 +1,9 @@
 // db.js
 "use strict";
 
+/**
+ * Constants for store names.
+ */
 export const positionsStoreName = "Positions";
 export const settingsStoreName = "Settings";
 
@@ -10,31 +13,25 @@ export const settingsStoreName = "Settings";
  */
 export function openDatabase() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open("PortfolioTrackerDB", 1);
-
-        request.onerror = (event) => {
-            console.error("Database error:", event.target.error);
-            reject(event.target.error);
-        };
+        const request = indexedDB.open("ProfitLadderDB", 1);
 
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-
-            // Create Positions store if it doesn't exist
             if (!db.objectStoreNames.contains(positionsStoreName)) {
                 const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id", autoIncrement: true });
                 positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
             }
-
-            // Create Settings store if it doesn't exist
             if (!db.objectStoreNames.contains(settingsStoreName)) {
                 db.createObjectStore(settingsStoreName, { keyPath: "key" });
             }
         };
 
         request.onsuccess = (event) => {
-            const db = event.target.result;
-            resolve(db);
+            resolve(event.target.result);
+        };
+
+        request.onerror = (event) => {
+            reject(event.target.error);
         };
     });
 }
@@ -52,8 +49,13 @@ export function getAll(storeName) {
             const store = transaction.objectStore(storeName);
             const request = store.getAll();
 
-            request.onsuccess = (event) => resolve(event.target.result);
-            request.onerror = (event) => reject(event.target.error);
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
         } catch (error) {
             reject(error);
         }
@@ -74,8 +76,13 @@ export function get(storeName, key) {
             const store = transaction.objectStore(storeName);
             const request = store.get(key);
 
-            request.onsuccess = (event) => resolve(event.target.result);
-            request.onerror = (event) => reject(event.target.error);
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
         } catch (error) {
             reject(error);
         }
@@ -96,8 +103,13 @@ export function put(storeName, object) {
             const store = transaction.objectStore(storeName);
             const request = store.put(object);
 
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject(event.target.error);
+            request.onsuccess = () => {
+                resolve();
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
         } catch (error) {
             reject(error);
         }
@@ -118,8 +130,13 @@ export function deleteItem(storeName, key) {
             const store = transaction.objectStore(storeName);
             const request = store.delete(key);
 
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject(event.target.error);
+            request.onsuccess = () => {
+                resolve();
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
         } catch (error) {
             reject(error);
         }
