@@ -1924,12 +1924,38 @@
 
         // Function to Initialize the Application
         document.addEventListener("DOMContentLoaded", async () => {
-            await initializeVisibleColumns();
-            populateSortableColumns();
-            initializeRefreshIntervalButtons();
-            await startAutoRefresh();
-            await loadPortfolio();
-            await loadSavedPositions();
+            try {
+                // Open the database first
+                await openDatabase();
+                console.log("Database opened successfully.");
+
+                // Then initialize visible columns
+                await initializeVisibleColumns();
+                console.log("Visible columns initialized.");
+
+                // Populate sortable columns
+                populateSortableColumns();
+                console.log("Sortable columns populated.");
+
+                // Initialize refresh interval buttons
+                await initializeRefreshIntervalButtons();
+                console.log("Refresh interval buttons initialized.");
+
+                // Start auto-refresh
+                await startAutoRefresh();
+                console.log("Auto-refresh started.");
+
+                // Load portfolio
+                await loadPortfolio();
+                console.log("Portfolio loaded.");
+
+                // Finally, load saved positions
+                await loadSavedPositions();
+                console.log("Saved positions loaded.");
+            } catch (error) {
+                console.error("Error during initialization:", error);
+                appendDebugLog(`Error during initialization: ${error}`);
+            }
         });
     </script>
 </body>
