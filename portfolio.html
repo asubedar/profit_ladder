@@ -171,6 +171,10 @@
             background-color: #00bcd4;
             color: #fff;
         }
+        /* Reset Database Button Styling */
+        .reset-db-button {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -259,6 +263,11 @@
                 <input type="text" id="finnhubApiKey" class="form-control" placeholder="Enter your Finnhub API Key">
             </div>
             <button id="saveKeys" class="btn btn-primary">Save Settings</button>
+
+            <!-- Reset Database Button -->
+            <button id="resetDatabase" class="btn btn-danger reset-db-button">
+                <i class="fas fa-database"></i> Reset Database
+            </button>
         </div>
 
         <!-- Debug Logs Section -->
@@ -312,7 +321,7 @@
             { key: "lastTime", name: "Time Since Last Trade" }
         ];
 
-        // Function to Append Debug Logs (Optional)
+        // Function to Append Debug Logs
         function appendDebugLog(message) {
             const debugLogs = document.getElementById("debugLogs");
             const logEntry = document.createElement("div");
@@ -448,7 +457,7 @@
                 .filter(item => item.querySelector('.column-checkbox').checked)
                 .map(item => item.getAttribute('data-column'));
 
-            // **Ensure uniqueness to prevent duplicate columns**
+            // Ensure uniqueness to prevent duplicate columns
             visibleColumns = [...new Set(visibleColumns)];
 
             console.log("Updated visibleColumns:", visibleColumns);
@@ -564,7 +573,7 @@
                 portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
                 // Also clear the totals row
                 const totalsRow = document.getElementById("totalsRow");
-                totalsRow.innerHTML = ``; // We'll handle it dynamically
+                totalsRow.innerHTML = ``;
                 return;
             }
 
@@ -752,6 +761,25 @@
             }
         }
 
+        // Function to Sort Positions
+        function sortPositions() {
+            if (!sortColumn) return;
+            allPositions.sort((a, b) => {
+                let valA = a[sortColumn];
+                let valB = b[sortColumn];
+
+                if (getSortType(sortColumn) === "string") {
+                    valA = valA.toUpperCase();
+                    valB = valB.toUpperCase();
+                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                } else {
+                    return sortDirection === 'asc' ? valA - valB : valB - valA;
+                }
+            });
+        }
+
         // Function to Fetch Visible Positions from IndexedDB
         async function fetchVisiblePositions() {
             const db = await openDatabase();
@@ -813,7 +841,7 @@
                 const request = store.index && store.index("tickerSymbol") ? store.index("tickerSymbol").getAll(ticker) : store.getAll();
                 request.onsuccess = async (event) => {
                     const positions = event.target.result.filter(pos => pos.tickerSymbol === ticker);
-                    const isHidden = positions.every(pos => pos.hide); // Changed to 'every' for correct logic
+                    const isHidden = positions.every(pos => pos.hide);
                     if (isHidden) {
                         checkbox.querySelector('input').checked = false;
                     } else {
@@ -1039,6 +1067,622 @@
             }, 3000);
         });
 
+        // Function to Handle Reset Settings to Default
+        document.getElementById("resetSettings").addEventListener("click", async () => {
+            if (confirm("Are you sure you want to reset all settings to default?")) {
+                try {
+                    const db = await openDatabase();
+                    const transaction = db.transaction(settingsStoreName, "readwrite");
+                    const store = transaction.objectStore(settingsStoreName);
+
+                    // Clear all settings
+                    const clearRequest = store.clear();
+                    clearRequest.onsuccess = () => {
+                        appendDebugLog("Settings have been reset to default.");
+                        alert("Settings have been reset to default.");
+                        window.location.reload();
+                    };
+                    clearRequest.onerror = (event) => {
+                        appendDebugLog(`Failed to reset settings: ${event.target.error}`);
+                        alert("Failed to reset settings.");
+                    };
+                } catch (error) {
+                    appendDebugLog(`Error resetting settings: ${error}`);
+                    alert("An error occurred while resetting settings.");
+                }
+            }
+        });
+
+        // Function to Handle Reset Database Button
+        document.getElementById("resetDatabase").addEventListener("click", () => {
+            if (confirm("Are you sure you want to reset the database? This will delete all your data.")) {
+                deleteDatabase();
+            }
+        });
+
+        // Function to Delete IndexedDB Database
+        async function deleteDatabase() {
+            try {
+                const deleteRequest = indexedDB.deleteDatabase(dbName);
+                
+                deleteRequest.onsuccess = () => {
+                    appendDebugLog("Database deleted successfully.");
+                    alert("Database has been reset successfully.");
+                    // Reload the page to reinitialize the database
+                    window.location.reload();
+                };
+                
+                deleteRequest.onerror = (event) => {
+                    appendDebugLog(`Error deleting database: ${event.target.error}`);
+                    alert("Failed to delete the database. Please try again.");
+                };
+                
+                deleteRequest.onblocked = () => {
+                    appendDebugLog("Database deletion blocked. Please close all other tabs with this site open.");
+                    alert("Database deletion is blocked. Please close all other tabs with this site open and try again.");
+                };
+            } catch (error) {
+                appendDebugLog(`Unexpected error deleting database: ${error}`);
+                alert("An unexpected error occurred while deleting the database.");
+            }
+        }
+
+        // Function to Get Query Parameters
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Function to Load Position Based on Query Parameter
+        async function loadPositionFromQuery() {
+            const symbol = getQueryParam("symbol")?.toUpperCase();
+            if (!symbol) {
+                appendDebugLog("No symbol provided in query parameters.");
+                return;
+            }
+
+            appendDebugLog(`Loading position for symbol: ${symbol}`);
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const request = store.get(symbol);
+
+            request.onsuccess = (event) => {
+                const position = event.target.result;
+                if (position) {
+                    appendDebugLog(`Position found for ${symbol}: ${JSON.stringify(position)}`);
+                    document.getElementById("tickerSymbol").value = position.tickerSymbol;
+                    document.getElementById("averagePrice").value = position.avgPrice;
+                    document.getElementById("numShares").value = position.numShares;
+                    document.getElementById("priceStep").value = position.priceStep;
+                    document.getElementById("levels").value = position.levels;
+
+                    calculateResults();
+                } else {
+                    appendDebugLog(`No saved position found for symbol: ${symbol}`);
+                    alert(`No saved position found for symbol: ${symbol}`);
+                }
+            };
+
+            request.onerror = (event) => {
+                appendDebugLog(`Error loading position for symbol ${symbol}: ${event.target.error}`);
+            };
+        }
+
+        // Function to Save Position
+        async function savePosition() {
+            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
+            const numShares = parseInt(document.getElementById("numShares").value);
+            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
+            const levels = parseInt(document.getElementById("levels").value) || 5;
+
+            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
+                alert("Please fill in all required fields to save the position.");
+                appendDebugLog("Failed to save position: Missing or invalid fields.");
+                return;
+            }
+
+            const position = { id: tickerSymbol, tickerSymbol, avgPrice, numShares, priceStep, levels };
+
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+            const request = store.put(position);
+
+            request.onsuccess = () => {
+                appendDebugLog(`Position saved: ${JSON.stringify(position)}`);
+                alert(`Position for ${tickerSymbol} saved successfully.`);
+                loadSavedPositions();
+            };
+
+            request.onerror = (event) => {
+                appendDebugLog(`Failed to save position for ${tickerSymbol}: ${event.target.error}`);
+                alert("Failed to save the position. Please try again.");
+            };
+        }
+
+        // Function to Load Saved Positions
+        async function loadSavedPositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const request = store.getAll();
+
+            const container = document.getElementById("savedPositionsContainer");
+            container.innerHTML = ""; // Clear existing tabs
+
+            request.onsuccess = () => {
+                request.result.forEach((position) => {
+                    const tab = document.createElement("div");
+                    tab.className = "tab";
+
+                    const label = document.createElement("span");
+                    label.textContent = position.tickerSymbol;
+
+                    const deleteButton = document.createElement("button");
+                    deleteButton.textContent = "X";
+                    deleteButton.className = "btn-delete";
+                    deleteButton.addEventListener("click", async (event) => {
+                        event.stopPropagation();
+                        await deletePosition(position.id);
+                        alert(`Position ${position.tickerSymbol} deleted successfully.`);
+                        loadSavedPositions();
+                    });
+
+                    tab.appendChild(label);
+                    tab.appendChild(deleteButton);
+
+                    tab.addEventListener("click", () => {
+                        document.getElementById("tickerSymbol").value = position.tickerSymbol;
+                        document.getElementById("averagePrice").value = position.avgPrice;
+                        document.getElementById("numShares").value = position.numShares;
+                        document.getElementById("priceStep").value = position.priceStep;
+                        document.getElementById("levels").value = position.levels;
+                        calculateResults();
+                    });
+
+                    container.appendChild(tab);
+                });
+            };
+
+            request.onerror = (event) => {
+                console.error("Failed to load saved positions:", event.target.error);
+            };
+        }
+
+        // Function to Delete a Position
+        async function deletePosition(id) {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+            const request = store.delete(id);
+
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Calculate Results
+        async function calculateResults() {
+            const tickerSymbol = document.getElementById("tickerSymbol").value.trim().toUpperCase();
+            const avgPrice = parseFloat(document.getElementById("averagePrice").value);
+            const numShares = parseInt(document.getElementById("numShares").value);
+            const priceStep = parseFloat(document.getElementById("priceStep").value) || avgPrice * 0.01;
+            const levels = parseInt(document.getElementById("levels").value) || 5;
+
+            if (!tickerSymbol || isNaN(avgPrice) || isNaN(numShares)) {
+                alert("Please fill in all required fields to calculate.");
+                return;
+            }
+
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const position = await new Promise((resolve, reject) => {
+                const request = store.get(tickerSymbol);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            const lastPrice = position?.lastPrice || avgPrice; // Use lastPrice if available, fallback to avgPrice
+
+            const resultsDiv = document.getElementById("results");
+            let html = '<table class="table table-dark table-bordered"><thead><tr><th>Price Level</th><th>Profit/Loss</th><th>% Gain/Loss</th></tr></thead><tbody>';
+
+            let closestRowHtml = "";
+            let smallestDifference = Infinity;
+            let closestRowElement = null;
+
+            for (let i = -levels; i <= levels; i++) {
+                const priceLevel = avgPrice + i * priceStep;
+                if (priceLevel < 0) continue;
+                const profitLoss = (priceLevel - avgPrice) * numShares;
+                const percentChange = ((priceLevel - avgPrice) / avgPrice) * 100;
+
+                const rowHtml = `
+                    <tr data-price-level="${priceLevel}">
+                        <td>${priceLevel.toFixed(2)}</td>
+                        <td>${profitLoss.toFixed(2)}</td>
+                        <td>${percentChange.toFixed(2)}%</td>
+                    </tr>
+                `;
+
+                const difference = Math.abs(priceLevel - lastPrice);
+                if (difference < smallestDifference) {
+                    smallestDifference = difference;
+                    closestRowHtml = rowHtml;
+                }
+
+                html += rowHtml;
+            }
+
+            html += '</tbody></table>';
+            resultsDiv.innerHTML = html;
+
+            // Highlight the closest row
+            const table = resultsDiv.querySelector("table");
+            const rows = table.querySelectorAll("tr[data-price-level]");
+            rows.forEach((row) => {
+                const priceLevel = parseFloat(row.getAttribute("data-price-level"));
+                const regex = /data-price-level="([\d.-]+)"/;
+                const match = closestRowHtml.match(regex);
+                if (match && priceLevel === parseFloat(match[1])) {
+                    row.classList.add("highlight-row");
+                    closestRowElement = row;
+                }
+            });
+
+            // Scroll to the highlighted row
+            if (closestRowElement) {
+                closestRowElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }
+
+        // Function to Get Sort Type Based on Column Key
+        function getSortType(columnKey) {
+            const stringColumns = ["tickerSymbol", "lastTime"];
+            if (stringColumns.includes(columnKey)) {
+                return "string";
+            }
+            return "number";
+        }
+
+        // Function to Get Display Name for Column
+        function getColumnDisplayName(columnKey) {
+            const mapping = {
+                "tickerSymbol": "Ticker",
+                "avgPrice": "Average Price",
+                "numShares": "Shares",
+                "lastPrice": "Current Price",
+                "costBasis": "Cost Basis",
+                "totalValue": "Total Value",
+                "profit": "Profit",
+                "profitPct": "Profit %",
+                "changeToday": "Change Today",
+                "changePctToday": "Change % Today",
+                "gapPct": "Gap %",
+                "lastTime": "Time Since Last Trade"
+            };
+            return mapping[columnKey] || columnKey;
+        }
+
+        // Function to Sort Positions
+        function sortPositions() {
+            if (!sortColumn) return;
+            allPositions.sort((a, b) => {
+                let valA = a[sortColumn];
+                let valB = b[sortColumn];
+
+                if (getSortType(sortColumn) === "string") {
+                    valA = valA.toUpperCase();
+                    valB = valB.toUpperCase();
+                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                } else {
+                    return sortDirection === 'asc' ? valA - valB : valB - valA;
+                }
+            });
+        }
+
+        // Function to Calculate Time Since Last Trade
+        function calculateTimeSinceLastTrade(lastTradeTime) {
+            if (lastTradeTime === "N/A") return "N/A";
+            const lastTradeDate = new Date(lastTradeTime);
+            const now = new Date();
+            const diffInSeconds = Math.round((now - lastTradeDate) / 1000);
+
+            if (diffInSeconds < 60) {
+                return `${diffInSeconds}s ago`;
+            } else if (diffInSeconds < 3600) {
+                const minutes = Math.round(diffInSeconds / 60);
+                return `${minutes}m ago`;
+            } else if (diffInSeconds < 86400) {
+                const hours = Math.round(diffInSeconds / 3600);
+                return `${hours}h ago`;
+            } else {
+                const days = Math.round(diffInSeconds / 86400);
+                return `${days}d ago`;
+            }
+        }
+
+        // Function to Fetch Visible Positions from IndexedDB
+        async function fetchVisiblePositions() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+
+            return new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = (event) => {
+                    const all = event.target.result;
+                    // Filter out positions where hide is true
+                    const visible = all.filter(position => !position.hide);
+                    resolve(visible);
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Fetch All Unique Tickers from IndexedDB
+        async function fetchAllTickers() {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const index = store.index("tickerSymbol");
+
+            return new Promise((resolve, reject) => {
+                const request = index.openCursor(null, "nextunique");
+                const tickers = [];
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        tickers.push(cursor.key);
+                        cursor.continue();
+                    } else {
+                        resolve(tickers);
+                    }
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Generate Filter Checkboxes
+        async function generateFilterCheckboxes(uniqueTickers) {
+            const filterCheckboxes = document.getElementById("filterCheckboxes");
+            filterCheckboxes.innerHTML = "";
+
+            const db = await openDatabase();
+            const store = db.transaction(positionsStoreName, "readonly").objectStore(positionsStoreName);
+
+            for (const ticker of uniqueTickers) {
+                const checkbox = document.createElement("div");
+                checkbox.className = "form-check form-check-inline filter-checkbox";
+                checkbox.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" checked>
+                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
+                `;
+
+                // Determine the initial checked state based on positions' hide attribute
+                const request = store.index && store.index("tickerSymbol") ? store.index("tickerSymbol").getAll(ticker) : store.getAll();
+                request.onsuccess = async (event) => {
+                    const positions = event.target.result.filter(pos => pos.tickerSymbol === ticker);
+                    const isHidden = positions.every(pos => pos.hide);
+                    if (isHidden) {
+                        checkbox.querySelector('input').checked = false;
+                    } else {
+                        checkbox.querySelector('input').checked = true;
+                    }
+                };
+                request.onerror = (event) => {
+                    console.error(`Error fetching positions for ${ticker}:`, event.target.error);
+                };
+
+                // Add Event Listener for Checkbox Change
+                checkbox.querySelector('input').addEventListener("change", async () => {
+                    const ticker = checkbox.querySelector("input").value;
+                    const isChecked = checkbox.querySelector("input").checked;
+                    const hide = !isChecked;
+
+                    // Update the 'hide' attribute for all positions with this tickerSymbol
+                    try {
+                        await setHideForTickerSymbol(ticker, hide);
+                        console.log(`Set hide=${hide} for tickerSymbol=${ticker}`);
+                        appendDebugLog(`Set hide=${hide} for tickerSymbol=${ticker}`);
+
+                        // Reload portfolio after updating hide status
+                        await loadPortfolio();
+                    } catch (error) {
+                        console.error(`Error setting hide for tickerSymbol=${ticker}:`, error);
+                        appendDebugLog(`Error setting hide for tickerSymbol=${ticker}: ${error}`);
+                    }
+                });
+
+                filterCheckboxes.appendChild(checkbox);
+            }
+        }
+
+        // Function to Update the 'hide' Attribute for All Positions with a Specific Ticker Symbol
+        async function setHideForTickerSymbol(tickerSymbol, hide) {
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readwrite");
+            const store = transaction.objectStore(positionsStoreName);
+            const index = store.index("tickerSymbol");
+
+            return new Promise((resolve, reject) => {
+                const request = index ? index.getAll(tickerSymbol) : store.getAll();
+                request.onsuccess = async (event) => {
+                    const positions = event.target.result.filter(pos => pos.tickerSymbol === tickerSymbol);
+                    for (const position of positions) {
+                        position.hide = hide;
+                        const updateRequest = store.put(position);
+                        await new Promise((res, rej) => {
+                            updateRequest.onsuccess = () => res();
+                            updateRequest.onerror = (e) => rej(e.target.error);
+                        });
+                    }
+                    resolve();
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Function to Fetch Current Prices
+        async function fetchCurrentPrices(tickers) {
+            if (!tickers || tickers.length === 0) {
+                return {};
+            }
+
+            const db = await openDatabase();
+            const transaction = db.transaction(settingsStoreName, "readonly");
+            const store = transaction.objectStore(settingsStoreName);
+
+            const alpacaKey = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_KEY_ID");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            const alpacaSecret = await new Promise((resolve, reject) => {
+                const request = store.get("APCA_API_SECRET_KEY");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (alpacaKey && alpacaSecret) {
+                return await fetchPricesFromAlpaca(tickers, alpacaKey, alpacaSecret);
+            }
+
+            console.warn("Alpaca credentials not available, falling back to Finnhub.");
+            appendDebugLog("Alpaca credentials not available, falling back to Finnhub.");
+            const finnhubKey = await new Promise((resolve, reject) => {
+                const request = store.get("finnhubApiKey");
+                request.onsuccess = (event) => resolve(event.target.result?.value || "");
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            if (!finnhubKey) {
+                console.error("Finnhub API Key is not set. Please configure it in the settings.");
+                appendDebugLog("Finnhub API Key is not set. Please configure it in the settings.");
+                return {};
+            }
+
+            return await fetchPricesFromFinnhub(tickers, finnhubKey);
+        }
+
+        // Fetch Prices from Alpaca
+        async function fetchPricesFromAlpaca(tickers, apiKey, apiSecret) {
+            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        "APCA-API-KEY-ID": apiKey,
+                        "APCA-API-SECRET-KEY": apiSecret,
+                    },
+                });
+
+                if (!response.ok) {
+                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
+                    appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
+                    return {};
+                }
+
+                const data = await response.json();
+                const prices = {};
+
+                for (const [symbol, snapshot] of Object.entries(data)) {
+                    prices[symbol] = {
+                        price: snapshot.latestTrade?.p || 0,
+                        time: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).toLocaleString() : "N/A",
+                        open: snapshot.dailyBar?.o || 0,
+                        prevClose: snapshot.prevDailyBar?.c || 0,
+                    };
+                }
+
+                console.log("Fetched prices from Alpaca:", prices);
+                appendDebugLog("Fetched prices from Alpaca.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching snapshots from Alpaca:", error);
+                appendDebugLog(`Error fetching snapshots from Alpaca: ${error}`);
+                return {};
+            }
+        }
+
+        // Fetch Prices from Finnhub
+        async function fetchPricesFromFinnhub(tickers, apiKey) {
+            try {
+                const responses = await Promise.all(
+                    tickers.map(async (ticker) => {
+                        const [quoteResponse, prevCloseResponse] = await Promise.all([
+                            fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`),
+                            fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&count=2&token=${apiKey}`)
+                        ]);
+
+                        if (!quoteResponse.ok) {
+                            console.error(`Failed to fetch quote data for ${ticker} from Finnhub:`, quoteResponse.statusText);
+                            appendDebugLog(`Failed to fetch quote data for ${ticker} from Finnhub: ${quoteResponse.statusText}`);
+                            return { ticker, price: 0, time: "N/A", open: 0, prevClose: 0 };
+                        }
+                        const quoteData = await quoteResponse.json();
+
+                        let prevClose = 0;
+                        if (!prevCloseResponse.ok) {
+                            console.warn(`Failed to fetch previous close data for ${ticker} from Finnhub:`, prevCloseResponse.statusText);
+                            appendDebugLog(`Failed to fetch previous close data for ${ticker} from Finnhub: ${prevCloseResponse.statusText}`);
+                        } else {
+                            const prevCloseData = await prevCloseResponse.json();
+                            prevClose = prevCloseData.c && prevCloseData.c.length > 1 ? prevCloseData.c[prevCloseData.c.length - 2] : 0;
+                        }
+
+                        return { ticker, price: quoteData.c || 0, time: new Date().toLocaleString(), open: quoteData.o || 0, prevClose: prevClose };
+                    })
+                );
+
+                const prices = {};
+                responses.forEach((res) => {
+                    if (res.ticker) {
+                        prices[res.ticker] = { price: res.price, time: res.time, open: res.open, prevClose: res.prevClose };
+                    }
+                });
+                console.log("Fetched prices from Finnhub:", prices);
+                appendDebugLog("Fetched prices from Finnhub.");
+                return prices;
+            } catch (error) {
+                console.error("Error fetching prices from Finnhub:", error);
+                appendDebugLog(`Error fetching prices from Finnhub: ${error}`);
+                return {};
+            }
+        }
+
+        // Function to Handle Reset Settings to Default
+        document.getElementById("resetSettings").addEventListener("click", async () => {
+            if (confirm("Are you sure you want to reset all settings to default?")) {
+                try {
+                    const db = await openDatabase();
+                    const transaction = db.transaction(settingsStoreName, "readwrite");
+                    const store = transaction.objectStore(settingsStoreName);
+
+                    // Clear all settings
+                    const clearRequest = store.clear();
+                    clearRequest.onsuccess = () => {
+                        appendDebugLog("Settings have been reset to default.");
+                        alert("Settings have been reset to default.");
+                        window.location.reload();
+                    };
+                    clearRequest.onerror = (event) => {
+                        appendDebugLog(`Failed to reset settings: ${event.target.error}`);
+                        alert("Failed to reset settings.");
+                    };
+                } catch (error) {
+                    appendDebugLog(`Error resetting settings: ${error}`);
+                    alert("An error occurred while resetting settings.");
+                }
+            }
+        });
+
         // Function to Handle Filter Input with Debounce
         let debounceTimeout;
         document.getElementById("filterInput").addEventListener("input", () => {
@@ -1130,106 +1774,22 @@
             }
         }
 
-        // Function to Fetch All Unique Tickers from IndexedDB
-        async function fetchAllTickers() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
+        // Function to Sort Positions
+        function sortPositions() {
+            if (!sortColumn) return;
+            allPositions.sort((a, b) => {
+                let valA = a[sortColumn];
+                let valB = b[sortColumn];
 
-            return new Promise((resolve, reject) => {
-                const request = index.openCursor(null, "nextunique");
-                const tickers = [];
-                request.onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        tickers.push(cursor.key);
-                        cursor.continue();
-                    } else {
-                        resolve(tickers);
-                    }
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Generate Filter Checkboxes
-        async function generateFilterCheckboxes(uniqueTickers) {
-            const filterCheckboxes = document.getElementById("filterCheckboxes");
-            filterCheckboxes.innerHTML = "";
-
-            const db = await openDatabase();
-            const store = db.transaction(positionsStoreName, "readonly").objectStore(positionsStoreName);
-
-            for (const ticker of uniqueTickers) {
-                const checkbox = document.createElement("div");
-                checkbox.className = "form-check form-check-inline filter-checkbox";
-                checkbox.innerHTML = `
-                    <input class="form-check-input" type="checkbox" id="checkbox-${ticker}" value="${ticker}" checked>
-                    <label class="form-check-label text-light" for="checkbox-${ticker}">${ticker}</label>
-                `;
-
-                // Determine the initial checked state based on positions' hide attribute
-                const request = store.index && store.index("tickerSymbol") ? store.index("tickerSymbol").getAll(ticker) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === ticker);
-                    const isHidden = positions.every(pos => pos.hide); // Changed to 'every' for correct logic
-                    if (isHidden) {
-                        checkbox.querySelector('input').checked = false;
-                    } else {
-                        checkbox.querySelector('input').checked = true;
-                    }
-                };
-                request.onerror = (event) => {
-                    console.error(`Error fetching positions for ${ticker}:`, event.target.error);
-                };
-
-                // Add Event Listener for Checkbox Change
-                checkbox.querySelector('input').addEventListener("change", async () => {
-                    const ticker = checkbox.querySelector("input").value;
-                    const isChecked = checkbox.querySelector("input").checked;
-                    const hide = !isChecked;
-
-                    // Update the 'hide' attribute for all positions with this tickerSymbol
-                    try {
-                        await setHideForTickerSymbol(ticker, hide);
-                        console.log(`Set hide=${hide} for tickerSymbol=${ticker}`);
-                        appendDebugLog(`Set hide=${hide} for tickerSymbol=${ticker}`);
-
-                        // Reload portfolio after updating hide status
-                        await loadPortfolio();
-                    } catch (error) {
-                        console.error(`Error setting hide for tickerSymbol=${ticker}:`, error);
-                        appendDebugLog(`Error setting hide for tickerSymbol=${ticker}: ${error}`);
-                    }
-                });
-
-                filterCheckboxes.appendChild(checkbox);
-            }
-        }
-
-        // Function to Update the 'hide' Attribute for All Positions with a Specific Ticker Symbol
-        async function setHideForTickerSymbol(tickerSymbol, hide) {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readwrite");
-            const store = transaction.objectStore(positionsStoreName);
-            const index = store.index("tickerSymbol");
-
-            return new Promise((resolve, reject) => {
-                const request = index ? index.getAll(tickerSymbol) : store.getAll();
-                request.onsuccess = async (event) => {
-                    const positions = event.target.result.filter(pos => pos.tickerSymbol === tickerSymbol);
-                    for (const position of positions) {
-                        position.hide = hide;
-                        const updateRequest = store.put(position);
-                        await new Promise((res, rej) => {
-                            updateRequest.onsuccess = () => res();
-                            updateRequest.onerror = (e) => rej(e.target.error);
-                        });
-                    }
-                    resolve();
-                };
-                request.onerror = (event) => reject(event.target.error);
+                if (getSortType(sortColumn) === "string") {
+                    valA = valA.toUpperCase();
+                    valB = valB.toUpperCase();
+                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                } else {
+                    return sortDirection === 'asc' ? valA - valB : valB - valA;
+                }
             });
         }
 
@@ -1267,170 +1827,52 @@
             });
         }
 
-        // Function to Initialize Visible Columns on Page Load
-        async function initializeVisibleColumns() {
-            const db = await openDatabase();
-            const store = db.transaction(settingsStoreName, "readonly").objectStore(settingsStoreName);
-            const savedColumns = await new Promise((resolve, reject) => {
-                const request = store.get("visibleColumns");
-                request.onsuccess = (event) => resolve(event.target.result?.value || []);
-                request.onerror = (event) => reject(event.target.error);
-            });
-
-            if (savedColumns.length > 0) {
-                visibleColumns = savedColumns;
-                // Ensure uniqueness
-                visibleColumns = [...new Set(visibleColumns)];
-
-                console.log("Loaded visibleColumns from settings:", visibleColumns);
-                appendDebugLog("Loaded visibleColumns from settings.");
-            }
-        }
-
-        // Function to Open IndexedDB
-        async function openDatabase() {
+        // Function to Open IndexedDB Database with Version 3
+        function openDatabase() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, 2);
+                const request = indexedDB.open(dbName, 3); // Updated to version 3
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
 
                     if (!db.objectStoreNames.contains(positionsStoreName)) {
-                        const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id", autoIncrement: true });
-                        positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
-                        appendDebugLog("Created 'Positions' object store with 'tickerSymbol' index.");
+                        db.createObjectStore(positionsStoreName, { keyPath: "id" });
+                        appendDebugLog("Created 'Positions' object store in portfolio.html.");
                     }
 
                     if (!db.objectStoreNames.contains(settingsStoreName)) {
                         db.createObjectStore(settingsStoreName, { keyPath: "key" });
-                        appendDebugLog("Created 'Settings' object store.");
+                        appendDebugLog("Created 'Settings' object store in portfolio.html.");
                     }
+
+                    // Add any additional upgrade logic for version 3 here
                 };
 
                 request.onsuccess = (event) => {
                     const db = event.target.result;
+                    appendDebugLog("Database opened successfully in portfolio.html.");
+                    appendDebugLog(`Available stores: ${Array.from(db.objectStoreNames)}`);
                     resolve(db);
                 };
 
                 request.onerror = (event) => {
-                    appendDebugLog(`Database open failed: ${event.target.error}`);
+                    appendDebugLog(`Failed to open database in portfolio.html: ${event.target.error}`);
                     reject(event.target.error);
                 };
             });
         }
 
-        // Function to Fetch Visible Positions from IndexedDB
-        async function fetchVisiblePositions() {
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-
-            return new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => {
-                    const all = event.target.result;
-                    // Filter out positions where hide is true
-                    const visible = all.filter(position => !position.hide);
-                    resolve(visible);
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
-        }
-
-        // Function to Sort Positions
-        function sortPositions() {
-            if (!sortColumn) return; // No sorting applied
-
-            allPositions.sort((a, b) => {
-                let valA = a[sortColumn];
-                let valB = b[sortColumn];
-
-                // Handle undefined or null values
-                valA = valA !== undefined && valA !== null ? valA : "";
-                valB = valB !== undefined && valB !== null ? valB : "";
-
-                if (typeof valA === "string") {
-                    valA = valA.toLowerCase();
-                }
-                if (typeof valB === "string") {
-                    valB = valB.toLowerCase();
-                }
-
-                if (valA < valB) {
-                    return sortDirection === 'asc' ? -1 : 1;
-                }
-                if (valA > valB) {
-                    return sortDirection === 'asc' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-
-        // Function to Initialize Everything on DOMContentLoaded
-        document.addEventListener("DOMContentLoaded", async () => {
-            await initializeVisibleColumns(); // Load saved column order first
-            populateSortableColumns();        // Then populate the "Customize Columns" list based on saved order
-            await loadPortfolio();
-            await initializeRefreshIntervalButtons();
-            await startAutoRefresh();
-        });
-
-        // Reset Settings Button Functionality
-        document.getElementById("resetSettings").addEventListener("click", async () => {
-            // Reset visibleColumns to default
-            visibleColumns = availableColumns.map(col => col.key);
-            
-            // Save to IndexedDB
-            try {
-                const db = await openDatabase();
-                const transaction = db.transaction(settingsStoreName, "readwrite");
-                const store = transaction.objectStore(settingsStoreName);
-                await new Promise((resolve, reject) => {
-                    const request = store.put({ key: "visibleColumns", value: visibleColumns });
-                    request.onsuccess = () => resolve();
-                    request.onerror = (event) => reject(event.target.error);
-                });
-                appendDebugLog("Visible columns reset to default in settings.");
-            } catch (error) {
-                console.error("Error resetting visible columns:", error);
-                appendDebugLog(`Error resetting visible columns: ${error}`);
-            }
-
-            // Reset hide attribute for all positions
-            const db2 = await openDatabase();
-            const transaction2 = db2.transaction(positionsStoreName, "readwrite");
-            const store2 = transaction2.objectStore(positionsStoreName);
-            const getAllRequest = store2.getAll();
-
-            getAllRequest.onsuccess = async (event) => {
-                const positions = event.target.result;
-                for (const position of positions) {
-                    position.hide = false;
-                    const updateRequest = store2.put(position);
-                    await new Promise((res, rej) => {
-                        updateRequest.onsuccess = () => res();
-                        updateRequest.onerror = (e) => rej(e.target.error);
-                    });
-                }
-                appendDebugLog("All positions set to visible.");
-                await loadPortfolio();
-            };
-
-            getAllRequest.onerror = (event) => {
-                console.error("Error resetting positions' hide attributes:", event.target.error);
-                appendDebugLog(`Error resetting positions' hide attributes: ${event.target.error}`);
-            };
-
-            // Update UI
+        // Function to Load Saved Columns from IndexedDB and Initialize UI
+        async function initializeUI() {
+            await initializeVisibleColumns();
             populateSortableColumns();
-            const uniqueTickers = await fetchAllTickers();
-            await generateFilterCheckboxes(uniqueTickers);
+            initializeRefreshIntervalButtons();
+            await startAutoRefresh();
+            await loadPortfolio();
+        }
 
-            // Provide user feedback
-            document.getElementById("settingsFeedback").textContent = "Settings reset to default.";
-            document.getElementById("settingsFeedback").style.display = "block";
-            setTimeout(() => {
-                document.getElementById("settingsFeedback").style.display = "none";
-            }, 3000);
+        // Initialize the application
+        document.addEventListener("DOMContentLoaded", async () => {
+            await initializeUI();
         });
     </script>
 </body>
