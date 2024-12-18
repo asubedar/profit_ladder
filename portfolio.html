@@ -1863,6 +1863,11 @@
                 refreshIntervalId = setInterval(async () => {
                     console.log("Auto-refreshing prices...");
                     appendDebugLog("Auto-refreshing prices...");
+
+                    // Fetch current prices for all unique tickers
+                    const uniqueTickers = await fetchAllTickers();
+                    await fetchCurrentPrices(uniqueTickers);
+
                     await loadPortfolio();
                 }, interval * 1000);
                 console.log(`Auto-refresh set to every ${interval} seconds.`);
@@ -1951,10 +1956,15 @@
         // Function to Load Saved Columns from IndexedDB and Initialize UI
         async function initializeUI() {
             await initializeVisibleColumns();
-            await loadSortSettings();
+            await loadSortSettings(); // Load sort settings
             populateSortableColumns();
             initializeRefreshIntervalButtons();
             await startAutoRefresh();
+
+            // Fetch prices on initial load (optional)
+            const uniqueTickers = await fetchAllTickers();
+            await fetchCurrentPrices(uniqueTickers);
+
             await loadPortfolio();
         }
 
