@@ -629,206 +629,206 @@
         }
 
         // Function to Render Portfolio Table
-        async function renderPortfolio() {
-            const portfolioBody = document.getElementById("portfolioBody");
-            portfolioBody.innerHTML = "";
+        // async function renderPortfolio() {
+        //     const portfolioBody = document.getElementById("portfolioBody");
+        //     portfolioBody.innerHTML = "";
 
-            // Render Table Headers Dynamically
-            const portfolioHeaders = document.getElementById("portfolioHeaders");
-            portfolioHeaders.innerHTML = ""; // Clear existing headers
+        //     // Render Table Headers Dynamically
+        //     const portfolioHeaders = document.getElementById("portfolioHeaders");
+        //     portfolioHeaders.innerHTML = ""; // Clear existing headers
 
-            visibleColumns.forEach(columnKey => {
-                const header = document.createElement("th");
-                header.setAttribute("data-column", columnKey);
-                header.setAttribute("data-sort-type", getSortType(columnKey));
-                header.setAttribute("data-sort-key", columnKey);
-                header.setAttribute("data-col-index", visibleColumns.indexOf(columnKey));
+        //     visibleColumns.forEach(columnKey => {
+        //         const header = document.createElement("th");
+        //         header.setAttribute("data-column", columnKey);
+        //         header.setAttribute("data-sort-type", getSortType(columnKey));
+        //         header.setAttribute("data-sort-key", columnKey);
+        //         header.setAttribute("data-col-index", visibleColumns.indexOf(columnKey));
 
-                const thName = document.createElement("span");
-                thName.className = "th-name";
-                thName.textContent = getColumnDisplayName(columnKey);
+        //         const thName = document.createElement("span");
+        //         thName.className = "th-name";
+        //         thName.textContent = getColumnDisplayName(columnKey);
 
-                const sortArrowAsc = document.createElement("span");
-                sortArrowAsc.className = "sort-arrow asc";
-                sortArrowAsc.textContent = "▲";
+        //         const sortArrowAsc = document.createElement("span");
+        //         sortArrowAsc.className = "sort-arrow asc";
+        //         sortArrowAsc.textContent = "▲";
 
-                const sortArrowDesc = document.createElement("span");
-                sortArrowDesc.className = "sort-arrow desc";
-                sortArrowDesc.textContent = "▼";
+        //         const sortArrowDesc = document.createElement("span");
+        //         sortArrowDesc.className = "sort-arrow desc";
+        //         sortArrowDesc.textContent = "▼";
 
-                header.appendChild(thName);
-                header.appendChild(sortArrowAsc);
-                header.appendChild(sortArrowDesc);
+        //         header.appendChild(thName);
+        //         header.appendChild(sortArrowAsc);
+        //         header.appendChild(sortArrowDesc);
 
-                // Add Event Listener for Sorting
-                header.addEventListener('click', () => {
-                    if (sortColumn === columnKey) {
-                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        sortColumn = columnKey;
-                        sortDirection = 'asc';
-                    }
-                    updateSortSettings(sortColumn, sortDirection);
-                    sortPositions();
-                    renderPortfolio();
-                });
+        //         // Add Event Listener for Sorting
+        //         header.addEventListener('click', () => {
+        //             if (sortColumn === columnKey) {
+        //                 sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        //             } else {
+        //                 sortColumn = columnKey;
+        //                 sortDirection = 'asc';
+        //             }
+        //             updateSortSettings(sortColumn, sortDirection);
+        //             sortPositions();
+        //             renderPortfolio();
+        //         });
 
-                // Update sorted class
-                if (sortColumn === columnKey) {
-                    header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
-                } else {
-                    header.classList.remove('sorted-asc', 'sorted-desc');
-                }
+        //         // Update sorted class
+        //         if (sortColumn === columnKey) {
+        //             header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        //         } else {
+        //             header.classList.remove('sorted-asc', 'sorted-desc');
+        //         }
 
-                portfolioHeaders.appendChild(header);
-            });
+        //         portfolioHeaders.appendChild(header);
+        //     });
 
-            if (allPositions.length === 0) {
-                portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
-                // Also clear the totals row
-                const totalsRow = document.getElementById("totalsRow");
-                totalsRow.innerHTML = ``;
-                return;
-            }
+        //     if (allPositions.length === 0) {
+        //         portfolioBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center">No positions to display.</td></tr>`;
+        //         // Also clear the totals row
+        //         const totalsRow = document.getElementById("totalsRow");
+        //         totalsRow.innerHTML = ``;
+        //         return;
+        //     }
 
-            // Fetch updated positions from IndexedDB
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const updatedPositions = await new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => resolve(event.target.result);
-                request.onerror = (event) => reject(event.target.error);
-            });
+        //     // Fetch updated positions from IndexedDB
+        //     const db = await openDatabase();
+        //     const transaction = db.transaction(positionsStoreName, "readonly");
+        //     const store = transaction.objectStore(positionsStoreName);
+        //     const updatedPositions = await new Promise((resolve, reject) => {
+        //         const request = store.getAll();
+        //         request.onsuccess = (event) => resolve(event.target.result);
+        //         request.onerror = (event) => reject(event.target.error);
+        //     });
 
-            let totals = {
-                costBasis: 0,
-                totalValue: 0,
-                profit: 0,
-                profitPct: 0,
-                changeToday: 0,
-                changePctToday: 0,
-                gapPct: 0
-            };
+        //     let totals = {
+        //         costBasis: 0,
+        //         totalValue: 0,
+        //         profit: 0,
+        //         profitPct: 0,
+        //         changeToday: 0,
+        //         changePctToday: 0,
+        //         gapPct: 0
+        //     };
 
-            updatedPositions.forEach((position) => {
-                const currentPrice = position.lastPrice || 0;
-                const lastTime = position.lastTime || "N/A";
-                const openPrice = position.openPrice || 0;
-                const prevClosePrice = position.prevClosePrice || 0;
+        //     updatedPositions.forEach((position) => {
+        //         const currentPrice = position.lastPrice || 0;
+        //         const lastTime = position.lastTime || "N/A";
+        //         const openPrice = position.openPrice || 0;
+        //         const prevClosePrice = position.prevClosePrice || 0;
 
-                // Update calculated fields
-                position.costBasis = position.avgPrice * position.numShares;
-                position.totalValue = currentPrice * position.numShares;
-                position.profit = position.totalValue - position.costBasis;
-                position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
-                position.changeToday = currentPrice - prevClosePrice;
-                position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
-                position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
-                position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
+        //         // Update calculated fields
+        //         position.costBasis = position.avgPrice * position.numShares;
+        //         position.totalValue = currentPrice * position.numShares;
+        //         position.profit = position.totalValue - position.costBasis;
+        //         position.profitPct = position.costBasis !== 0 ? (position.profit / position.costBasis) * 100 : 0;
+        //         position.changeToday = currentPrice - prevClosePrice;
+        //         position.changePctToday = prevClosePrice !== 0 ? (position.changeToday / prevClosePrice) * 100 : 0;
+        //         position.gapPct = prevClosePrice !== 0 ? ((currentPrice - openPrice) / prevClosePrice) * 100 : 0;
+        //         position.timeSinceLastTrade = calculateTimeSinceLastTrade(lastTime);
 
-                // Accumulate totals
-                totals.costBasis += position.costBasis;
-                totals.totalValue += position.totalValue;
-                totals.profit += position.profit;
-                totals.profitPct += position.profitPct;
-                totals.changeToday += position.changeToday;
-                totals.changePctToday += position.changePctToday;
-                totals.gapPct += position.gapPct;
+        //         // Accumulate totals
+        //         totals.costBasis += position.costBasis;
+        //         totals.totalValue += position.totalValue;
+        //         totals.profit += position.profit;
+        //         totals.profitPct += position.profitPct;
+        //         totals.changeToday += position.changeToday;
+        //         totals.changePctToday += position.changePctToday;
+        //         totals.gapPct += position.gapPct;
 
-                const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
+        //         const profitClass = position.profit >= 0 ? "profit-positive" : "profit-negative";
 
-                // Generate table row based on visibleColumns order
-                let row = `<tr>`;
-                visibleColumns.forEach((columnKey) => {
-                    let cellContent = "";
-                    switch (columnKey) {
-                        case "tickerSymbol":
-                            cellContent = position.tickerSymbol;
-                            break;
-                        case "avgPrice":
-                            cellContent = position.avgPrice.toFixed(2);
-                            break;
-                        case "numShares":
-                            cellContent = position.numShares;
-                            break;
-                        case "lastPrice":
-                            cellContent = currentPrice.toFixed(2);
-                            break;
-                        case "costBasis":
-                            cellContent = position.costBasis.toFixed(2);
-                            break;
-                        case "totalValue":
-                            cellContent = position.totalValue.toFixed(2);
-                            break;
-                        case "profit":
-                            cellContent = `<span class="${profitClass}">${position.profit.toFixed(2)}</span>`;
-                            break;
-                        case "profitPct":
-                            cellContent = `${position.profitPct.toFixed(2)}%`;
-                            break;
-                        case "changeToday":
-                            cellContent = position.changeToday.toFixed(2);
-                            break;
-                        case "changePctToday":
-                            cellContent = `${position.changePctToday.toFixed(2)}%`;
-                            break;
-                        case "gapPct":
-                            cellContent = `${position.gapPct.toFixed(2)}%`;
-                            break;
-                        case "lastTime":
-                            cellContent = position.timeSinceLastTrade;
-                            break;
-                        default:
-                            cellContent = "";
-                    }
-                    row += `<td>${cellContent}</td>`;
-                });
-                row += `</tr>`;
-                portfolioBody.innerHTML += row;
-            });
+        //         // Generate table row based on visibleColumns order
+        //         let row = `<tr>`;
+        //         visibleColumns.forEach((columnKey) => {
+        //             let cellContent = "";
+        //             switch (columnKey) {
+        //                 case "tickerSymbol":
+        //                     cellContent = position.tickerSymbol;
+        //                     break;
+        //                 case "avgPrice":
+        //                     cellContent = position.avgPrice.toFixed(2);
+        //                     break;
+        //                 case "numShares":
+        //                     cellContent = position.numShares;
+        //                     break;
+        //                 case "lastPrice":
+        //                     cellContent = currentPrice.toFixed(2);
+        //                     break;
+        //                 case "costBasis":
+        //                     cellContent = position.costBasis.toFixed(2);
+        //                     break;
+        //                 case "totalValue":
+        //                     cellContent = position.totalValue.toFixed(2);
+        //                     break;
+        //                 case "profit":
+        //                     cellContent = `<span class="${profitClass}">${position.profit.toFixed(2)}</span>`;
+        //                     break;
+        //                 case "profitPct":
+        //                     cellContent = `${position.profitPct.toFixed(2)}%`;
+        //                     break;
+        //                 case "changeToday":
+        //                     cellContent = position.changeToday.toFixed(2);
+        //                     break;
+        //                 case "changePctToday":
+        //                     cellContent = `${position.changePctToday.toFixed(2)}%`;
+        //                     break;
+        //                 case "gapPct":
+        //                     cellContent = `${position.gapPct.toFixed(2)}%`;
+        //                     break;
+        //                 case "lastTime":
+        //                     cellContent = position.timeSinceLastTrade;
+        //                     break;
+        //                 default:
+        //                     cellContent = "";
+        //             }
+        //             row += `<td>${cellContent}</td>`;
+        //         });
+        //         row += `</tr>`;
+        //         portfolioBody.innerHTML += row;
+        //     });
 
-            // Calculate total profit percentage based on total cost basis
-            const totalProfitPct = totals.costBasis !== 0 ? (totals.profit / totals.costBasis) * 100 : 0;
+        //     // Calculate total profit percentage based on total cost basis
+        //     const totalProfitPct = totals.costBasis !== 0 ? (totals.profit / totals.costBasis) * 100 : 0;
 
-            // Update totals in the footer based on visibleColumns
-            const totalsRow = document.getElementById("totalsRow");
-            totalsRow.innerHTML = ""; // Clear existing cells
+        //     // Update totals in the footer based on visibleColumns
+        //     const totalsRow = document.getElementById("totalsRow");
+        //     totalsRow.innerHTML = ""; // Clear existing cells
 
-            visibleColumns.forEach(columnKey => {
-                if (columnKey === "tickerSymbol") {
-                    totalsRow.innerHTML += `<td>Totals</td>`;
-                } else {
-                    let footerContent = "";
-                    switch (columnKey) {
-                        case "costBasis":
-                            footerContent = totals.costBasis.toFixed(2);
-                            break;
-                        case "totalValue":
-                            footerContent = totals.totalValue.toFixed(2);
-                            break;
-                        case "profit":
-                            footerContent = totals.profit.toFixed(2);
-                            break;
-                        case "profitPct":
-                            footerContent = totalProfitPct.toFixed(2) + "%";
-                            break;
-                        case "changeToday":
-                            footerContent = totals.changeToday.toFixed(2);
-                            break;
-                        case "changePctToday":
-                            footerContent = totals.changePctToday.toFixed(2) + "%";
-                            break;
-                        case "gapPct":
-                            footerContent = totals.gapPct.toFixed(2) + "%";
-                            break;
-                        default:
-                            footerContent = ""; // Empty for other columns
-                    }
-                    totalsRow.innerHTML += `<td>${footerContent}</td>`;
-                }
-            });
-        }
+        //     visibleColumns.forEach(columnKey => {
+        //         if (columnKey === "tickerSymbol") {
+        //             totalsRow.innerHTML += `<td>Totals</td>`;
+        //         } else {
+        //             let footerContent = "";
+        //             switch (columnKey) {
+        //                 case "costBasis":
+        //                     footerContent = totals.costBasis.toFixed(2);
+        //                     break;
+        //                 case "totalValue":
+        //                     footerContent = totals.totalValue.toFixed(2);
+        //                     break;
+        //                 case "profit":
+        //                     footerContent = totals.profit.toFixed(2);
+        //                     break;
+        //                 case "profitPct":
+        //                     footerContent = totalProfitPct.toFixed(2) + "%";
+        //                     break;
+        //                 case "changeToday":
+        //                     footerContent = totals.changeToday.toFixed(2);
+        //                     break;
+        //                 case "changePctToday":
+        //                     footerContent = totals.changePctToday.toFixed(2) + "%";
+        //                     break;
+        //                 case "gapPct":
+        //                     footerContent = totals.gapPct.toFixed(2) + "%";
+        //                     break;
+        //                 default:
+        //                     footerContent = ""; // Empty for other columns
+        //             }
+        //             totalsRow.innerHTML += `<td>${footerContent}</td>`;
+        //         }
+        //     });
+        // }
 
         // Function to Get Sort Type Based on Column Key
         function getSortType(columnKey) {
@@ -1452,27 +1452,27 @@
         }
 
         // Function to Sort Positions
-        function sortPositions() {
-            if (!sortColumn) return;
+        // function sortPositions() {
+        //     if (!sortColumn) return;
 
-            // Sort the updated positions based on the selected column and direction
-            allPositions.sort((a, b) => {
-                let valA = a[sortColumn];
-                let valB = b[sortColumn];
+        //     // Sort the updated positions based on the selected column and direction
+        //     allPositions.sort((a, b) => {
+        //         let valA = a[sortColumn];
+        //         let valB = b[sortColumn];
 
-                if (getSortType(sortColumn) === "string") {
-                    valA = (valA || "").toUpperCase(); // Handle undefined or null
-                    valB = (valB || "").toUpperCase(); // Handle undefined or null
-                    return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                } else {
-                    valA = valA || 0; // Handle undefined or null
-                    valB = valB || 0; // Handle undefined or null
-                    return sortDirection === 'asc' ? valA - valB : valB - valA;
-                }
-            });
-            // Persist sort settings to IndexedDB
-            updateSortSettings(sortColumn, sortDirection);
-        }
+        //         if (getSortType(sortColumn) === "string") {
+        //             valA = (valA || "").toUpperCase(); // Handle undefined or null
+        //             valB = (valB || "").toUpperCase(); // Handle undefined or null
+        //             return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        //         } else {
+        //             valA = valA || 0; // Handle undefined or null
+        //             valB = valB || 0; // Handle undefined or null
+        //             return sortDirection === 'asc' ? valA - valB : valB - valA;
+        //         }
+        //     });
+        //     // Persist sort settings to IndexedDB
+        //     updateSortSettings(sortColumn, sortDirection);
+        // }
         
         // Function to update sort settings in IndexedDB
         async function updateSortSettings(column, direction) {
