@@ -511,7 +511,6 @@
             // Fetch all unique tickers, including hidden ones
             const uniqueTickers = await fetchAllTickers();
             await generateFilterCheckboxes(uniqueTickers);
-            sortPositions(); // Sort after adding calculated fields
             renderPortfolio();
         }
 
@@ -770,23 +769,24 @@
         // Function to Sort Positions
         function sortPositions() {
             if (!sortColumn) return;
+
+            // Sort the updated positions based on the selected column and direction
             allPositions.sort((a, b) => {
                 let valA = a[sortColumn];
                 let valB = b[sortColumn];
 
                 if (getSortType(sortColumn) === "string") {
-                    valA = valA.toUpperCase();
-                    valB = valB.toUpperCase();
-                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-                    return 0;
+                    valA = (valA || "").toUpperCase(); // Handle undefined or null
+                    valB = (valB || "").toUpperCase(); // Handle undefined or null
+                    return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 } else {
+                    valA = valA || 0; // Handle undefined or null
+                    valB = valB || 0; // Handle undefined or null
                     return sortDirection === 'asc' ? valA - valB : valB - valA;
                 }
             });
-
             // Persist sort settings to IndexedDB
-            updateSortSettings(sortColumn, sortDirection); 
+            updateSortSettings(sortColumn, sortDirection);
         }
         
         // Function to update sort settings in IndexedDB
