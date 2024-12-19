@@ -950,6 +950,41 @@
             }
         }
 
+        // Function to Load Sort Settings from IndexedDB
+        async function loadSortSettings() {
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readonly");
+                const store = transaction.objectStore(settingsStoreName);
+
+                const sortColumnRequest = store.get("sortColumn");
+                const sortDirectionRequest = store.get("sortDirection");
+
+                const [sortColumnResult, sortDirectionResult] = await Promise.all([
+                    new Promise((resolve, reject) => {
+                        sortColumnRequest.onsuccess = (event) => resolve(event.target.result?.value || null);
+                        sortColumnRequest.onerror = (event) => reject(event.target.error);
+                    }),
+                    new Promise((resolve, reject) => {
+                        sortDirectionRequest.onsuccess = (event) => resolve(event.target.result?.value || 'asc');
+                        sortDirectionRequest.onerror = (event) => reject(event.target.error);
+                    })
+                ]);
+
+                if (sortColumnResult) {
+                    sortColumn = sortColumnResult;
+                }
+                if (sortDirectionResult) {
+                    sortDirection = sortDirectionResult;
+                }
+
+                appendDebugLog("Sort settings loaded.");
+            } catch (error) {
+                console.error("Error loading sort settings:", error);
+                appendDebugLog(`Error loading sort settings: ${error}`);
+            }
+        }
+
         // Function to Fetch Visible Positions from IndexedDB
         async function fetchVisiblePositions() {
             const db = await openDatabase();
@@ -1403,41 +1438,6 @@
 
             // Event Listener for Reset Database Button
             handleResetDatabase();
-        }
-
-        // Function to Load Portfolio Data
-        async function loadPortfolio() {
-            allPositions = await fetchVisiblePositions();
-            // Calculate and append additional fields to each position
-            allPositions = allPositions.map(position => {
-                const currentPrice = position.lastPrice || 0;
-                const costBasis = position.avgPrice * position.numShares;
-                const totalValue = currentPrice * position.numShares;
-                const profit = totalValue - costBasis;
-                const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
-                const changeToday = position.changeToday || 0;
-                const changePctToday = position.changePctToday || 0;
-                const gapPct = position.gapPct || 0;
-                const timeSinceLastTrade = position.lastTime || "N/A";
-
-                return {
-                    ...position,
-                    costBasis,
-                    totalValue,
-                    profit,
-                    profitPct,
-                    changeToday,
-                    changePctToday,
-                    gapPct,
-                    timeSinceLastTrade
-                };
-            });
-
-            // Fetch all unique tickers, including hidden ones
-            const uniqueTickers = await fetchAllTickers();
-            await generateFilterCheckboxes(uniqueTickers);
-            sortPositions(); // Ensure positions are sorted before rendering
-            renderPortfolio();
         }
 
         // Function to Initialize the Application
