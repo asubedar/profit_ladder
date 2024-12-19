@@ -1252,6 +1252,14 @@
                 const prices = await fetchCurrentPrices(uniqueTickers);
                 appendDebugLog(`Fetched prices: ${JSON.stringify(prices)}`);
                 await updatePositionsStore(prices);
+
+                // Re-fetch allPositions after updating the store
+                allPositions = await fetchVisiblePositions();
+
+                // Re-apply sorting before rendering
+                sortPositions(); 
+
+                renderPortfolio(); 
                 appendDebugLog("Auto-refresh completed successfully.");
             } catch (error) {
                 console.error("Error in fetchAndUpdatePositions:", error);
