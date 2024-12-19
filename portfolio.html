@@ -1,13 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Meta Tags and Title -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portfolio Tracker</title>
+    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
     <style>
         body {
             background-color: #121212;
@@ -125,7 +130,7 @@
                 width: 100%;
                 overflow-x: auto;
             }
-            .table-responsive table {
+            table {
                 width: auto;
                 min-width: 100%;
             }
@@ -183,7 +188,11 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="./"><i class="fas fa-calculator"></i> Profit Ladder</a>
-            <div class="collapse navbar-collapse">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         <a class="nav-link" href="./">Profit Ladder</a>
@@ -277,8 +286,10 @@
 
     <!-- Bootstrap JS and Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
     <!-- Font Awesome JS for Icons -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/js/all.min.js"></script>
+    
     <!-- Main JavaScript -->
     <script>
         // Database Configuration
@@ -328,6 +339,8 @@
             const logEntry = document.createElement("div");
             logEntry.textContent = message;
             debugLogs.appendChild(logEntry);
+            // Auto-scroll to the bottom
+            debugLogs.scrollTop = debugLogs.scrollHeight;
         }
 
         // Function to Open IndexedDB
@@ -432,9 +445,10 @@
                 // Wait for all update operations to complete
                 await Promise.all(updatePromises);
 
-                // After all operations are done
-                console.log("All positions updated successfully.");
-                appendDebugLog("All positions updated successfully.");
+                // After updating the store, refresh allPositions with latest data
+                allPositions = await fetchVisiblePositions();
+
+                // Now, render the updated portfolio
                 renderPortfolio();
 
                 // Handle transaction completion
@@ -1228,6 +1242,8 @@
                     if (interval > 0) {
                         refreshIntervalId = setInterval(fetchAndUpdatePositions, interval * 1000);
                         appendDebugLog(`Auto-refresh set to every ${interval} seconds.`);
+                        // Immediately fetch data when auto-refresh is started
+                        fetchAndUpdatePositions();
                     } else {
                         appendDebugLog("Auto-refresh stopped.");
                     }
@@ -1389,7 +1405,42 @@
             handleResetDatabase();
         }
 
-        // Initialize the Application
+        // Function to Load Portfolio Data
+        async function loadPortfolio() {
+            allPositions = await fetchVisiblePositions();
+            // Calculate and append additional fields to each position
+            allPositions = allPositions.map(position => {
+                const currentPrice = position.lastPrice || 0;
+                const costBasis = position.avgPrice * position.numShares;
+                const totalValue = currentPrice * position.numShares;
+                const profit = totalValue - costBasis;
+                const profitPct = costBasis !== 0 ? (profit / costBasis) * 100 : 0;
+                const changeToday = position.changeToday || 0;
+                const changePctToday = position.changePctToday || 0;
+                const gapPct = position.gapPct || 0;
+                const timeSinceLastTrade = position.lastTime || "N/A";
+
+                return {
+                    ...position,
+                    costBasis,
+                    totalValue,
+                    profit,
+                    profitPct,
+                    changeToday,
+                    changePctToday,
+                    gapPct,
+                    timeSinceLastTrade
+                };
+            });
+
+            // Fetch all unique tickers, including hidden ones
+            const uniqueTickers = await fetchAllTickers();
+            await generateFilterCheckboxes(uniqueTickers);
+            sortPositions(); // Ensure positions are sorted before rendering
+            renderPortfolio();
+        }
+
+        // Function to Initialize the Application
         async function initializeApp() {
             await initializeSettings();
             initializeEventListeners();
