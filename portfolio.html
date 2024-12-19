@@ -363,69 +363,83 @@
                 const transaction = db.transaction(positionsStoreName, "readwrite");
                 const store = transaction.objectStore(positionsStoreName);
 
-                for (const [ticker, priceData] of Object.entries(prices)) {
-                    const getRequest = store.get(ticker);
-                    getRequest.onsuccess = (event) => {
-                        let position = event.target.result;
-                        if (position) {
-                            // Update existing position with latest data
-                            position.lastPrice = priceData.price;
-                            position.lastTime = priceData.time;
-                            position.openPrice = priceData.open;
-                            position.prevClosePrice = priceData.prevClose;
+                // Create an array of promises for all get and put operations
+                const updatePromises = Object.entries(prices).map(([ticker, priceData]) => {
+                    return new Promise((resolve, reject) => {
+                        const getRequest = store.get(ticker);
+                        getRequest.onsuccess = (event) => {
+                            let position = event.target.result;
+                            if (position) {
+                                // Update existing position with latest data
+                                position.lastPrice = priceData.price;
+                                position.lastTime = priceData.time;
+                                position.openPrice = priceData.open;
+                                position.prevClosePrice = priceData.prevClose;
 
-                            const updateRequest = store.put(position);
-                            updateRequest.onsuccess = () => {
-                                console.log(`Position ${ticker} updated successfully.`);
-                                appendDebugLog(`Position ${ticker} updated successfully.`);
-                            };
-                            updateRequest.onerror = (event) => {
-                                console.error(`Error updating position ${ticker}:`, event.target.error);
-                                appendDebugLog(`Error updating position ${ticker}: ${event.target.error}`);
-                            };
-                        } else {
-                            // Position does not exist, create a new one
-                            const newPosition = {
-                                id: ticker,
-                                tickerSymbol: ticker,
-                                avgPrice: 0, // Placeholder, should be set elsewhere
-                                numShares: 0, // Placeholder, should be set elsewhere
-                                lastPrice: priceData.price,
-                                costBasis: 0, // Placeholder, should be calculated
-                                totalValue: 0, // Placeholder, should be calculated
-                                profit: 0, // Placeholder, should be calculated
-                                profitPct: 0, // Placeholder, should be calculated
-                                changeToday: 0, // Placeholder, should be calculated
-                                changePctToday: 0, // Placeholder, should be calculated
-                                gapPct: 0, // Placeholder, should be calculated
-                                lastTime: priceData.time,
-                                openPrice: priceData.open,
-                                prevClosePrice: priceData.prevClose,
-                                hide: false
-                            };
+                                const updateRequest = store.put(position);
+                                updateRequest.onsuccess = () => {
+                                    console.log(`Position ${ticker} updated successfully.`);
+                                    appendDebugLog(`Position ${ticker} updated successfully.`);
+                                    resolve();
+                                };
+                                updateRequest.onerror = (event) => {
+                                    console.error(`Error updating position ${ticker}:`, event.target.error);
+                                    appendDebugLog(`Error updating position ${ticker}: ${event.target.error}`);
+                                    reject(event.target.error);
+                                };
+                            } else {
+                                // Position does not exist, create a new one
+                                const newPosition = {
+                                    id: ticker,
+                                    tickerSymbol: ticker,
+                                    avgPrice: 0, // Placeholder, should be set elsewhere
+                                    numShares: 0, // Placeholder, should be set elsewhere
+                                    lastPrice: priceData.price,
+                                    costBasis: 0, // Placeholder, should be calculated
+                                    totalValue: 0, // Placeholder, should be calculated
+                                    profit: 0, // Placeholder, should be calculated
+                                    profitPct: 0, // Placeholder, should be calculated
+                                    changeToday: 0, // Placeholder, should be calculated
+                                    changePctToday: 0, // Placeholder, should be calculated
+                                    gapPct: 0, // Placeholder, should be calculated
+                                    lastTime: priceData.time,
+                                    openPrice: priceData.open,
+                                    prevClosePrice: priceData.prevClose,
+                                    hide: false
+                                };
 
-                            const addRequest = store.add(newPosition);
-                            addRequest.onsuccess = () => {
-                                console.log(`Position ${ticker} added successfully.`);
-                                appendDebugLog(`Position ${ticker} added successfully.`);
-                            };
-                            addRequest.onerror = (event) => {
-                                console.error(`Error adding position ${ticker}:`, event.target.error);
-                                appendDebugLog(`Error adding position ${ticker}: ${event.target.error}`);
-                            };
-                        }
-                    };
-                    getRequest.onerror = (event) => {
-                        console.error(`Error fetching position ${ticker}:`, event.target.error);
-                        appendDebugLog(`Error fetching position ${ticker}: ${event.target.error}`);
-                    };
-                }
+                                const addRequest = store.add(newPosition);
+                                addRequest.onsuccess = () => {
+                                    console.log(`Position ${ticker} added successfully.`);
+                                    appendDebugLog(`Position ${ticker} added successfully.`);
+                                    resolve();
+                                };
+                                addRequest.onerror = (event) => {
+                                    console.error(`Error adding position ${ticker}:`, event.target.error);
+                                    appendDebugLog(`Error adding position ${ticker}: ${event.target.error}`);
+                                    reject(event.target.error);
+                                };
+                            }
+                        };
+                        getRequest.onerror = (event) => {
+                            console.error(`Error fetching position ${ticker}:`, event.target.error);
+                            appendDebugLog(`Error fetching position ${ticker}: ${event.target.error}`);
+                            reject(event.target.error);
+                        };
+                    });
+                });
+
+                // Wait for all update operations to complete
+                await Promise.all(updatePromises);
+
+                // After all operations are done
+                console.log("All positions updated successfully.");
+                appendDebugLog("All positions updated successfully.");
+                renderPortfolio();
 
                 // Handle transaction completion
                 transaction.oncomplete = () => {
-                    console.log("All positions updated successfully.");
-                    appendDebugLog("All positions updated successfully.");
-                    renderPortfolio();
+                    // Transaction completed successfully
                 };
 
                 transaction.onerror = (event) => {
@@ -1180,12 +1194,16 @@
         // Function to Fetch and Update Positions
         async function fetchAndUpdatePositions() {
             try {
+                appendDebugLog("Auto-refresh initiated.");
                 const db = await openDatabase();
                 const visiblePositions = await fetchVisiblePositions();
                 const tickers = visiblePositions.map(pos => pos.tickerSymbol);
                 const uniqueTickers = [...new Set(tickers)];
+                appendDebugLog(`Tickers to fetch: ${uniqueTickers.join(", ")}`);
                 const prices = await fetchCurrentPrices(uniqueTickers);
+                appendDebugLog(`Fetched prices: ${JSON.stringify(prices)}`);
                 await updatePositionsStore(prices);
+                appendDebugLog("Auto-refresh completed successfully.");
             } catch (error) {
                 console.error("Error in fetchAndUpdatePositions:", error);
                 appendDebugLog(`Error in fetchAndUpdatePositions: ${error}`);
