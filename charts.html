@@ -219,31 +219,31 @@
             switch (timeframe) {
                 case '1Min':
                     from.setDate(to.getDate() - 2); // Fetch data for the last 2 days
-                    limit = 5000; // Adjust limit for 1Min timeframe
+                    limit = 10000; // Adjust limit for 1Min timeframe
                     break;
                 case '5Min':
                     from.setDate(to.getDate() - 7); // Fetch data for the last 7 days
-                    limit = 5000; // Adjust limit for 5Min timeframe
+                    limit = 20000; // Adjust limit for 5Min timeframe
                     break;
                 case '15Min':
                     from.setDate(to.getDate() - 30); // Fetch data for the last 30 days
-                    limit = 5000;
+                    limit = 10000;
                     break;
                 case '30Min':
                     from.setDate(to.getDate() - 60); // Fetch data for the last 60 days
-                    limit = 5000;
+                    limit = 10000;
                     break;
                 case '1H':
                     from.setMonth(to.getMonth() - 3); // Fetch data for the last 3 months
-                    limit = 5000;
+                    limit = 10000;
                     break;
                 case '1D':
                     from.setFullYear(to.getFullYear() - 2); // Fetch data for the last 2 years
-                    limit = 5000;
+                    limit = 10000;
                     break;
                 default:
                     from.setDate(to.getDate() - 7); // Default to the last 7 days
-                    limit = 5000;
+                    limit = 10000;
                     break;
             }
 
