@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Stock Charts</title>
+    <title>Real-time Stock Chart</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -48,6 +48,26 @@
             font-family: monospace;
             color: #ff6f61;
         }
+        /* Chart Controls Styling */
+        #chartControls {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #chartControls label {
+            color: #ffffff;
+        }
+
+        #chartControls select, #chartControls input {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #444;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +95,23 @@
         </div>
     </nav>
     <div class="container">
+        <!-- Chart Controls -->
+        <div id="chartControls">
+            <label for="tickerInput">Ticker:</label>
+            <input type="text" id="tickerInput" placeholder="Enter ticker symbol">
+
+            <label for="timeframeSelect">Timeframe:</label>
+            <select id="timeframeSelect">
+                <option value="1Min">1 Minute</option>
+                <option value="5Min" selected>5 Minutes</option>
+                <option value="15Min">15 Minutes</option>
+                <option value="30Min">30 Minutes</option>
+                <option value="1H">1 Hour</option>
+                <option value="1D">1 Day</option>
+            </select>
+
+            <button id="updateChartButton" class="btn btn-primary">Update Chart</button>
+        </div>
         <div class="settings-toggle text-end mt-4">
             <span id="settingsIcon"><i class="fas fa-cog"></i> Settings</span>
         </div>
@@ -170,15 +207,15 @@
         }
 
         // Function to Fetch Historical Data from Alpaca
-        async function fetchHistoricalData(tickers, apiKey, apiSecret, timeframe = '5Min', limit = 100) {
-            const bars = {};
+        async function fetchHistoricalData(ticker, apiKey, apiSecret, timeframe = '5Min', limit = 500) {
+            const bars = [];
             const to = new Date(); // Now
             const from = new Date(to);
             from.setDate(to.getDate() - 30); // Go back 30 days (adjust as needed)
             const formattedTo = to.toISOString().split('T')[0];
             const formattedFrom = from.toISOString().split('T')[0];
 
-            const url = `https://data.alpaca.markets/v2/stocks/bars?symbols=${tickers.join(',')}&timeframe=${timeframe}&start=${formattedFrom}&end=${formattedTo}&limit=${limit}&adjustment=raw`;
+            const url = `https://data.alpaca.markets/v2/stocks/bars?symbols=${ticker}&timeframe=${timeframe}&start=${formattedFrom}&end=${formattedTo}&limit=${limit}&adjustment=raw`;
 
             try {
                 const response = await fetch(url, {
@@ -194,34 +231,33 @@
                 }
 
                 const data = await response.json();
-
-                for (const ticker of tickers) {
-                    if (data.bars && data.bars[ticker]) {
-                        bars[ticker] = data.bars[ticker].map(bar => ({
+                if (data.bars && data.bars[ticker]) {
+                    data.bars[ticker].forEach(bar => {
+                        bars.push({
                             time: new Date(bar.t).getTime() / 1000, // Convert to Unix timestamp
                             open: bar.o,
                             high: bar.h,
                             low: bar.l,
                             close: bar.c,
                             volume: bar.v
-                        }));
-                    } else {
-                        console.warn(`No historical data found for ${ticker}`);
-                        appendDebugLog(`No historical data found for ${ticker}`);
-                    }
+                        });
+                    });
+                } else {
+                    console.warn(`No historical data found for ${ticker}`);
+                    appendDebugLog(`No historical data found for ${ticker}`);
                 }
 
                 return bars;
             } catch (error) {
                 console.error('Error fetching historical data:', error);
                 appendDebugLog(`Error fetching historical data: ${error}`);
-                return {};
+                return [];
             }
         }
 
         // Function to Fetch Real-time Data from Alpaca
-        async function fetchRealtimeData(tickers, apiKey, apiSecret) {
-            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
+        async function fetchRealtimeData(ticker, apiKey, apiSecret) {
+            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${ticker}`;
             try {
                 const response = await fetch(url, {
                     headers: {
@@ -233,14 +269,14 @@
                 if (!response.ok) {
                     console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
                     appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
-                    return {};
+                    return null;
                 }
 
                 const data = await response.json();
-                const realtimeData = {};
 
-                for (const [symbol, snapshot] of Object.entries(data)) {
-                    realtimeData[symbol] = {
+                if (data && data[ticker]) {
+                    const snapshot = data[ticker];
+                    const realtimeData = {
                         time: new Date(snapshot.latestTrade?.t).getTime() / 1000, // Convert to Unix timestamp
                         open: snapshot.dailyBar?.o || 0,
                         high: snapshot.dailyBar?.h || 0,
@@ -248,54 +284,71 @@
                         close: snapshot.latestTrade?.p || 0,
                         volume: snapshot.dailyBar?.v || 0
                     };
+                    console.log("Fetched realtime data from Alpaca:", realtimeData);
+                    appendDebugLog("Fetched realtime data from Alpaca.");
+                    return realtimeData;
+                } else {
+                    console.error(`No realtime data found for ${ticker}`);
+                    appendDebugLog(`No realtime data found for ${ticker}`);
+                    return null;
                 }
-
-                console.log("Fetched realtime data from Alpaca:", realtimeData);
-                appendDebugLog("Fetched realtime data from Alpaca.");
-                return realtimeData;
             } catch (error) {
                 console.error("Error fetching realtime data from Alpaca:", error);
                 appendDebugLog(`Error fetching realtime data from Alpaca: ${error}`);
-                return {};
+                return null;
             }
         }
 
-        // Function to Create a Chart
-        function createChart(ticker, historicalData, realtimeData) {
+        // Global variable to hold the chart object
+        let chart = null;
+
+        // Function to Create or Update the Chart
+        async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
             const chartContainer = document.getElementById('chartContainer');
 
-            // Create a new div for each chart
-            const chartDiv = document.createElement('div');
-            chartDiv.id = `chart-${ticker}`;
-            chartDiv.style.width = '100%';
-            chartDiv.style.height = '500px';
-            chartContainer.appendChild(chartDiv);
+            // If chart exists, remove it
+            if (chart !== null) {
+                chart.remove();
+                chart = null;
+            }
 
-            const chart = LightweightCharts.createChart(chartDiv, {
-                width: chartDiv.offsetWidth,
+            // Create a new chart
+            chart = LightweightCharts.createChart(chartContainer, {
+                width: chartContainer.offsetWidth,
                 height: 500,
                 layout: {
-                    backgroundColor: '#121212',
-                    textColor: '#ffffff',
+                    backgroundColor: '#131722',
+                    textColor: 'rgba(255, 255, 255, 0.9)',
                 },
                 grid: {
                     vertLines: {
-                        color: '#444444',
+                        color: 'rgba(197, 203, 206, 0.5)',
                     },
                     horzLines: {
-                        color: '#444444',
+                        color: 'rgba(197, 203, 206, 0.5)',
                     },
                 },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
                 },
+                priceScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                },
                 timeScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
                     timeVisible: true,
                     secondsVisible: false,
                 },
             });
 
-            const candlestickSeries = chart.addCandlestickSeries();
+            const candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#4bffb5',
+                downColor: '#ff4976',
+                borderDownColor: '#ff4976',
+                borderUpColor: '#4bffb5',
+                wickDownColor: '#838ca1',
+                wickUpColor: '#838ca1',
+            });
 
             // Set historical data
             candlestickSeries.setData(historicalData);
@@ -306,7 +359,7 @@
             }
 
             // Add a title to the chart
-            const title = `${ticker} - Real-time Chart`;
+            const title = `${ticker} - ${timeframe} - Real-time Chart`;
             chart.applyOptions({
                 watermark: {
                     visible: true,
@@ -365,47 +418,51 @@
             });
         }
 
-        // Function to Initialize the Application
-        async function initializeApp() {
-            const { alpacaApiKey, alpacaApiSecret } = await getAlpacaApiKeys();
+        // Function to Update Chart Data
+        async function updateChartData() {
+            const ticker = document.getElementById("tickerInput").value.toUpperCase();
+            const timeframe = document.getElementById("timeframeSelect").value;
 
+            if (!ticker) {
+                alert("Please enter a ticker symbol.");
+                return;
+            }
+
+            const { alpacaApiKey, alpacaApiSecret } = await getAlpacaApiKeys();
             if (!alpacaApiKey || !alpacaApiSecret) {
                 alert("Alpaca API keys are not set. Please enter them in the settings.");
                 return;
             }
 
-            // Fetch visible positions to get the tickers to chart
-            const db = await openDatabase();
-            const transaction = db.transaction(positionsStoreName, "readonly");
-            const store = transaction.objectStore(positionsStoreName);
-            const visiblePositions = await new Promise((resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = (event) => {
-                    const all = event.target.result;
-                    const visible = all.filter(position => !position.hide);
-                    resolve(visible);
-                };
-                request.onerror = (event) => reject(event.target.error);
-            });
+            const historicalData = await fetchHistoricalData(ticker, alpacaApiKey, alpacaApiSecret, timeframe);
+            const realtimeData = await fetchRealtimeData(ticker, alpacaApiKey, alpacaApiSecret);
 
-            const tickers = visiblePositions.map(pos => pos.tickerSymbol);
+            createOrUpdateChart(ticker, timeframe, historicalData, realtimeData);
+        }
 
-            if (tickers.length === 0) {
-                appendDebugLog("No tickers found to display charts.");
-                return;
-            }
+        // Function to Initialize Chart with Default or Query Parameters
+        async function initializeChart() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ticker = (urlParams.get('ticker') || 'AAPL').toUpperCase(); // Default to AAPL
+            const timeframe = urlParams.get('timeframe') || '5Min'; // Default to 5Min
 
-            const historicalData = await fetchHistoricalData(tickers, alpacaApiKey, alpacaApiSecret);
+            document.getElementById("tickerInput").value = ticker;
+            document.getElementById("timeframeSelect").value = timeframe;
 
-            // Create a chart for each ticker
-            tickers.forEach(async ticker => {
-                const realtimeData = await fetchRealtimeData([ticker], alpacaApiKey, alpacaApiSecret);
-                createChart(ticker, historicalData[ticker] || [], realtimeData[ticker]);
-            });
-            
+            updateChartData();
+        }
+
+        // Function to Initialize the Application
+        async function initializeApp() {
             // Initialize Event Listeners
             handleSettingsToggle();
             handleSaveKeys();
+
+            // Add event listener to update chart button
+            document.getElementById("updateChartButton").addEventListener("click", updateChartData);
+
+            // Initialize the chart
+            initializeChart();
         }
 
         // Call initializeApp on page load
