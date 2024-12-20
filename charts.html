@@ -208,52 +208,118 @@
         }
 
         // Function to Fetch Historical Data from Alpaca
-        async function fetchHistoricalData(ticker, apiKey, apiSecret, timeframe = '5Min', limit = 500) {
+        async function fetchHistoricalData(ticker, apiKey, apiSecret, timeframe = '5Min') {
             const bars = [];
-            const to = new Date(); // Now
-            const from = new Date(to);
-            from.setDate(to.getDate() - 30); // Go back 30 days (adjust as needed)
-            const formattedTo = to.toISOString().split('T')[0];
-            const formattedFrom = from.toISOString().split('T')[0];
+            const to = new Date();
+            let from = new Date(to);
+            let limit = 500; // Default limit, adjust as needed
+            let maxLimit = 1000; // Maximum limit allowed by Alpaca
 
-            const url = `https://data.alpaca.markets/v2/stocks/bars?symbols=${ticker}&timeframe=${timeframe}&start=${formattedFrom}&end=${formattedTo}&limit=${limit}&adjustment=raw`;
+            // Adjust the 'from' date based on the timeframe
+            switch (timeframe) {
+                case '1Min':
+                    from.setDate(to.getDate() - 2); // Fetch data for the last 2 days
+                    limit = 500; // Adjust limit for 1Min timeframe
+                    break;
+                case '5Min':
+                    from.setDate(to.getDate() - 7); // Fetch data for the last 7 days
+                    limit = 500; // Adjust limit for 5Min timeframe
+                    break;
+                case '15Min':
+                    from.setDate(to.getDate() - 30); // Fetch data for the last 30 days
+                    limit = 500;
+                    break;
+                case '30Min':
+                    from.setDate(to.getDate() - 60); // Fetch data for the last 60 days
+                    limit = 500;
+                    break;
+                case '1H':
+                    from.setMonth(to.getMonth() - 3); // Fetch data for the last 3 months
+                    limit = 500;
+                    break;
+                case '1D':
+                    from.setFullYear(to.getFullYear() - 2); // Fetch data for the last 2 years
+                    limit = 500;
+                    break;
+                default:
+                    from.setDate(to.getDate() - 7); // Default to the last 7 days
+                    limit = 500;
+                    break;
+            }
 
-            try {
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'APCA-API-KEY-ID': apiKey,
-                        'APCA-API-SECRET-KEY': apiSecret
+            let formattedFrom = from.toISOString().split('T')[0];
+            let formattedTo = to.toISOString().split('T')[0];
+            let totalBarsFetched = 0;
+
+            // Fetch data with pagination until the 'from' date is reached
+            do {
+                const url = new URL(`https://data.alpaca.markets/v2/stocks/bars`);
+                const params = {
+                    symbols: ticker,
+                    timeframe: timeframe,
+                    start: formattedFrom,
+                    end: formattedTo,
+                    limit: limit,
+                    adjustment: 'raw'
+                };
+                Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'APCA-API-KEY-ID': apiKey,
+                            'APCA-API-SECRET-KEY': apiSecret
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                if (data.bars && data.bars[ticker]) {
-                    data.bars[ticker].forEach(bar => {
-                        bars.push({
-                            time: new Date(bar.t).getTime() / 1000, // Convert to Unix timestamp
+                    const data = await response.json();
+                    if (data.bars && data.bars[ticker]) {
+                        const fetchedBars = data.bars[ticker].map(bar => ({
+                            time: new Date(bar.t).getTime() / 1000,
                             open: bar.o,
                             high: bar.h,
                             low: bar.l,
                             close: bar.c,
                             volume: bar.v
-                        });
-                    });
-                } else {
-                    console.warn(`No historical data found for ${ticker}`);
-                    appendDebugLog(`No historical data found for ${ticker}`);
-                }
+                        }));
 
-                return bars;
-            } catch (error) {
-                console.error('Error fetching historical data:', error);
-                appendDebugLog(`Error fetching historical data: ${error}`);
-                return [];
-            }
+                        bars.unshift(...fetchedBars); // Add fetched bars to the beginning of the array
+                        totalBarsFetched += fetchedBars.length;
+
+                        // Check if there are more bars to fetch
+                        if (data.next_page_token) {
+                            const oldestBarTime = new Date(data.bars[ticker][0].t);
+                            formattedTo = oldestBarTime.toISOString().split('T')[0];
+                            if(formattedTo === formattedFrom){
+                                break;
+                            }
+                            console.log(`Fetched ${fetchedBars.length} bars, more data available. Fetching again...`);
+                        } else {
+                            console.log(`Fetched ${fetchedBars.length} bars, no more data available.`);
+                            break;
+                        }
+                    } else {
+                        console.warn(`No historical data found for ${ticker}`);
+                        appendDebugLog(`No historical data found for ${ticker}`);
+                        break;
+                    }
+                } catch (error) {
+                    console.error('Error fetching historical data:', error);
+                    appendDebugLog(`Error fetching historical data: ${error}`);
+                    return [];
+                }
+            } while (totalBarsFetched < limit);
+
+            // Ensure bars are sorted in ascending order by time
+            bars.sort((a, b) => a.time - b.time);
+
+            console.log(`Total bars fetched for ${ticker}:`, bars.length);
+            return bars;
         }
 
         // Function to Fetch Real-time Data from Alpaca
