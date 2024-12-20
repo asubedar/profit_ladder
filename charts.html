@@ -322,7 +322,7 @@
             return bars;
         }
 
-        // Function to Fetch Real-time Data from Alpaca
+        // Function to Fetch Real-time Data (using latest minuteBar) from Alpaca
         async function fetchRealtimeData(ticker, apiKey, apiSecret) {
             const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${ticker}`;
             try {
@@ -341,27 +341,27 @@
 
                 const data = await response.json();
 
-                if (data && data[ticker]) {
-                    const snapshot = data[ticker];
+                if (data && data[ticker] && data[ticker].minuteBar) {
+                    const minuteBar = data[ticker].minuteBar;
                     const realtimeData = {
-                        time: new Date(snapshot.latestTrade?.t).getTime() / 1000, // Convert to Unix timestamp
-                        open: snapshot.dailyBar?.o || 0,
-                        high: snapshot.dailyBar?.h || 0,
-                        low: snapshot.dailyBar?.l || 0,
-                        close: snapshot.latestTrade?.p || 0,
-                        volume: snapshot.dailyBar?.v || 0
+                        time: new Date(minuteBar.t).getTime() / 1000, // Convert to Unix timestamp
+                        open: minuteBar.o,
+                        high: minuteBar.h,
+                        low: minuteBar.l,
+                        close: minuteBar.c,
+                        volume: minuteBar.v
                     };
-                    console.log("Fetched realtime data from Alpaca:", realtimeData);
-                    appendDebugLog("Fetched realtime data from Alpaca.");
+                    console.log("Fetched real-time minute bar from Alpaca:", realtimeData);
+                    appendDebugLog("Fetched real-time minute bar from Alpaca.");
                     return realtimeData;
                 } else {
-                    console.error(`No realtime data found for ${ticker}`);
-                    appendDebugLog(`No realtime data found for ${ticker}`);
+                    console.error(`No real-time minute bar found for ${ticker}`);
+                    appendDebugLog(`No real-time minute bar found for ${ticker}`);
                     return null;
                 }
             } catch (error) {
-                console.error("Error fetching realtime data from Alpaca:", error);
-                appendDebugLog(`Error fetching realtime data from Alpaca: ${error}`);
+                console.error("Error fetching real-time minute bar from Alpaca:", error);
+                appendDebugLog(`Error fetching real-time minute bar from Alpaca: ${error}`);
                 return null;
             }
         }
