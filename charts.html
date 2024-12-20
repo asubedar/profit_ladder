@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Stock Charts</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        #chartContainer {
+            width: 90%;
+            height: 500px;
+            margin: 20px auto;
+        }
+        .settings-toggle {
+            cursor: pointer;
+            font-size: 20px;
+            text-align: right;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+        .settings-toggle:hover {
+            color: #00bcd4;
+        }
+        .settings {
+            margin-top: 20px;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+        }
+        /* Debug Logs Styling */
+        #debugLogs {
+            background-color: #1e1e1e;
+            padding: 10px;
+            border: 1px solid #444;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-family: monospace;
+            color: #ff6f61;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="./"><i class="fas fa-calculator"></i> Profit Ladder</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="./">Profit Ladder</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="./portfolio.html">Portfolio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="./charts.html">Charts</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="settings-toggle text-end mt-4">
+            <span id="settingsIcon"><i class="fas fa-cog"></i> Settings</span>
+        </div>
+        <!-- Settings Section -->
+        <div class="settings d-none" id="settings">
+            <h3>Settings</h3>
+
+            <!-- API Keys Section -->
+            <div class="mb-3">
+                <label for="alpacaApiKey" class="form-label">Alpaca API Key:</label>
+                <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
+            </div>
+            <div class="mb-3">
+                <label for="alpacaApiSecret" class="form-label">Alpaca API Secret:</label>
+                <input type="text" id="alpacaApiSecret" class="form-control" placeholder="Enter your Alpaca API Secret">
+            </div>
+            <button id="saveKeys" class="btn btn-primary">Save Settings</button>
+        </div>
+        <div id="chartContainer"></div>
+        <!-- Debug Logs Section -->
+        <div id="debugLogs"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/js/all.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script>
+        // Function to Append Debug Logs
+        function appendDebugLog(message) {
+            const debugLogs = document.getElementById("debugLogs");
+            const logEntry = document.createElement("div");
+            logEntry.textContent = message;
+            debugLogs.appendChild(logEntry);
+            // Auto-scroll to the bottom
+            debugLogs.scrollTop = debugLogs.scrollHeight;
+        }
+
+        // Database Configuration (same as in portfolio.html)
+        const dbName = "ProfitLadderDB";
+        const positionsStoreName = "Positions";
+        const settingsStoreName = "Settings";
+
+        // Function to Open IndexedDB (same as in portfolio.html)
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, 3);
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(positionsStoreName)) {
+                        const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id" });
+                        positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
+                    }
+                    if (!db.objectStoreNames.contains(settingsStoreName)) {
+                        db.createObjectStore(settingsStoreName, { keyPath: "key" });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+
+                request.onerror = (event) => {
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // Function to Fetch Alpaca API Keys from IndexedDB
+        async function getAlpacaApiKeys() {
+            try {
+                const db = await openDatabase();
+                const transaction = db.transaction(settingsStoreName, "readonly");
+                const store = transaction.objectStore(settingsStoreName);
+
+                const getKey = (keyName) => {
+                    return new Promise((resolve, reject) => {
+                        const request = store.get(keyName);
+                        request.onsuccess = (event) => resolve(event.target.result?.value);
+                        request.onerror = (event) => reject(event.target.error);
+                    });
+                };
+
+                const alpacaApiKey = await getKey("APCA_API_KEY_ID");
+                const alpacaApiSecret = await getKey("APCA_API_SECRET_KEY");
+
+                return { alpacaApiKey, alpacaApiSecret };
+            } catch (error) {
+                console.error("Error fetching Alpaca API keys:", error);
+                appendDebugLog(`Error fetching Alpaca API keys: ${error}`);
+                return { alpacaApiKey: null, alpacaApiSecret: null };
+            }
+        }
+
+        // Function to Fetch Historical Data from Alpaca
+        async function fetchHistoricalData(tickers, apiKey, apiSecret, timeframe = '5Min', limit = 100) {
+            const bars = {};
+            const to = new Date(); // Now
+            const from = new Date(to);
+            from.setDate(to.getDate() - 30); // Go back 30 days (adjust as needed)
+            const formattedTo = to.toISOString().split('T')[0];
+            const formattedFrom = from.toISOString().split('T')[0];
+
+            const url = `https://data.alpaca.markets/v2/stocks/bars?symbols=${tickers.join(',')}&timeframe=${timeframe}&start=${formattedFrom}&end=${formattedTo}&limit=${limit}&adjustment=raw`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'APCA-API-KEY-ID': apiKey,
+                        'APCA-API-SECRET-KEY': apiSecret
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                for (const ticker of tickers) {
+                    if (data.bars && data.bars[ticker]) {
+                        bars[ticker] = data.bars[ticker].map(bar => ({
+                            time: new Date(bar.t).getTime() / 1000, // Convert to Unix timestamp
+                            open: bar.o,
+                            high: bar.h,
+                            low: bar.l,
+                            close: bar.c,
+                            volume: bar.v
+                        }));
+                    } else {
+                        console.warn(`No historical data found for ${ticker}`);
+                        appendDebugLog(`No historical data found for ${ticker}`);
+                    }
+                }
+
+                return bars;
+            } catch (error) {
+                console.error('Error fetching historical data:', error);
+                appendDebugLog(`Error fetching historical data: ${error}`);
+                return {};
+            }
+        }
+
+        // Function to Fetch Real-time Data from Alpaca
+        async function fetchRealtimeData(tickers, apiKey, apiSecret) {
+            const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(",")}`;
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        "APCA-API-KEY-ID": apiKey,
+                        "APCA-API-SECRET-KEY": apiSecret,
+                    },
+                });
+
+                if (!response.ok) {
+                    console.error("Failed to fetch snapshots from Alpaca:", response.statusText);
+                    appendDebugLog(`Failed to fetch snapshots from Alpaca: ${response.statusText}`);
+                    return {};
+                }
+
+                const data = await response.json();
+                const realtimeData = {};
+
+                for (const [symbol, snapshot] of Object.entries(data)) {
+                    realtimeData[symbol] = {
+                        time: new Date(snapshot.latestTrade?.t).getTime() / 1000, // Convert to Unix timestamp
+                        open: snapshot.dailyBar?.o || 0,
+                        high: snapshot.dailyBar?.h || 0,
+                        low: snapshot.dailyBar?.l || 0,
+                        close: snapshot.latestTrade?.p || 0,
+                        volume: snapshot.dailyBar?.v || 0
+                    };
+                }
+
+                console.log("Fetched realtime data from Alpaca:", realtimeData);
+                appendDebugLog("Fetched realtime data from Alpaca.");
+                return realtimeData;
+            } catch (error) {
+                console.error("Error fetching realtime data from Alpaca:", error);
+                appendDebugLog(`Error fetching realtime data from Alpaca: ${error}`);
+                return {};
+            }
+        }
+
+        // Function to Create a Chart
+        function createChart(ticker, historicalData, realtimeData) {
+            const chartContainer = document.getElementById('chartContainer');
+
+            // Create a new div for each chart
+            const chartDiv = document.createElement('div');
+            chartDiv.id = `chart-${ticker}`;
+            chartDiv.style.width = '100%';
+            chartDiv.style.height = '500px';
+            chartContainer.appendChild(chartDiv);
+
+            const chart = LightweightCharts.createChart(chartDiv, {
+                width: chartDiv.offsetWidth,
+                height: 500,
+                layout: {
+                    backgroundColor: '#121212',
+                    textColor: '#ffffff',
+                },
+                grid: {
+                    vertLines: {
+                        color: '#444444',
+                    },
+                    horzLines: {
+                        color: '#444444',
+                    },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                timeScale: {
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
+
+            const candlestickSeries = chart.addCandlestickSeries();
+
+            // Set historical data
+            candlestickSeries.setData(historicalData);
+
+            // Update with real-time data
+            if (realtimeData) {
+                candlestickSeries.update(realtimeData);
+            }
+
+            // Add a title to the chart
+            const title = `${ticker} - Real-time Chart`;
+            chart.applyOptions({
+                watermark: {
+                    visible: true,
+                    fontSize: 24,
+                    horzAlign: 'left',
+                    vertAlign: 'top',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    text: title,
+                },
+            });
+
+            return candlestickSeries;
+        }
+
+        // Function to Handle Settings Toggle
+        function handleSettingsToggle() {
+            const settingsToggle = document.getElementById("settingsToggle");
+            const settings = document.getElementById("settings");
+
+            document.getElementById("settingsIcon").addEventListener("click", () => {
+                settings.classList.toggle("d-none");
+                appendDebugLog("Settings panel toggled.");
+            });
+        }
+
+        // Function to Handle Save Keys
+        async function handleSaveKeys() {
+            document.getElementById("saveKeys").addEventListener("click", async () => {
+                const alpacaApiKey = document.getElementById("alpacaApiKey").value.trim();
+                const alpacaApiSecret = document.getElementById("alpacaApiSecret").value.trim();
+
+                try {
+                    const db = await openDatabase();
+                    const transaction = db.transaction(settingsStoreName, "readwrite");
+                    const store = transaction.objectStore(settingsStoreName);
+
+                    if (alpacaApiKey) {
+                        store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
+                    }
+                    if (alpacaApiSecret) {
+                        store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
+                    }
+
+                    await new Promise((resolve, reject) => {
+                        transaction.oncomplete = () => resolve();
+                        transaction.onerror = (event) => reject(event.target.error);
+                    });
+
+                    appendDebugLog("API keys saved successfully.");
+                    alert("API keys saved successfully.");
+                } catch (error) {
+                    console.error("Error saving API keys:", error);
+                    appendDebugLog(`Error saving API keys: ${error}`);
+                    alert("Failed to save API keys. Please try again.");
+                }
+            });
+        }
+
+        // Function to Initialize the Application
+        async function initializeApp() {
+            const { alpacaApiKey, alpacaApiSecret } = await getAlpacaApiKeys();
+
+            if (!alpacaApiKey || !alpacaApiSecret) {
+                alert("Alpaca API keys are not set. Please enter them in the settings.");
+                return;
+            }
+
+            // Fetch visible positions to get the tickers to chart
+            const db = await openDatabase();
+            const transaction = db.transaction(positionsStoreName, "readonly");
+            const store = transaction.objectStore(positionsStoreName);
+            const visiblePositions = await new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = (event) => {
+                    const all = event.target.result;
+                    const visible = all.filter(position => !position.hide);
+                    resolve(visible);
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+
+            const tickers = visiblePositions.map(pos => pos.tickerSymbol);
+
+            if (tickers.length === 0) {
+                appendDebugLog("No tickers found to display charts.");
+                return;
+            }
+
+            const historicalData = await fetchHistoricalData(tickers, alpacaApiKey, alpacaApiSecret);
+
+            // Create a chart for each ticker
+            tickers.forEach(async ticker => {
+                const realtimeData = await fetchRealtimeData([ticker], alpacaApiKey, alpacaApiSecret);
+                createChart(ticker, historicalData[ticker] || [], realtimeData[ticker]);
+            });
+            
+            // Initialize Event Listeners
+            handleSettingsToggle();
+            handleSaveKeys();
+        }
+
+        // Call initializeApp on page load
+        window.addEventListener("load", initializeApp);
+    </script>
+</body>
+</html>
