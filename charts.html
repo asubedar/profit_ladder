@@ -65,12 +65,36 @@
             color: #ffffff;
         }
 
-        #chartControls select, #chartControls input {
+        #chartControls input {
             background-color: #1e1e1e;
             color: #ffffff;
             border: 1px solid #444;
             padding: 5px 10px;
             border-radius: 4px;
+        }
+
+        .timeframe-buttons {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .timeframe-button {
+            background-color: #343a40;
+            color: #fff;
+            border: none;
+            padding: 5px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .timeframe-button:hover {
+            background-color: #555e64;
+        }
+
+        .timeframe-button.active {
+            background-color: #007bff;
         }
 
         /* Tooltip Styling */
@@ -117,18 +141,18 @@
         <div id="chartControls">
             <label for="tickerInput">Ticker:</label>
             <input type="text" id="tickerInput" placeholder="Enter ticker symbol">
-
-            <label for="timeframeSelect">Timeframe:</label>
-            <select id="timeframeSelect">
-                <option value="1Min">1 Minute</option>
-                <option value="5Min" selected>5 Minutes</option>
-                <option value="15Min">15 Minutes</option>
-                <option value="30Min">30 Minutes</option>
-                <option value="1H">1 Hour</option>
-                <option value="1D">1 Day</option>
-            </select>
-
-            <button id="updateChartButton" class="btn btn-primary">Update Chart</button>
+            <div class="timeframe-buttons">
+                <label>Timeframe:</label>
+                <button class="timeframe-button" data-timeframe="1Min">1m</button>
+                <button class="timeframe-button active" data-timeframe="5Min">5m</button>
+                <button class="timeframe-button" data-timeframe="15Min">15m</button>
+                <button class="timeframe-button" data-timeframe="30Min">30m</button>
+                <button class="timeframe-button" data-timeframe="1H">1H</button>
+                <button class="timeframe-button" data-timeframe="4H">4H</button>
+                <button class="timeframe-button" data-timeframe="1D">1D</button>
+                <button class="timeframe-button" data-timeframe="1W">1W</button>
+                <button class="timeframe-button" data-timeframe="1M">1M</button>
+            </div>
         </div>
         <div class="settings-toggle text-end mt-4">
             <span id="settingsIcon"><i class="fas fa-cog"></i> Settings</span>
@@ -250,8 +274,17 @@
                 case '1H':
                     from.setMonth(to.getMonth() - 3); // Fetch data for the last 3 months
                     break;
+                case '4H':
+                    from.setMonth(to.getMonth() - 12); // Fetch data for the last 12 months
+                    break;
                 case '1D':
                     from.setFullYear(to.getFullYear() - 2); // Fetch data for the last 2 years
+                    break;
+                case '1W':
+                    from.setFullYear(to.getFullYear() - 5); // Fetch data for the last 5 years
+                    break;
+                case '1M':
+                    from.setFullYear(to.getFullYear() - 10); // Fetch data for the last 10 years
                     break;
                 default:
                     from.setDate(to.getDate() - 7); // Default to the last 7 days
@@ -359,11 +392,16 @@
         // Global variable to hold the chart object and series
         let chart = null;
         let candlestickSeries = null;
+        let currentTicker = '';
+        let currentTimeframe = '';
 
         // Function to Create or Update the Chart
         async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
             const chartContainer = document.getElementById('chartContainer');
             const tooltip = chartContainer.querySelector('.chart-tooltip');
+
+            currentTicker = ticker;
+            currentTimeframe = timeframe;
 
             // If chart exists, update data
             if (chart !== null) {
@@ -377,6 +415,9 @@
                         candlestickSeries.update(realtimeData);
                     }
                 }
+
+                // Update the chart title
+                updateChartTitle(ticker, timeframe);
                 return;
             }
 
@@ -427,18 +468,8 @@
                 candlestickSeries.update(realtimeData);
             }
 
-            // Add a title to the chart
-            const title = `${ticker} - ${timeframe} - Real-time Chart`;
-            chart.applyOptions({
-                watermark: {
-                    visible: true,
-                    fontSize: 24,
-                    horzAlign: 'left',
-                    vertAlign: 'top',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    text: title,
-                },
-            });
+            // Set the chart title
+            updateChartTitle(ticker, timeframe);
 
             // Handle crosshair move for tooltip
             chart.subscribeCrosshairMove(param => {
@@ -476,9 +507,6 @@
 
             // Apply background color for pre-market and after-hours
             const applySessionBackgrounds = () => {
-                const businessDayCheck = chart.timeScale(). Wiss; // Accessing internal API, might break in future versions
-                if (!businessDayCheck) return;
-
                 const seriesApi = chart.addAreaSeries({
                     topColor: 'rgba(255, 255, 255, 0.03)',
                     bottomColor: 'rgba(255, 255, 255, 0.03)',
@@ -493,7 +521,7 @@
                 seriesApi.setData(data);
 
                 chart.timeScale().applyOptions({
-                     выделениеВыходных: false, // Assuming this disables weekend highlighting
+                     исходныеДанныеВидимы: false, // Hide original data to prevent overlap
                 });
 
                 const updateBackgrounds = () => {
@@ -522,6 +550,21 @@
             };
 
             applySessionBackgrounds();
+        }
+
+        // Function to update the chart title
+        function updateChartTitle(ticker, timeframe) {
+            const title = `${ticker} - ${timeframe} - Real-time Chart`;
+            chart.applyOptions({
+                watermark: {
+                    visible: true,
+                    fontSize: 24,
+                    horzAlign: 'left',
+                    vertAlign: 'top',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    text: title,
+                },
+            });
         }
 
         // Function to Handle Settings Toggle
@@ -568,10 +611,7 @@
         }
 
         // Function to Update Chart Data
-        async function updateChartData() {
-            const ticker = document.getElementById("tickerInput").value.toUpperCase();
-            const timeframe = document.getElementById("timeframeSelect").value;
-
+        async function updateChartData(ticker, timeframe) {
             if (!ticker) {
                 alert("Please enter a ticker symbol.");
                 return;
@@ -592,13 +632,31 @@
         // Function to Initialize Chart with Default or Query Parameters
         async function initializeChart() {
             const urlParams = new URLSearchParams(window.location.search);
+            const tickerInput = document.getElementById("tickerInput");
+            const timeframeButtons = document.querySelectorAll('.timeframe-button');
+
             const ticker = (urlParams.get('ticker') || 'AAPL').toUpperCase(); // Default to AAPL
             const timeframe = urlParams.get('timeframe') || '5Min'; // Default to 5Min
 
-            document.getElementById("tickerInput").value = ticker;
-            document.getElementById("timeframeSelect").value = timeframe;
+            tickerInput.value = ticker;
 
-            updateChartData();
+            timeframeButtons.forEach(button => {
+                button.classList.remove('active');
+                if (button.dataset.timeframe === timeframe) {
+                    button.classList.add('active');
+                }
+            });
+
+            updateChartData(ticker, timeframe);
+        }
+
+        // Function to update URL parameters
+        function updateUrlParams(ticker, timeframe) {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('ticker', ticker);
+            urlParams.set('timeframe', timeframe);
+            const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+            window.history.pushState({ path: newUrl }, '', newUrl);
         }
 
         // Function to Initialize the Application
@@ -607,8 +665,27 @@
             handleSettingsToggle();
             handleSaveKeys();
 
-            // Add event listener to update chart button
-            document.getElementById("updateChartButton").addEventListener("click", updateChartData);
+            const tickerInput = document.getElementById("tickerInput");
+            const timeframeButtons = document.querySelectorAll('.timeframe-button');
+
+            tickerInput.addEventListener('change', (event) => {
+                const newTicker = event.target.value.toUpperCase();
+                const currentActiveTimeframeButton = document.querySelector('.timeframe-button.active');
+                const currentTimeframe = currentActiveTimeframeButton ? currentActiveTimeframeButton.dataset.timeframe : '5Min';
+                updateUrlParams(newTicker, currentTimeframe);
+                updateChartData(newTicker, currentTimeframe);
+            });
+
+            timeframeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    timeframeButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    const newTimeframe = button.dataset.timeframe;
+                    const ticker = document.getElementById("tickerInput").value.toUpperCase();
+                    updateUrlParams(ticker, newTimeframe);
+                    updateChartData(ticker, newTimeframe);
+                });
+            });
 
             // Initialize the chart
             initializeChart();
