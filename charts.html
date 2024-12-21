@@ -403,7 +403,6 @@
         let currentTicker = '';
         let currentTimeframe = '';
 
-        // Function to Create or Update the Charts
         async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
             const chartContainer = document.getElementById('chartContainer');
             const volumeChartContainer = document.getElementById('volumeChartContainer');
@@ -459,6 +458,12 @@
                         timeVisible: true,
                         secondsVisible: false,
                     },
+                    padding: { // Added padding
+                        top: 5,
+                        bottom: 5,
+                        left: 0,
+                        right: 0,
+                    },
                 });
 
                 candlestickSeries = chart.addCandlestickSeries({
@@ -478,6 +483,7 @@
                 // Handle crosshair move for tooltip
                 chart.subscribeCrosshairMove(param => {
                     if (param.point) {
+                        volumeChart.moveCrosshair(param.point); // Synchronize crosshair
                         const bar = param.seriesData.get(candlestickSeries);
                         if (bar) {
                             tooltip.style.opacity = 1;
@@ -502,12 +508,14 @@
                             tooltip.style.opacity = 0;
                         }
                     } else {
+                        volumeChart.clearCrosshair(); // Clear crosshair
                         tooltip.style.opacity = 0;
                     }
                 });
 
                 chart.subscribeMouseLeave(() => {
                     tooltip.style.opacity = 0;
+                    volumeChart.clearCrosshair(); // Clear crosshair on mouse leave
                 });
             }
 
@@ -544,6 +552,12 @@
                         timeVisible: true,
                         secondsVisible: false,
                     },
+                    padding: { // Added padding
+                        top: 5,
+                        bottom: 5,
+                        left: 0,
+                        right: 0,
+                    },
                 });
 
                 volumeSeries = volumeChart.addHistogramSeries({
@@ -564,6 +578,15 @@
                 });
                 volumeChart.timeScale().applyOptions({
                     syncronizedWith: chart.timeScale(),
+                });
+
+                // Synchronize crosshair movements
+                volumeChart.subscribeCrosshairMove(param => {
+                    if (param.point) {
+                        chart.moveCrosshair(param.point);
+                    } else {
+                        chart.clearCrosshair();
+                    }
                 });
             }
         }
