@@ -1,4 +1,3 @@
---- START OF FILE charts.html ---
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -392,6 +391,7 @@
         // Global variable to hold the chart object and series
         let chart = null;
         let candlestickSeries = null;
+        let volumeSeries = null;
         let currentTicker = '';
         let currentTimeframe = '';
 
@@ -403,16 +403,31 @@
             currentTicker = ticker;
             currentTimeframe = timeframe;
 
+            // Calculate dollar volume
+            const historicalDataWithDollarVolume = historicalData.map(bar => ({
+                ...bar,
+                dollarVolume: bar.close * bar.volume
+            }));
+
             // If chart exists, update data
             if (chart !== null) {
-                candlestickSeries.setData(historicalData);
+                candlestickSeries.setData(historicalDataWithDollarVolume);
+                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
+                    time: bar.time,
+                    value: bar.dollarVolume
+                })));
+
                 if (realtimeData) {
+                    const dollarVolume = realtimeData.close * realtimeData.volume;
+                    const realtimeDataWithDollarVolume = {...realtimeData, dollarVolume};
                     // Check for overlap and update or append
-                    const lastBar = historicalData[historicalData.length - 1];
-                    if (lastBar && lastBar.time === realtimeData.time) {
-                        candlestickSeries.update(realtimeData);
-                    } else if (!lastBar || realtimeData.time > lastBar.time) {
-                        candlestickSeries.update(realtimeData);
+                    const lastBar = historicalDataWithDollarVolume[historicalDataWithDollarVolume.length - 1];
+                    if (lastBar && lastBar.time === realtimeDataWithDollarVolume.time) {
+                        candlestickSeries.update(realtimeDataWithDollarVolume);
+                        volumeSeries.update({time: realtimeDataWithDollarVolume.time, value: realtimeDataWithDollarVolume.dollarVolume})
+                    } else if (!lastBar || realtimeDataWithDollarVolume.time > lastBar.time) {
+                        candlestickSeries.update(realtimeDataWithDollarVolume);
+                        volumeSeries.update({time: realtimeDataWithDollarVolume.time, value: realtimeDataWithDollarVolume.dollarVolume})
                     }
                 }
 
@@ -460,12 +475,27 @@
                 wickUpColor: '#838ca1',
             });
 
+            volumeSeries = chart.addHistogramSeries({
+                color: '#26a69a',
+                lineWidth: 2,
+                priceFormat: {
+                    type: 'volume',
+                },
+                overlay: true,
+            });
+
             // Set initial historical data
-            candlestickSeries.setData(historicalData);
+            candlestickSeries.setData(historicalDataWithDollarVolume);
+            volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
+                time: bar.time,
+                value: bar.dollarVolume
+            })));
 
             // Update with initial real-time data if available
             if (realtimeData) {
-                candlestickSeries.update(realtimeData);
+                const dollarVolume = realtimeData.close * realtimeData.volume;
+                candlestickSeries.update({...realtimeData, dollarVolume});
+                volumeSeries.update({time: realtimeData.time, value: dollarVolume});
             }
 
             // Set the chart title
@@ -492,6 +522,7 @@
                             <div>Low: ${bar.low}</div>
                             <div>Close: ${bar.close}</div>
                             <div>Volume: ${bar.volume}</div>
+                            <div>Dollar Volume: ${bar.dollarVolume.toFixed(2)}</div>
                         `;
                     } else {
                         tooltip.style.opacity = 0;
