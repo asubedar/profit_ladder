@@ -14,10 +14,16 @@
         }
         #chartContainer {
             width: 90%;
-            height: 500px;
-            margin: 20px auto;
+            height: 400px; /* Reduced height for price chart */
+            margin: 20px auto 10px;
             background-color: #131722;
             position: relative; /* For tooltip positioning */
+        }
+        #volumeChartContainer {
+            width: 90%;
+            height: 100px; /* Height for volume chart */
+            margin: 0 auto 20px;
+            background-color: #131722;
         }
         .settings-toggle {
             cursor: pointer;
@@ -174,6 +180,7 @@
         <div id="chartContainer">
             <div class="chart-tooltip" style="opacity: 0;"></div>
         </div>
+        <div id="volumeChartContainer"></div>
         <!-- Debug Logs Section -->
         <div id="debugLogs"></div>
     </div>
@@ -388,16 +395,18 @@
             }
         }
 
-        // Global variable to hold the chart object and series
+        // Global variable to hold the chart objects and series
         let chart = null;
+        let volumeChart = null;
         let candlestickSeries = null;
         let volumeSeries = null;
         let currentTicker = '';
         let currentTimeframe = '';
 
-        // Function to Create or Update the Chart
+        // Function to Create or Update the Charts
         async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
             const chartContainer = document.getElementById('chartContainer');
+            const volumeChartContainer = document.getElementById('volumeChartContainer');
             const tooltip = chartContainer.querySelector('.chart-tooltip');
 
             currentTicker = ticker;
@@ -409,178 +418,154 @@
                 dollarVolume: bar.close * bar.volume
             }));
 
-            // If chart exists, update data
+            // **Price Chart**
             if (chart !== null) {
                 candlestickSeries.setData(historicalDataWithDollarVolume);
-                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
-                    time: bar.time,
-                    value: bar.dollarVolume
-                })));
-
                 if (realtimeData) {
-                    const dollarVolume = realtimeData.close * realtimeData.volume;
-                    const realtimeDataWithDollarVolume = {...realtimeData, dollarVolume};
-                    // Check for overlap and update or append
+                    const realtimeDataWithDollarVolume = {...realtimeData, dollarVolume: realtimeData.close * realtimeData.volume};
                     const lastBar = historicalDataWithDollarVolume[historicalDataWithDollarVolume.length - 1];
                     if (lastBar && lastBar.time === realtimeDataWithDollarVolume.time) {
                         candlestickSeries.update(realtimeDataWithDollarVolume);
-                        volumeSeries.update({time: realtimeDataWithDollarVolume.time, value: realtimeDataWithDollarVolume.dollarVolume})
                     } else if (!lastBar || realtimeDataWithDollarVolume.time > lastBar.time) {
                         candlestickSeries.update(realtimeDataWithDollarVolume);
-                        volumeSeries.update({time: realtimeDataWithDollarVolume.time, value: realtimeDataWithDollarVolume.dollarVolume})
                     }
                 }
-
-                // Update the chart title
                 updateChartTitle(ticker, timeframe);
-                return;
-            }
-
-            // Create a new chart
-            chart = LightweightCharts.createChart(chartContainer, {
-                width: chartContainer.offsetWidth,
-                height: 500,
-                layout: {
-                    backgroundColor: '#131722',
-                    background: { type: 'solid', color: '#131722' },
-                    textColor: 'rgba(255, 255, 255, 0.9)',
-                },
-                grid: {
-                    vertLines: {
-                        color: 'rgba(197, 203, 206, 0.5)',
+            } else {
+                chart = LightweightCharts.createChart(chartContainer, {
+                    width: chartContainer.offsetWidth,
+                    height: 400,
+                    layout: {
+                        backgroundColor: '#131722',
+                        background: { type: 'solid', color: '#131722' },
+                        textColor: 'rgba(255, 255, 255, 0.9)',
                     },
-                    horzLines: {
-                        color: 'rgba(197, 203, 206, 0.5)',
+                    grid: {
+                        vertLines: {
+                            color: 'rgba(197, 203, 206, 0.5)',
+                        },
+                        horzLines: {
+                            color: 'rgba(197, 203, 206, 0.5)',
+                        },
                     },
-                },
-                crosshair: {
-                    mode: LightweightCharts.CrosshairMode.Magnet,
-                },
-                priceScale: {
-                    borderColor: 'rgba(197, 203, 206, 0.8)',
-                },
-                timeScale: {
-                    borderColor: 'rgba(197, 203, 206, 0.8)',
-                    timeVisible: true,
-                    secondsVisible: false,
-                },
-            });
+                    crosshair: {
+                        mode: LightweightCharts.CrosshairMode.Magnet,
+                    },
+                    priceScale: {
+                        borderColor: 'rgba(197, 203, 206, 0.8)',
+                    },
+                    timeScale: {
+                        borderColor: 'rgba(197, 203, 206, 0.8)',
+                        timeVisible: true,
+                        secondsVisible: false,
+                    },
+                });
 
-            candlestickSeries = chart.addCandlestickSeries({
-                upColor: '#4bffb5',
-                downColor: '#ff4976',
-                borderDownColor: '#ff4976',
-                borderUpColor: '#4bffb5',
-                wickDownColor: '#838ca1',
-                wickUpColor: '#838ca1',
-            });
+                candlestickSeries = chart.addCandlestickSeries({
+                    upColor: '#4bffb5',
+                    downColor: '#ff4976',
+                    borderDownColor: '#ff4976',
+                    borderUpColor: '#4bffb5',
+                    wickDownColor: '#838ca1',
+                    wickUpColor: '#838ca1',
+                });
+                candlestickSeries.setData(historicalDataWithDollarVolume);
+                if (realtimeData) {
+                    candlestickSeries.update({...realtimeData, dollarVolume: realtimeData.close * realtimeData.volume});
+                }
+                updateChartTitle(ticker, timeframe);
 
-            volumeSeries = chart.addHistogramSeries({
-                color: '#26a69a',
-                lineWidth: 2,
-                priceFormat: {
-                    type: 'volume',
-                },
-                overlay: true,
-            });
+                // Handle crosshair move for tooltip
+                chart.subscribeCrosshairMove(param => {
+                    if (param.point) {
+                        const bar = param.seriesData.get(candlestickSeries);
+                        if (bar) {
+                            tooltip.style.opacity = 1;
+                            tooltip.style.left = param.point.x + 'px';
+                            tooltip.style.top = param.point.y + 'px';
 
-            // Set initial historical data
-            candlestickSeries.setData(historicalDataWithDollarVolume);
-            volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
-                time: bar.time,
-                value: bar.dollarVolume
-            })));
+                            const date = new Date(bar.time * 1000);
+                            const formattedDate = date.toLocaleDateString();
+                            const formattedTime = date.toLocaleTimeString();
 
-            // Update with initial real-time data if available
-            if (realtimeData) {
-                const dollarVolume = realtimeData.close * realtimeData.volume;
-                candlestickSeries.update({...realtimeData, dollarVolume});
-                volumeSeries.update({time: realtimeData.time, value: dollarVolume});
-            }
-
-            // Set the chart title
-            updateChartTitle(ticker, timeframe);
-
-            // Handle crosshair move for tooltip
-            chart.subscribeCrosshairMove(param => {
-                if (param.point) {
-                    const bar = param.seriesData.get(candlestickSeries);
-                    if (bar) {
-                        tooltip.style.opacity = 1;
-                        tooltip.style.left = param.point.x + 'px';
-                        tooltip.style.top = param.point.y + 'px';
-
-                        const date = new Date(bar.time * 1000);
-                        const formattedDate = date.toLocaleDateString();
-                        const formattedTime = date.toLocaleTimeString();
-
-                        tooltip.innerHTML = `
-                            <div>Date: ${formattedDate}</div>
-                            <div>Time: ${formattedTime}</div>
-                            <div>Open: ${bar.open}</div>
-                            <div>High: ${bar.high}</div>
-                            <div>Low: ${bar.low}</div>
-                            <div>Close: ${bar.close}</div>
-                            <div>Volume: ${bar.volume}</div>
-                            <div>Dollar Volume: ${bar.dollarVolume.toFixed(2)}</div>
-                        `;
+                            tooltip.innerHTML = `
+                                <div>Date: ${formattedDate}</div>
+                                <div>Time: ${formattedTime}</div>
+                                <div>Open: ${bar.open}</div>
+                                <div>High: ${bar.high}</div>
+                                <div>Low: ${bar.low}</div>
+                                <div>Close: ${bar.close}</div>
+                                <div>Volume: ${bar.volume}</div>
+                                <div>Dollar Volume: ${bar.dollarVolume ? bar.dollarVolume.toFixed(2) : 'N/A'}</div>
+                            `;
+                        } else {
+                            tooltip.style.opacity = 0;
+                        }
                     } else {
                         tooltip.style.opacity = 0;
                     }
-                } else {
+                });
+
+                chart.subscribeMouseLeave(() => {
                     tooltip.style.opacity = 0;
+                });
+            }
+
+            // **Volume Chart**
+            if (volumeChart !== null) {
+                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({ time: bar.time, value: bar.dollarVolume })));
+                if (realtimeData) {
+                    volumeSeries.update({ time: realtimeData.time, value: realtimeData.close * realtimeData.volume });
                 }
-            });
-
-            chart.subscribeMouseLeave(() => {
-                tooltip.style.opacity = 0;
-            });
-
-            // Apply background color for pre-market and after-hours
-            const applySessionBackgrounds = () => {
-                const seriesApi = chart.addAreaSeries({
-                    topColor: 'rgba(255, 255, 255, 0.03)',
-                    bottomColor: 'rgba(255, 255, 255, 0.03)',
-                    lineColor: 'transparent',
-                    lineWidth: 0,
-                    crosshairMarkerVisible: false,
-                    lastValueVisible: false,
-                    priceLineVisible: false,
+            } else {
+                volumeChart = LightweightCharts.createChart(volumeChartContainer, {
+                    width: volumeChartContainer.offsetWidth,
+                    height: 100,
+                    layout: {
+                        backgroundColor: '#131722',
+                        background: { type: 'solid', color: '#131722' },
+                        textColor: 'rgba(255, 255, 255, 0.9)',
+                    },
+                    grid: {
+                        vertLines: {
+                            color: 'rgba(197, 203, 206, 0.5)',
+                        },
+                        horzLines: {
+                            color: 'rgba(197, 203, 206, 0.5)',
+                        },
+                    },
+                    priceScale: {
+                        borderColor: 'rgba(197, 203, 206, 0.8)',
+                        mode: LightweightCharts.PriceScaleMode.Logarithmic,
+                        autoScale: true,
+                    },
+                    timeScale: {
+                        borderColor: 'rgba(197, 203, 206, 0.8)',
+                        timeVisible: true,
+                        secondsVisible: false,
+                    },
                 });
 
-                const data = historicalData.map(bar => ({ time: bar.time, value: 0 }));
-                seriesApi.setData(data);
+                volumeSeries = volumeChart.addHistogramSeries({
+                    color: '#26a69a',
+                    lineWidth: 2,
+                    priceFormat: {
+                        type: 'number',
+                    },
+                });
+                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({ time: bar.time, value: bar.dollarVolume })));
+                if (realtimeData) {
+                    volumeSeries.update({ time: realtimeData.time, value: realtimeData.close * realtimeData.volume });
+                }
 
+                // Synchronize time scales
                 chart.timeScale().applyOptions({
-                     исходныеДанныеВидимы: false, // Hide original data to prevent overlap
+                    syncronizedWith: volumeChart.timeScale(),
                 });
-
-                const updateBackgrounds = () => {
-                    const currentTime = Math.floor(Date.now() / 1000);
-                    const estOffset = -5 * 3600; // EST offset in seconds
-                    const currentEstHour = new Date((currentTime + estOffset) * 1000).getUTCHours();
-
-                    const isPreMarket = currentEstHour >= 4 && currentEstHour < 9;
-                    const isMarketHours = currentEstHour >= 9 && currentEstHour < 16;
-                    const isAfterHours = currentEstHour >= 16 && currentEstHour < 20;
-
-                    const chartOptions = {};
-                    if (isPreMarket) {
-                        chartOptions.layout = { background: { type: 'solid', color: 'rgba(0, 0, 255, 0.05)' } };
-                    } else if (isAfterHours) {
-                        chartOptions.layout = { background: { type: 'solid', color: 'rgba(0, 0, 255, 0.05)' } };
-                    } else {
-                        chartOptions.layout = { background: { type: 'solid', color: '#131722' } };
-                    }
-                    chart.applyOptions(chartOptions);
-                };
-
-                // Update backgrounds periodically (e.g., every minute)
-                setInterval(updateBackgrounds, 60000);
-                updateBackgrounds(); // Initial call
-            };
-
-            applySessionBackgrounds();
+                volumeChart.timeScale().applyOptions({
+                    syncronizedWith: chart.timeScale(),
+                });
+            }
         }
 
         // Function to update the chart title
