@@ -1,3 +1,4 @@
+--- START OF FILE charts.html ---
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Stock Chart</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         body {
             background-color: #121212;
@@ -12,10 +14,11 @@
             font-family: Arial, sans-serif;
         }
         #chartContainer {
-        width: 90%;
-        height: 500px;
-        margin: 20px auto;
-        background-color: #131722; /* Set the background color to match the chart */
+            width: 90%;
+            height: 500px;
+            margin: 20px auto;
+            background-color: #131722;
+            position: relative; /* For tooltip positioning */
         }
         .settings-toggle {
             cursor: pointer;
@@ -68,6 +71,20 @@
             border: 1px solid #444;
             padding: 5px 10px;
             border-radius: 4px;
+        }
+
+        /* Tooltip Styling */
+        .chart-tooltip {
+            position: absolute;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
         }
     </style>
 </head>
@@ -131,7 +148,9 @@
             </div>
             <button id="saveKeys" class="btn btn-primary">Save Settings</button>
         </div>
-        <div id="chartContainer"></div>
+        <div id="chartContainer">
+            <div class="chart-tooltip" style="opacity: 0;"></div>
+        </div>
         <!-- Debug Logs Section -->
         <div id="debugLogs"></div>
     </div>
@@ -212,50 +231,39 @@
             const bars = [];
             const to = new Date();
             let from = new Date(to);
-            let limit = 500; // Default limit, adjust as needed
-            let maxLimit = 10000; // Maximum limit allowed by Alpaca
+            let limit = 1000; // Adjust limit as needed
 
             // Adjust the 'from' date based on the timeframe
             switch (timeframe) {
                 case '1Min':
-                    from.setDate(to.getDate() - 2); // Fetch data for the last 2 days
-                    limit = 10000; // Adjust limit for 1Min timeframe
+                    from.setDate(to.getDate() - 1); // Fetch data for the last day
                     break;
                 case '5Min':
                     from.setDate(to.getDate() - 7); // Fetch data for the last 7 days
-                    limit = 20000; // Adjust limit for 5Min timeframe
                     break;
                 case '15Min':
                     from.setDate(to.getDate() - 30); // Fetch data for the last 30 days
-                    limit = 10000;
                     break;
                 case '30Min':
                     from.setDate(to.getDate() - 60); // Fetch data for the last 60 days
-                    limit = 10000;
                     break;
                 case '1H':
                     from.setMonth(to.getMonth() - 3); // Fetch data for the last 3 months
-                    limit = 10000;
                     break;
                 case '1D':
                     from.setFullYear(to.getFullYear() - 2); // Fetch data for the last 2 years
-                    limit = 10000;
                     break;
                 default:
                     from.setDate(to.getDate() - 7); // Default to the last 7 days
-                    limit = 10000;
                     break;
             }
 
             let formattedFrom = from.toISOString().split('T')[0];
             let formattedTo = to.toISOString().split('T')[0];
-            let totalBarsFetched = 0;
 
-            // Fetch data with pagination until the 'from' date is reached
-            do {
-                const url = new URL(`https://data.alpaca.markets/v2/stocks/bars`);
+            try {
+                const url = new URL(`https://data.alpaca.markets/v2/stocks/${ticker}/bars`);
                 const params = {
-                    symbols: ticker,
                     timeframe: timeframe,
                     start: formattedFrom,
                     end: formattedTo,
@@ -264,61 +272,43 @@
                 };
                 Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-                try {
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        headers: {
-                            'APCA-API-KEY-ID': apiKey,
-                            'APCA-API-SECRET-KEY': apiSecret
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'APCA-API-KEY-ID': apiKey,
+                        'APCA-API-SECRET-KEY': apiSecret
                     }
+                });
 
-                    const data = await response.json();
-                    if (data.bars && data.bars[ticker]) {
-                        const fetchedBars = data.bars[ticker].map(bar => ({
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.bars) {
+                    data.bars.forEach(bar => {
+                        bars.push({
                             time: new Date(bar.t).getTime() / 1000,
                             open: bar.o,
                             high: bar.h,
                             low: bar.l,
                             close: bar.c,
                             volume: bar.v
-                        }));
-
-                        bars.unshift(...fetchedBars); // Add fetched bars to the beginning of the array
-                        totalBarsFetched += fetchedBars.length;
-
-                        // Check if there are more bars to fetch
-                        if (data.next_page_token) {
-                            const oldestBarTime = new Date(data.bars[ticker][0].t);
-                            formattedTo = oldestBarTime.toISOString().split('T')[0];
-                            if(formattedTo === formattedFrom){
-                                break;
-                            }
-                            console.log(`Fetched ${fetchedBars.length} bars, more data available. Fetching again...`);
-                        } else {
-                            console.log(`Fetched ${fetchedBars.length} bars, no more data available.`);
-                            break;
-                        }
-                    } else {
-                        console.warn(`No historical data found for ${ticker}`);
-                        appendDebugLog(`No historical data found for ${ticker}`);
-                        break;
-                    }
-                } catch (error) {
-                    console.error('Error fetching historical data:', error);
-                    appendDebugLog(`Error fetching historical data: ${error}`);
-                    return [];
+                        });
+                    });
+                } else {
+                    console.warn(`No historical data found for ${ticker}`);
+                    appendDebugLog(`No historical data found for ${ticker}`);
                 }
-            } while (totalBarsFetched < limit);
+            } catch (error) {
+                console.error('Error fetching historical data:', error);
+                appendDebugLog(`Error fetching historical data: ${error}`);
+                return [];
+            }
 
             // Ensure bars are sorted in ascending order by time
             bars.sort((a, b) => a.time - b.time);
 
-            console.log(`Total bars fetched for ${ticker}:`, bars.length);
             return bars;
         }
 
@@ -366,17 +356,28 @@
             }
         }
 
-        // Global variable to hold the chart object
+        // Global variable to hold the chart object and series
         let chart = null;
+        let candlestickSeries = null;
 
         // Function to Create or Update the Chart
         async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
             const chartContainer = document.getElementById('chartContainer');
+            const tooltip = chartContainer.querySelector('.chart-tooltip');
 
-            // If chart exists, remove it
+            // If chart exists, update data
             if (chart !== null) {
-                chart.remove();
-                chart = null;
+                candlestickSeries.setData(historicalData);
+                if (realtimeData) {
+                    // Check for overlap and update or append
+                    const lastBar = historicalData[historicalData.length - 1];
+                    if (lastBar && lastBar.time === realtimeData.time) {
+                        candlestickSeries.update(realtimeData);
+                    } else if (!lastBar || realtimeData.time > lastBar.time) {
+                        candlestickSeries.update(realtimeData);
+                    }
+                }
+                return;
             }
 
             // Create a new chart
@@ -384,7 +385,7 @@
                 width: chartContainer.offsetWidth,
                 height: 500,
                 layout: {
-                    backgroundColor: '#131722', 
+                    backgroundColor: '#131722',
                     background: { type: 'solid', color: '#131722' },
                     textColor: 'rgba(255, 255, 255, 0.9)',
                 },
@@ -397,7 +398,7 @@
                     },
                 },
                 crosshair: {
-                    mode: LightweightCharts.CrosshairMode.Normal,
+                    mode: LightweightCharts.CrosshairMode.Magnet,
                 },
                 priceScale: {
                     borderColor: 'rgba(197, 203, 206, 0.8)',
@@ -409,7 +410,7 @@
                 },
             });
 
-            const candlestickSeries = chart.addCandlestickSeries({
+            candlestickSeries = chart.addCandlestickSeries({
                 upColor: '#4bffb5',
                 downColor: '#ff4976',
                 borderDownColor: '#ff4976',
@@ -418,10 +419,10 @@
                 wickUpColor: '#838ca1',
             });
 
-            // Set historical data
+            // Set initial historical data
             candlestickSeries.setData(historicalData);
 
-            // Update with real-time data
+            // Update with initial real-time data if available
             if (realtimeData) {
                 candlestickSeries.update(realtimeData);
             }
@@ -439,12 +440,92 @@
                 },
             });
 
-            return candlestickSeries;
+            // Handle crosshair move for tooltip
+            chart.subscribeCrosshairMove(param => {
+                if (param.point) {
+                    const bar = param.seriesData.get(candlestickSeries);
+                    if (bar) {
+                        tooltip.style.opacity = 1;
+                        tooltip.style.left = param.point.x + 'px';
+                        tooltip.style.top = param.point.y + 'px';
+
+                        const date = new Date(bar.time * 1000);
+                        const formattedDate = date.toLocaleDateString();
+                        const formattedTime = date.toLocaleTimeString();
+
+                        tooltip.innerHTML = `
+                            <div>Date: ${formattedDate}</div>
+                            <div>Time: ${formattedTime}</div>
+                            <div>Open: ${bar.open}</div>
+                            <div>High: ${bar.high}</div>
+                            <div>Low: ${bar.low}</div>
+                            <div>Close: ${bar.close}</div>
+                            <div>Volume: ${bar.volume}</div>
+                        `;
+                    } else {
+                        tooltip.style.opacity = 0;
+                    }
+                } else {
+                    tooltip.style.opacity = 0;
+                }
+            });
+
+            chart.subscribeMouseLeave(() => {
+                tooltip.style.opacity = 0;
+            });
+
+            // Apply background color for pre-market and after-hours
+            const applySessionBackgrounds = () => {
+                const businessDayCheck = chart.timeScale(). Wiss; // Accessing internal API, might break in future versions
+                if (!businessDayCheck) return;
+
+                const seriesApi = chart.addAreaSeries({
+                    topColor: 'rgba(255, 255, 255, 0.03)',
+                    bottomColor: 'rgba(255, 255, 255, 0.03)',
+                    lineColor: 'transparent',
+                    lineWidth: 0,
+                    crosshairMarkerVisible: false,
+                    lastValueVisible: false,
+                    priceLineVisible: false,
+                });
+
+                const data = historicalData.map(bar => ({ time: bar.time, value: 0 }));
+                seriesApi.setData(data);
+
+                chart.timeScale().applyOptions({
+                     выделениеВыходных: false, // Assuming this disables weekend highlighting
+                });
+
+                const updateBackgrounds = () => {
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    const estOffset = -5 * 3600; // EST offset in seconds
+                    const currentEstHour = new Date((currentTime + estOffset) * 1000).getUTCHours();
+
+                    const isPreMarket = currentEstHour >= 4 && currentEstHour < 9;
+                    const isMarketHours = currentEstHour >= 9 && currentEstHour < 16;
+                    const isAfterHours = currentEstHour >= 16 && currentEstHour < 20;
+
+                    const chartOptions = {};
+                    if (isPreMarket) {
+                        chartOptions.layout = { background: { type: 'solid', color: 'rgba(0, 0, 255, 0.05)' } };
+                    } else if (isAfterHours) {
+                        chartOptions.layout = { background: { type: 'solid', color: 'rgba(0, 0, 255, 0.05)' } };
+                    } else {
+                        chartOptions.layout = { background: { type: 'solid', color: '#131722' } };
+                    }
+                    chart.applyOptions(chartOptions);
+                };
+
+                // Update backgrounds periodically (e.g., every minute)
+                setInterval(updateBackgrounds, 60000);
+                updateBackgrounds(); // Initial call
+            };
+
+            applySessionBackgrounds();
         }
 
         // Function to Handle Settings Toggle
         function handleSettingsToggle() {
-            const settingsToggle = document.getElementById("settingsToggle");
             const settings = document.getElementById("settings");
 
             document.getElementById("settingsIcon").addEventListener("click", () => {
