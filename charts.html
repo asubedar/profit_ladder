@@ -20,16 +20,10 @@
     }
     #chartContainer {
       width: 90%;
-      height: 400px;
+      height: 500px; /* made taller to accommodate volume */
       margin: 20px auto 10px;
       background-color: #131722;
       position: relative; /* For tooltip positioning */
-    }
-    #volumeChartContainer {
-      width: 90%;
-      height: 100px;
-      margin: 0 auto 20px;
-      background-color: #131722;
     }
     .settings-toggle {
       cursor: pointer;
@@ -149,6 +143,7 @@
       </div>
     </div>
   </nav>
+
   <div class="container">
     <!-- Chart Controls -->
     <div id="chartControls">
@@ -199,14 +194,10 @@
       <button id="saveKeys" class="btn btn-primary">Save Settings</button>
     </div>
 
-    <!-- Main Chart & Tooltips -->
+    <!-- Single Chart + Tooltip -->
     <div id="chartContainer">
-      <!-- Single tooltip for all series -->
       <div class="chart-tooltip" style="opacity: 0;"></div>
     </div>
-
-    <!-- Volume Chart -->
-    <div id="volumeChartContainer"></div>
 
     <!-- Debug Logs Section -->
     <div id="debugLogs"></div>
@@ -287,13 +278,8 @@
       }
     }
 
-    // Function to Fetch Historical Data with Pagination
-    async function fetchHistoricalData(
-      ticker,
-      apiKey,
-      apiSecret,
-      timeframe = "15Min"
-    ) {
+    // Function to Fetch Historical Data from Alpaca with Pagination
+    async function fetchHistoricalData(ticker, apiKey, apiSecret, timeframe = "15Min") {
       let bars = [];
       let page_token = null;
       const to = new Date();
@@ -339,9 +325,7 @@
 
       try {
         while (true) {
-          const url = new URL(
-            `https://data.alpaca.markets/v2/stocks/${ticker}/bars`
-          );
+          const url = new URL(`https://data.alpaca.markets/v2/stocks/${ticker}/bars`);
           const params = {
             timeframe: timeframe,
             start: formattedFrom,
@@ -385,10 +369,8 @@
               });
             });
           } else {
-            console.warn(
-              `No historical data found for ${ticker} in this response.`
-            );
-            appendDebugLog(`No historical data found for ${ticker}.`);
+            console.warn(`No historical data found for ${ticker} in this response.`);
+            appendDebugLog(`No historical data found for ${ticker} in this response.`);
             break; // Exit the loop if no data is found
           }
 
@@ -397,7 +379,7 @@
             page_token = data.next_page_token;
             console.log("Fetching next page with token:", page_token);
           } else {
-            break; // No more pages, exit the loop
+            break; // No more pages
           }
         }
       } catch (error) {
@@ -412,7 +394,7 @@
       return bars;
     }
 
-    // Function to Fetch Real-time Data (latest minuteBar)
+    // Function to Fetch Real-time Data (latest minuteBar) from Alpaca
     async function fetchRealtimeData(ticker, apiKey, apiSecret) {
       const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${ticker}`;
       try {
@@ -461,9 +443,8 @@
       }
     }
 
-    // Global chart/series references
+    // Global references
     let chart = null;
-    let volumeChart = null;
     let candlestickSeries = null;
     let volumeSeries = null;
     let vwapSeries = null;
@@ -474,15 +455,12 @@
 
     async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
       const chartContainer = document.getElementById("chartContainer");
-      const volumeChartContainer = document.getElementById("volumeChartContainer");
       const tooltip = chartContainer.querySelector(".chart-tooltip");
 
       currentTicker = ticker;
       currentTimeframe = timeframe;
 
-      // ----- Prepare data for each series -----
-
-      // Candlestick data (just O/H/L/C/time)
+      // --- Prepare data for each series ---
       const candleData = historicalData.map((bar) => ({
         time: bar.time,
         open: bar.open,
@@ -491,35 +469,30 @@
         close: bar.close,
       }));
 
-      // Volume data for histogram
       const volumeData = historicalData.map((bar) => ({
         time: bar.time,
         value: bar.volume,
       }));
 
-      // VWAP data for line series
       const vwapData = historicalData.map((bar) => ({
         time: bar.time,
         value: bar.vwap,
       }));
 
-      // trade_count data for line series
       const tradeCountData = historicalData.map((bar) => ({
         time: bar.time,
         value: bar.trade_count,
       }));
 
-      // If the chart is already created, just update series data
-      if (chart && volumeChart) {
+      // If chart already exists, just update
+      if (chart) {
         candlestickSeries.setData(candleData);
         volumeSeries.setData(volumeData);
         vwapSeries.setData(vwapData);
         tradeCountSeries.setData(tradeCountData);
 
-        // If we have real-time data, update
         if (realtimeData) {
           const rtTime = realtimeData.time;
-
           candlestickSeries.update({
             time: rtTime,
             open: realtimeData.open,
@@ -540,17 +513,14 @@
             value: realtimeData.trade_count,
           });
         }
-
         updateChartTitle(ticker, timeframe);
         return;
       }
 
-      // ----- Otherwise, create brand-new charts & series -----
-
-      // Main Price Chart
+      // Otherwise, create a brand-new chart
       chart = LightweightCharts.createChart(chartContainer, {
         width: chartContainer.offsetWidth,
-        height: 400,
+        height: 500,
         layout: {
           backgroundColor: "#131722",
           textColor: "rgba(255, 255, 255, 0.9)",
@@ -566,9 +536,6 @@
         crosshair: {
           mode: LightweightCharts.CrosshairMode.Magnet,
         },
-        priceScale: {
-          borderColor: "rgba(197, 203, 206, 0.8)",
-        },
         timeScale: {
           borderColor: "rgba(197, 203, 206, 0.8)",
           timeVisible: true,
@@ -576,7 +543,7 @@
         },
       });
 
-      // Candlestick series (price)
+      // Main candlestick
       candlestickSeries = chart.addCandlestickSeries({
         upColor: "#4bffb5",
         downColor: "#ff4976",
@@ -587,22 +554,36 @@
       });
       candlestickSeries.setData(candleData);
 
-      // VWAP line series (same price scale as candlestick)
+      // Volume histogram on separate price scale (bottom)
+      volumeSeries = chart.addHistogramSeries({
+        color: "#26a69a",
+        lineWidth: 2,
+        priceFormat: { type: "volume" },
+        priceScaleId: "", // put on the default (right) scale
+      });
+      volumeSeries.setData(volumeData);
+
+      // We can shrink the volume series to the bottom by adjusting scale margins
+      chart.priceScale("").applyOptions({
+        scaleMargins: {
+          top: 0.7,     // top 70% for candlesticks
+          bottom: 0,
+        },
+      });
+
+      // VWAP line
       vwapSeries = chart.addLineSeries({
         color: "yellow",
         lineWidth: 2,
-        // priceScaleId: 'right'   // optionally set a different scale
       });
       vwapSeries.setData(vwapData);
 
-      // trade_count line series on a separate price scale
-      // so it doesn't mix with normal price scale
+      // Trade count line on a left scale
       tradeCountSeries = chart.addLineSeries({
         color: "purple",
         lineWidth: 2,
         priceScaleId: "left",
       });
-      // Create a separate scale for the left side
       chart.priceScale("left").applyOptions({
         visible: true,
         borderVisible: true,
@@ -610,42 +591,7 @@
       });
       tradeCountSeries.setData(tradeCountData);
 
-      // Volume Chart
-      volumeChart = LightweightCharts.createChart(volumeChartContainer, {
-        width: volumeChartContainer.offsetWidth,
-        height: 100,
-        layout: {
-          backgroundColor: "#131722",
-          textColor: "rgba(255, 255, 255, 0.9)",
-        },
-        grid: {
-          vertLines: {
-            color: "rgba(197, 203, 206, 0.5)",
-          },
-          horzLines: {
-            color: "rgba(197, 203, 206, 0.5)",
-          },
-        },
-        timeScale: {
-          borderColor: "rgba(197, 203, 206, 0.8)",
-          timeVisible: true,
-          secondsVisible: false,
-        },
-        priceScale: {
-          borderColor: "rgba(197, 203, 206, 0.8)",
-          autoScale: true,
-        },
-      });
-
-      // Volume histogram (separate chart)
-      volumeSeries = volumeChart.addHistogramSeries({
-        color: "#26a69a",
-        lineWidth: 2,
-        priceFormat: { type: "volume" }, // visually labeled as volume
-      });
-      volumeSeries.setData(volumeData);
-
-      // If we have real-time data, update
+      // Update chart if realtime data is present
       if (realtimeData) {
         const rtTime = realtimeData.time;
         candlestickSeries.update({
@@ -671,13 +617,13 @@
 
       updateChartTitle(ticker, timeframe);
 
-      // Crosshair tooltip
+      // Crosshair event => single tooltip
       chart.subscribeCrosshairMove((param) => {
         if (!param.point) {
           tooltip.style.opacity = 0;
           return;
         }
-        // Position the tooltip
+
         tooltip.style.left = param.point.x + "px";
         tooltip.style.top = param.point.y + "px";
 
@@ -689,7 +635,7 @@
           tooltipContent += `<div><strong>${formattedDate} ${formattedTime}</strong></div>`;
         }
 
-        // Retrieve each series' data from the crosshair
+        // Retrieve data from each series
         const cndl = param.seriesData.get(candlestickSeries);
         const vol = param.seriesData.get(volumeSeries);
         const vw = param.seriesData.get(vwapSeries);
@@ -713,7 +659,7 @@
           vw?.value ? vw.value.toFixed(4) : "N/A"
         }</div>`;
 
-        // Trade Count info
+        // Trade Count
         tooltipContent += `<div>Trade Count: ${
           tc?.value ?? "N/A"
         }</div>`;
@@ -727,7 +673,6 @@
       });
     }
 
-    // Function to update the chart title
     function updateChartTitle(ticker, timeframe) {
       const title = `${ticker} - ${timeframe} - Real-time Chart`;
       chart.applyOptions({
@@ -745,7 +690,6 @@
     // Settings Toggle
     function handleSettingsToggle() {
       const settings = document.getElementById("settings");
-
       document.getElementById("settingsIcon").addEventListener("click", () => {
         settings.classList.toggle("d-none");
         appendDebugLog("Settings panel toggled.");
@@ -808,7 +752,7 @@
       createOrUpdateChart(ticker, timeframe, historicalData, realtimeData);
     }
 
-    // Initialize Chart with defaults or query params
+    // Initialize Chart with default or query params
     async function initializeChart() {
       const urlParams = new URLSearchParams(window.location.search);
       const tickerInput = document.getElementById("tickerInput");
@@ -818,7 +762,6 @@
       const timeframe = urlParams.get("timeframe") || "5Min"; // default
 
       tickerInput.value = ticker;
-
       timeframeButtons.forEach((button) => {
         button.classList.remove("active");
         if (button.dataset.timeframe === timeframe) {
@@ -848,18 +791,15 @@
 
       tickerInput.addEventListener("change", (event) => {
         const newTicker = event.target.value.toUpperCase();
-        const currentActiveTimeframeButton =
-          document.querySelector(".timeframe-button.active");
-        const currentTimeframe = currentActiveTimeframeButton
-          ? currentActiveTimeframeButton.dataset.timeframe
-          : "5Min";
-        updateUrlParams(newTicker, currentTimeframe);
-        updateChartData(newTicker, currentTimeframe);
+        const activeBtn = document.querySelector(".timeframe-button.active");
+        const activeTimeframe = activeBtn ? activeBtn.dataset.timeframe : "5Min";
+        updateUrlParams(newTicker, activeTimeframe);
+        updateChartData(newTicker, activeTimeframe);
       });
 
       timeframeButtons.forEach((button) => {
         button.addEventListener("click", () => {
-          timeframeButtons.forEach((btn) => btn.classList.remove("active"));
+          timeframeButtons.forEach((b) => b.classList.remove("active"));
           button.classList.add("active");
           const newTimeframe = button.dataset.timeframe;
           const ticker = document.getElementById("tickerInput").value.toUpperCase();
@@ -874,5 +814,5 @@
     window.addEventListener("load", initializeApp);
   </script>
 </body>
-v20241222092800
+v20241222093500
 </html>
