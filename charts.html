@@ -305,6 +305,8 @@
                 const url = new URL(`https://data.alpaca.markets/v2/stocks/${ticker}/bars`);
                 const params = {
                     timeframe: timeframe,
+                    start: formattedFrom,
+                    end: formattedTo,
                     limit: limit,
                     adjustment: 'all'
                 };
