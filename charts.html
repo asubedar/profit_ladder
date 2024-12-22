@@ -341,8 +341,8 @@
                                 low: bar.l,
                                 close: bar.c,
                                 volume: bar.v,
-                                n: bar.n, // ADDED - Extract number of trades
-                                vw: bar.vw, // ADDED - Extract VWAP
+                                trade_count: bar.n, // ADDED - Extract number of trades
+                                vwap: bar.vw, // ADDED - Extract VWAP
                             });
                         });
                     } else {
@@ -589,8 +589,8 @@
                                 <div>Low: ${candleBarData.low}</div>
                                 <div>Close: ${candleBarData.close}</div>
                                 <div>Volume: ${candleBarData.volume}</div>
-                                <div>Trades: ${candleBarData.n}</div>
-                                <div>VWAP: ${candleBarData.vw ? candleBarData.vw.toFixed(4) : 'N/A'}</div>
+                                <div>Trades: ${candleBarData.trade_count}</div>
+                                <div>VWAP: ${candleBarData.vwap ? candleBarData.vwap.toFixed(4) : 'N/A'}</div>
                             `;
                         }
 
