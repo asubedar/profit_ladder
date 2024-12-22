@@ -691,7 +691,7 @@
       // Trade count line on 'left' price scale
       tradeCountSeries = chart.addLineSeries({
         color: "purple",
-        lineWidth: 2,
+        lineWidth: 1,
         priceScaleId: "left",
       });
       chart.priceScale("left").applyOptions({
@@ -699,7 +699,7 @@
         borderVisible: true,
         borderColor: "rgba(197, 203, 206, 0.8)",
         min: 0, // Align bottom with volume
-        max: volumeMax,
+        max: volumeMax*10,
       });
       tradeCountSeries.setData(tradeCountData);
 
