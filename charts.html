@@ -1,3 +1,4 @@
+--- START OF FILE charts.html ---
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -140,7 +141,7 @@
         </ul>
       </div>
     </div>
-  </nav>
+   </nav>
 
   <div class="container">
     <!-- Chart Controls -->
@@ -451,7 +452,7 @@
       const startTime = new Date((lastTimestamp + 60) * 1000).toISOString();
       const endTime = new Date().toISOString();
 
-      const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars`;
+      const url = new URL(`https://data.alpaca.markets/v2/stocks/${ticker}/bars`);
       const params = {
         timeframe: "1Min",
         start: startTime,
@@ -960,6 +961,8 @@
     window.addEventListener("load", initializeApp);
 
     // Function to Set Up Real-time Updates
+    let refreshIntervalId; // Declare refreshIntervalId outside the function
+
     function setupRealTimeUpdates() {
       const timeframeButtons = document.querySelectorAll(".timeframe-button");
       timeframeButtons.forEach((button) => {
@@ -1016,7 +1019,5 @@
     }
   </script>
 </body>
-v20241222104100
+v20241222113100
 </html>
-
-
