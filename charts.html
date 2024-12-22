@@ -218,7 +218,6 @@
 
     // Database Configuration
     const dbName = "ProfitLadderDB";
-    const positionsStoreName = "Positions";
     const settingsStoreName = "Settings";
 
     // Function to Open IndexedDB
@@ -228,10 +227,6 @@
 
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
-          if (!db.objectStoreNames.contains(positionsStoreName)) {
-            const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id" });
-            positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
-          }
           if (!db.objectStoreNames.contains(settingsStoreName)) {
             db.createObjectStore(settingsStoreName, { keyPath: "key" });
           }
@@ -390,7 +385,7 @@
     }
 
     // Function to Fetch Real-time Data (latest minuteBar) from Alpaca
-    async function fetchRealtimeData(ticker, apiKey, apiSecret) {
+    async function fetchRealtimeData(ticker, apiKey, apiSecret, lastHistoricalTimestamp) {
       const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${ticker}`;
       try {
         const response = await fetch(url, {
@@ -425,7 +420,15 @@
           };
           console.log("Fetched real-time minute bar:", realtimeData);
           appendDebugLog("Fetched real-time minute bar from Alpaca.");
-          return realtimeData;
+
+          // If the realtime bar is after the last historical bar, fetch additional minute bars
+          if (realtimeData.time > lastHistoricalTimestamp) {
+            // Fetch minute bars since lastHistoricalTimestamp
+            const additionalBars = await fetchAdditionalMinuteBars(ticker, apiKey, apiSecret, lastHistoricalTimestamp);
+            return { ...realtimeData, additionalBars };
+          }
+
+          return { realtimeData };
         } else {
           console.error(`No real-time minute bar found for ${ticker}`);
           appendDebugLog(`No real-time minute bar found for ${ticker}`);
@@ -438,6 +441,65 @@
       }
     }
 
+    // Function to Fetch Additional Minute Bars Since Last Historical Timestamp
+    async function fetchAdditionalMinuteBars(ticker, apiKey, apiSecret, lastTimestamp) {
+      // Calculate the start time as lastTimestamp + 60 seconds
+      const startTime = new Date((lastTimestamp + 60) * 1000).toISOString();
+      const endTime = new Date().toISOString();
+
+      const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars`;
+      const params = {
+        timeframe: "1Min",
+        start: startTime,
+        end: endTime,
+        limit: 1000,
+        adjustment: "all",
+      };
+
+      Object.keys(params).forEach((key) =>
+        url.searchParams.append(key, params[key])
+      );
+
+      try {
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "APCA-API-KEY-ID": apiKey,
+            "APCA-API-SECRET-KEY": apiSecret,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Fetched additional minute bars:", data);
+
+        if (data.bars) {
+          const additionalBars = data.bars.map((bar) => ({
+            time: new Date(bar.t).getTime() / 1000,
+            open: bar.o,
+            high: bar.h,
+            low: bar.l,
+            close: bar.c,
+            volume: bar.v,
+            trade_count: bar.n,
+            vwap: bar.vw,
+          }));
+          return additionalBars;
+        } else {
+          console.warn(`No additional minute bars found for ${ticker} in this response.`);
+          appendDebugLog(`No additional minute bars found for ${ticker} in this response.`);
+          return [];
+        }
+      } catch (error) {
+        console.error("Error fetching additional minute bars:", error);
+        appendDebugLog(`Error fetching additional minute bars: ${error}`);
+        return [];
+      }
+    }
+
     // Global references
     let chart = null;
     let candlestickSeries = null;
@@ -447,6 +509,7 @@
 
     let currentTicker = "";
     let currentTimeframe = "";
+    let lastHistoricalTimestamp = 0; // To track the last timestamp from historical data
 
     async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
       const chartContainer = document.getElementById("chartContainer");
@@ -479,6 +542,11 @@
         value: bar.trade_count,
       }));
 
+      // Update lastHistoricalTimestamp
+      if (historicalData.length > 0) {
+        lastHistoricalTimestamp = historicalData[historicalData.length - 1].time;
+      }
+
       // Calculate Volume Min and Max for Scaling Trade Count
       const volumeValues = volumeData.map(d => d.value);
       const volumeMin = Math.min(...volumeValues, 0); // Ensure at least 0
@@ -497,29 +565,56 @@
           max: volumeMax,
         });
 
-        // If we have real-time data, update
+        // Handle real-time data
         if (realtimeData) {
-          const rtTime = realtimeData.time;
-          candlestickSeries.update({
-            time: rtTime,
-            open: realtimeData.open,
-            high: realtimeData.high,
-            low: realtimeData.low,
-            close: realtimeData.close,
-          });
-          volumeSeries.update({
-            time: rtTime,
-            value: realtimeData.volume,
-          });
-          vwapSeries.update({
-            time: rtTime,
-            value: realtimeData.vwap,
-          });
-          tradeCountSeries.update({
-            time: rtTime,
-            value: realtimeData.trade_count,
-          });
+          if (realtimeData.additionalBars && realtimeData.additionalBars.length > 0) {
+            realtimeData.additionalBars.forEach(bar => {
+              candlestickSeries.update({
+                time: bar.time,
+                open: bar.open,
+                high: bar.high,
+                low: bar.low,
+                close: bar.close,
+              });
+              volumeSeries.update({
+                time: bar.time,
+                value: bar.volume,
+              });
+              vwapSeries.update({
+                time: bar.time,
+                value: bar.vwap,
+              });
+              tradeCountSeries.update({
+                time: bar.time,
+                value: bar.trade_count,
+              });
+            });
+          }
+
+          if (realtimeData.realtimeData) {
+            const rt = realtimeData.realtimeData;
+            candlestickSeries.update({
+              time: rt.time,
+              open: rt.open,
+              high: rt.high,
+              low: rt.low,
+              close: rt.close,
+            });
+            volumeSeries.update({
+              time: rt.time,
+              value: rt.volume,
+            });
+            vwapSeries.update({
+              time: rt.time,
+              value: rt.vwap,
+            });
+            tradeCountSeries.update({
+              time: rt.time,
+              value: rt.trade_count,
+            });
+          }
         }
+
         updateChartTitle(ticker, timeframe);
         return;
       }
@@ -603,28 +698,54 @@
       });
       tradeCountSeries.setData(tradeCountData);
 
-      // If we have real-time data, update
+      // Handle real-time data
       if (realtimeData) {
-        const rtTime = realtimeData.time;
-        candlestickSeries.update({
-          time: rtTime,
-          open: realtimeData.open,
-          high: realtimeData.high,
-          low: realtimeData.low,
-          close: realtimeData.close,
-        });
-        volumeSeries.update({
-          time: rtTime,
-          value: realtimeData.volume,
-        });
-        vwapSeries.update({
-          time: rtTime,
-          value: realtimeData.vwap,
-        });
-        tradeCountSeries.update({
-          time: rtTime,
-          value: realtimeData.trade_count,
-        });
+        if (realtimeData.additionalBars && realtimeData.additionalBars.length > 0) {
+          realtimeData.additionalBars.forEach(bar => {
+            candlestickSeries.update({
+              time: bar.time,
+              open: bar.open,
+              high: bar.high,
+              low: bar.low,
+              close: bar.close,
+            });
+            volumeSeries.update({
+              time: bar.time,
+              value: bar.volume,
+            });
+            vwapSeries.update({
+              time: bar.time,
+              value: bar.vwap,
+            });
+            tradeCountSeries.update({
+              time: bar.time,
+              value: bar.trade_count,
+            });
+          });
+        }
+
+        if (realtimeData.realtimeData) {
+          const rt = realtimeData.realtimeData;
+          candlestickSeries.update({
+            time: rt.time,
+            open: rt.open,
+            high: rt.high,
+            low: rt.low,
+            close: rt.close,
+          });
+          volumeSeries.update({
+            time: rt.time,
+            value: rt.volume,
+          });
+          vwapSeries.update({
+            time: rt.time,
+            value: rt.vwap,
+          });
+          tradeCountSeries.update({
+            time: rt.time,
+            value: rt.trade_count,
+          });
+        }
       }
 
       updateChartTitle(ticker, timeframe);
@@ -685,7 +806,6 @@
       });
     }
 
-    // Function to Update Chart Title
     function updateChartTitle(ticker, timeframe) {
       const title = `${ticker} - ${timeframe} - Real-time Chart`;
       chart.applyOptions({
@@ -760,7 +880,8 @@
       }
 
       const historicalData = await fetchHistoricalData(ticker, alpacaApiKey, alpacaApiSecret, timeframe);
-      const realtimeData = await fetchRealtimeData(ticker, alpacaApiKey, alpacaApiSecret);
+      const lastHistoricalTimestamp = historicalData.length > 0 ? historicalData[historicalData.length - 1].time : 0;
+      const realtimeData = await fetchRealtimeData(ticker, alpacaApiKey, alpacaApiSecret, lastHistoricalTimestamp);
 
       createOrUpdateChart(ticker, timeframe, historicalData, realtimeData);
     }
@@ -822,11 +943,71 @@
       });
 
       initializeChart();
+
+      // Set up real-time updates based on timeframe
+      setupRealTimeUpdates();
     }
 
     window.addEventListener("load", initializeApp);
+
+    // Function to Set Up Real-time Updates
+    function setupRealTimeUpdates() {
+      const timeframeButtons = document.querySelectorAll(".timeframe-button");
+      timeframeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const newTimeframe = button.dataset.timeframe;
+          if (refreshIntervalId) {
+            clearInterval(refreshIntervalId);
+          }
+          // Set refresh interval based on timeframe
+          const interval = getRefreshInterval(newTimeframe);
+          if (interval) {
+            refreshIntervalId = setInterval(() => {
+              const ticker = document.getElementById("tickerInput").value.toUpperCase();
+              if (ticker) {
+                updateChartData(ticker, newTimeframe);
+              }
+            }, interval);
+          }
+        });
+      });
+
+      // Initialize the first interval
+      const activeBtn = document.querySelector(".timeframe-button.active");
+      const activeTimeframe = activeBtn ? activeBtn.dataset.timeframe : "5Min";
+      const initialInterval = getRefreshInterval(activeTimeframe);
+      if (initialInterval) {
+        refreshIntervalId = setInterval(() => {
+          const ticker = document.getElementById("tickerInput").value.toUpperCase();
+          if (ticker) {
+            updateChartData(ticker, activeTimeframe);
+          }
+        }, initialInterval);
+      }
+    }
+
+    // Function to Determine Refresh Interval Based on Timeframe
+    function getRefreshInterval(timeframe) {
+      switch (timeframe) {
+        case "1Min":
+        case "5Min":
+        case "15Min":
+        case "30Min":
+          return 60000; // 1 minute
+        case "1H":
+        case "4H":
+          return 300000; // 5 minutes
+        case "1D":
+        case "1W":
+        case "1M":
+          return 900000; // 15 minutes
+        default:
+          return 60000; // Default to 1 minute
+      }
+    }
   </script>
 </body>
-v20241222095900
+v20241222103500
 </html>
+
 
