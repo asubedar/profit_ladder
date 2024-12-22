@@ -178,6 +178,7 @@
             <button id="saveKeys" class="btn btn-primary">Save Settings</button>
         </div>
         <div id="chartContainer">
+            <!-- Single tooltip for both candle & volume data -->
             <div class="chart-tooltip" style="opacity: 0;"></div>
         </div>
         <div id="volumeChartContainer"></div>
@@ -266,34 +267,34 @@
             // Adjust the 'from' date based on the timeframe
             switch (timeframe) {
                 case '1Min':
-                    from.setDate(to.getDate() - 1); // Fetch data for the last day
+                    from.setDate(to.getDate() - 1); // 1 day
                     break;
                 case '5Min':
-                    from.setDate(to.getDate() - 7); // Fetch data for the last 7 days
+                    from.setDate(to.getDate() - 7); // 7 days
                     break;
                 case '15Min':
-                    from.setDate(to.getDate() - 30); // Fetch data for the last 30 days
+                    from.setDate(to.getDate() - 30); // 30 days
                     break;
                 case '30Min':
-                    from.setDate(to.getDate() - 60); // Fetch data for the last 60 days
+                    from.setDate(to.getDate() - 60); // 60 days
                     break;
                 case '1H':
-                    from.setMonth(to.getMonth() - 3); // Fetch data for the last 3 months
+                    from.setMonth(to.getMonth() - 3); // 3 months
                     break;
                 case '4H':
-                    from.setMonth(to.getMonth() - 12); // Fetch data for the last 12 months
+                    from.setMonth(to.getMonth() - 12); // 12 months
                     break;
                 case '1D':
-                    from.setFullYear(to.getFullYear() - 2); // Fetch data for the last 2 years
+                    from.setFullYear(to.getFullYear() - 2); // 2 years
                     break;
                 case '1W':
-                    from.setFullYear(to.getFullYear() - 5); // Fetch data for the last 5 years
+                    from.setFullYear(to.getFullYear() - 5); // 5 years
                     break;
                 case '1M':
-                    from.setFullYear(to.getFullYear() - 10); // Fetch data for the last 10 years
+                    from.setFullYear(to.getFullYear() - 10); // 10 years
                     break;
                 default:
-                    from.setDate(to.getDate() - 7); // Default to the last 7 days
+                    from.setDate(to.getDate() - 7);
                     break;
             }
 
@@ -395,7 +396,7 @@
             }
         }
 
-        // Global variable to hold the chart objects and series
+        // Global variables to hold the chart objects and series
         let chart = null;
         let volumeChart = null;
         let candlestickSeries = null;
@@ -417,11 +418,14 @@
                 dollarVolume: bar.close * bar.volume
             }));
 
-            // **Price Chart**
             if (chart !== null) {
+                // ----- Update Existing Charts -----
                 candlestickSeries.setData(historicalDataWithDollarVolume);
                 if (realtimeData) {
-                    const realtimeDataWithDollarVolume = {...realtimeData, dollarVolume: realtimeData.close * realtimeData.volume};
+                    const realtimeDataWithDollarVolume = {
+                        ...realtimeData,
+                        dollarVolume: realtimeData.close * realtimeData.volume
+                    };
                     const lastBar = historicalDataWithDollarVolume[historicalDataWithDollarVolume.length - 1];
                     if (lastBar && lastBar.time === realtimeDataWithDollarVolume.time) {
                         candlestickSeries.update(realtimeDataWithDollarVolume);
@@ -430,7 +434,21 @@
                     }
                 }
                 updateChartTitle(ticker, timeframe);
+
+                // Update Volume
+                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
+                    time: bar.time,
+                    value: bar.dollarVolume
+                })));
+                if (realtimeData) {
+                    volumeSeries.update({
+                        time: realtimeData.time,
+                        value: realtimeData.close * realtimeData.volume
+                    });
+                }
+
             } else {
+                // ----- Create New Chart Instances -----
                 chart = LightweightCharts.createChart(chartContainer, {
                     width: chartContainer.offsetWidth,
                     height: 400,
@@ -458,7 +476,7 @@
                         timeVisible: true,
                         secondsVisible: false,
                     },
-                    padding: { // Added padding
+                    padding: {
                         top: 5,
                         bottom: 5,
                         left: 0,
@@ -475,57 +493,55 @@
                     wickUpColor: '#838ca1',
                 });
                 candlestickSeries.setData(historicalDataWithDollarVolume);
+
                 if (realtimeData) {
-                    candlestickSeries.update({...realtimeData, dollarVolume: realtimeData.close * realtimeData.volume});
+                    candlestickSeries.update({
+                        ...realtimeData,
+                        dollarVolume: realtimeData.close * realtimeData.volume
+                    });
                 }
                 updateChartTitle(ticker, timeframe);
 
-                // Handle crosshair move for tooltip
+                // Tooltip / Crosshair events for the main chart
                 chart.subscribeCrosshairMove(param => {
                     if (param.point) {
-                        volumeChart.moveCrosshair(param.point); // Synchronize crosshair
-                        const bar = param.seriesData.get(candlestickSeries);
-                        if (bar) {
+                        volumeChart.moveCrosshair(param.point); // synchronize crosshair
+                        const candleBar = param.seriesData.get(candlestickSeries);
+                        const volumeBar = param.seriesData.get(volumeSeries);
+
+                        if (candleBar && volumeBar) {
                             tooltip.style.opacity = 1;
                             tooltip.style.left = param.point.x + 'px';
                             tooltip.style.top = param.point.y + 'px';
 
-                            const date = new Date(bar.time * 1000);
+                            const date = new Date(candleBar.time * 1000);
                             const formattedDate = date.toLocaleDateString();
                             const formattedTime = date.toLocaleTimeString();
 
                             tooltip.innerHTML = `
-                                <div>Date: ${formattedDate}</div>
-                                <div>Time: ${formattedTime}</div>
-                                <div>Open: ${bar.open}</div>
-                                <div>High: ${bar.high}</div>
-                                <div>Low: ${bar.low}</div>
-                                <div>Close: ${bar.close}</div>
-                                <div>Volume: ${bar.volume}</div>
-                                <div>Dollar Volume: ${bar.dollarVolume ? bar.dollarVolume.toFixed(2) : 'N/A'}</div>
+                                <div><strong>${formattedDate} ${formattedTime}</strong></div>
+                                <div>Open: ${candleBar.open}</div>
+                                <div>High: ${candleBar.high}</div>
+                                <div>Low: ${candleBar.low}</div>
+                                <div>Close: ${candleBar.close}</div>
+                                <div>Volume: ${candleBar.volume}</div>
+                                <div>Dollar Volume: ${volumeBar.value.toFixed(2)}</div>
                             `;
                         } else {
                             tooltip.style.opacity = 0;
                         }
                     } else {
-                        volumeChart.clearCrosshair(); // Clear crosshair
+                        volumeChart.clearCrosshair();
                         tooltip.style.opacity = 0;
                     }
                 });
 
                 chart.subscribeMouseLeave(() => {
                     tooltip.style.opacity = 0;
-                    volumeChart.clearCrosshair(); // Clear crosshair on mouse leave
+                    volumeChart.clearCrosshair();
                 });
-            }
 
-            // **Volume Chart**
-            if (volumeChart !== null) {
-                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({ time: bar.time, value: bar.dollarVolume })));
-                if (realtimeData) {
-                    volumeSeries.update({ time: realtimeData.time, value: realtimeData.close * realtimeData.volume });
-                }
-            } else {
+                // Create the volume chart
                 volumeChart = LightweightCharts.createChart(volumeChartContainer, {
                     width: volumeChartContainer.offsetWidth,
                     height: 100,
@@ -552,7 +568,7 @@
                         timeVisible: true,
                         secondsVisible: false,
                     },
-                    padding: { // Added padding
+                    padding: {
                         top: 5,
                         bottom: 5,
                         left: 0,
@@ -567,20 +583,32 @@
                         type: 'number',
                     },
                 });
-                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({ time: bar.time, value: bar.dollarVolume })));
+                volumeSeries.setData(
+                    historicalDataWithDollarVolume.map(bar => ({
+                        time: bar.time,
+                        value: bar.dollarVolume,
+                    }))
+                );
                 if (realtimeData) {
-                    volumeSeries.update({ time: realtimeData.time, value: realtimeData.close * realtimeData.volume });
+                    volumeSeries.update({
+                        time: realtimeData.time,
+                        value: realtimeData.close * realtimeData.volume
+                    });
                 }
 
-                // Synchronize time scales
-                chart.timeScale().applyOptions({
-                    syncronizedWith: volumeChart.timeScale(),
+                // --- 1) Synchronize the time scales manually ---
+                chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+                    if (range !== null) {
+                        volumeChart.timeScale().setVisibleLogicalRange(range);
+                    }
                 });
-                volumeChart.timeScale().applyOptions({
-                    syncronizedWith: chart.timeScale(),
+                volumeChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+                    if (range !== null) {
+                        chart.timeScale().setVisibleLogicalRange(range);
+                    }
                 });
 
-                // Synchronize crosshair movements
+                // --- 2) Synchronize crosshairs ---
                 volumeChart.subscribeCrosshairMove(param => {
                     if (param.point) {
                         chart.moveCrosshair(param.point);
