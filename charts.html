@@ -257,14 +257,15 @@
             }
         }
 
-        // Function to Fetch Historical Data from Alpaca
-        async function fetchHistoricalData(ticker, apiKey, apiSecret, timeframe = '5Min') {
-            const bars = [];
+        // Function to Fetch Historical Data from Alpaca with Pagination using next_page_token
+        async function fetchHistoricalData(ticker, apiKey, apiSecret, timeframe = '15Min') {
+            let bars = [];
+            let page_token = null;
             const to = new Date();
             let from = new Date(to);
-            let limit = 10000; // Adjust limit as needed
+            const limit = 10000; // Adjust limit as needed
 
-            // Adjust the 'from' date based on the timeframe
+            // Adjust the 'from' date based on the timeframe (same as before)
             switch (timeframe) {
                 case '1Min':
                     from.setDate(to.getDate() - 1); // 1 day
@@ -302,43 +303,57 @@
             let formattedTo = to.toISOString().split('T')[0];
 
             try {
-                const url = new URL(`https://data.alpaca.markets/v2/stocks/${ticker}/bars`);
-                const params = {
-                    timeframe: timeframe,
-                    start: formattedFrom,
-                    end: formattedTo,
-                    limit: limit,
-                    adjustment: 'all'
-                };
-                Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'APCA-API-KEY-ID': apiKey,
-                        'APCA-API-SECRET-KEY': apiSecret
+                while (true) {
+                    const url = new URL(`https://data.alpaca.markets/v2/stocks/${ticker}/bars`);
+                    const params = {
+                        timeframe: timeframe,
+                        start: formattedFrom,
+                        end: formattedTo,
+                        limit: limit,
+                        adjustment: 'all',
+                    };
+                    if (page_token) {
+                        params.page_token = page_token;
                     }
-                });
+                    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                if (data.bars) {
-                    data.bars.forEach(bar => {
-                        bars.push({
-                            time: new Date(bar.t).getTime() / 1000,
-                            open: bar.o,
-                            high: bar.h,
-                            low: bar.l,
-                            close: bar.c,
-                            volume: bar.v
-                        });
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'APCA-API-KEY-ID': apiKey,
+                            'APCA-API-SECRET-KEY': apiSecret,
+                        },
                     });
-                } else {
-                    console.warn(`No historical data found for ${ticker}`);
-                    appendDebugLog(`No historical data found for ${ticker}`);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (data.bars) {
+                        data.bars.forEach(bar => {
+                            bars.push({
+                                time: new Date(bar.t).getTime() / 1000,
+                                open: bar.o,
+                                high: bar.h,
+                                low: bar.l,
+                                close: bar.c,
+                                volume: bar.v,
+                            });
+                        });
+                    } else {
+                        console.warn(`No historical data found for ${ticker} in this response.`);
+                        appendDebugLog(`No historical data found for ${ticker} in this response.`);
+                        break; // Exit the loop if no data is found
+                    }
+
+                    // Check for next_page_token for pagination
+                    if (data.next_page_token) {
+                        page_token = data.next_page_token;
+                        console.log("Fetching next page with token:", page_token);
+                    } else {
+                        break; // No more pages, exit the loop
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching historical data:', error);
