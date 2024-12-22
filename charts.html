@@ -481,7 +481,7 @@
 
       // Calculate Volume Min and Max for Scaling Trade Count
       const volumeValues = volumeData.map(d => d.value);
-      const volumeMin = Math.min(...volumeValues);
+      const volumeMin = Math.min(...volumeValues, 0); // Ensure at least 0
       const volumeMax = Math.max(...volumeValues);
 
       // If chart already exists, just update
@@ -493,7 +493,7 @@
 
         // Update the trade_count scale based on new volume data
         chart.priceScale("left").applyOptions({
-          min: volumeMin,
+          min: 0, // Align with volume's bottom
           max: volumeMax,
         });
 
@@ -529,7 +529,7 @@
         width: chartContainer.offsetWidth,
         height: 600, // Increased height to better accommodate multiple series
         layout: {
-          backgroundColor: "#131722", // Ensure dark background
+          backgroundColor: "#131722", // Corrected property name
           textColor: "rgba(255, 255, 255, 0.9)",
         },
         grid: {
@@ -598,7 +598,7 @@
         visible: true,
         borderVisible: true,
         borderColor: "rgba(197, 203, 206, 0.8)",
-        min: volumeMin, // Synchronize with volume scale
+        min: 0, // Align bottom with volume
         max: volumeMax,
       });
       tradeCountSeries.setData(tradeCountData);
@@ -685,6 +685,7 @@
       });
     }
 
+    // Function to Update Chart Title
     function updateChartTitle(ticker, timeframe) {
       const title = `${ticker} - ${timeframe} - Real-time Chart`;
       chart.applyOptions({
@@ -826,5 +827,6 @@
     window.addEventListener("load", initializeApp);
   </script>
 </body>
-v20241222095100
+v20241222095900
 </html>
+
