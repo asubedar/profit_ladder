@@ -564,7 +564,7 @@
                 }
                 updateChartTitle(ticker, timeframe);
 
-                // Tooltip / Crosshair events for the price chart
+                // Tooltip / Crosshair events for the single chart
                 chart.subscribeCrosshairMove(param => {
                     if (param.point) {
                         tooltip.style.left = param.point.x + 'px';
@@ -583,6 +583,9 @@
                                 <div>High: ${candleBarData.high}</div>
                                 <div>Low: ${candleBarData.low}</div>
                                 <div>Close: ${candleBarData.close}</div>
+                                <div>Volume: ${candleBarData.volume}</div>
+                                <div>Trades: ${candleBarData.n}</div>
+                                <div>VWAP: ${candleBarData.vw ? candleBarData.vw.toFixed(4) : 'N/A'}</div>
                             `;
                         }
 
