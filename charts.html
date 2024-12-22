@@ -567,7 +567,7 @@
         // Update the trade_count scale based on new volume data
         chart.priceScale("left").applyOptions({
           min: 0, // Align with volume's bottom
-          max: volumeMax,
+          max: volumeMax*10,
         });
 
         // Handle real-time data
@@ -699,7 +699,7 @@
         borderVisible: true,
         borderColor: "rgba(197, 203, 206, 0.8)",
         min: 0, // Align bottom with volume
-        max: volumeMax*10,
+        max: volumeMax,
       });
       tradeCountSeries.setData(tradeCountData);
 
@@ -1019,5 +1019,5 @@
     }
   </script>
 </body>
-v20241222113100
+v20241222114200
 </html>
