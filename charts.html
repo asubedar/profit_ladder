@@ -1,4 +1,3 @@
---- START OF FILE charts.html ---
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -511,6 +510,7 @@
     let volumeSeries = null;
     let vwapSeries = null;
     let tradeCountSeries = null;
+    let dollarVolumeSeries = null; // New series for Dollar Volume
 
     let currentTicker = "";
     let currentTimeframe = "";
@@ -547,6 +547,11 @@
         value: bar.trade_count,
       }));
 
+      const dollarVolumeData = historicalData.map((bar) => ({
+        time: bar.time,
+        value: bar.vwap * bar.volume, // Calculating Dollar Volume
+      }));
+
       // Update lastHistoricalTimestamp
       if (historicalData.length > 0) {
         lastHistoricalTimestamp = historicalData[historicalData.length - 1].time;
@@ -563,6 +568,7 @@
         volumeSeries.setData(volumeData);
         vwapSeries.setData(vwapData);
         tradeCountSeries.setData(tradeCountData);
+        dollarVolumeSeries.setData(dollarVolumeData); // Update Dollar Volume Series
 
         // Update the trade_count scale based on new volume data
         chart.priceScale("left").applyOptions({
@@ -593,6 +599,10 @@
                 time: bar.time,
                 value: bar.trade_count,
               });
+              dollarVolumeSeries.update({
+                time: bar.time,
+                value: bar.vwap * bar.volume, // Update Dollar Volume
+              });
             });
           }
 
@@ -616,6 +626,10 @@
             tradeCountSeries.update({
               time: rt.time,
               value: rt.trade_count,
+            });
+            dollarVolumeSeries.update({
+              time: rt.time,
+              value: rt.vwap * rt.volume, // Update Dollar Volume
             });
           }
         }
@@ -703,6 +717,25 @@
       });
       tradeCountSeries.setData(tradeCountData);
 
+      // *** Adding Dollar Volume Series ***
+      dollarVolumeSeries = chart.addLineSeries({
+        color: "orange",
+        lineWidth: 2,
+        priceScaleId: "right-dollar-volume", // Assign a unique price scale
+      });
+
+      // Create a separate price scale for Dollar Volume
+      chart.priceScale("right-dollar-volume").applyOptions({
+        position: 'right',
+        scaleMargins: {
+          top: 0.7, // Align with other series
+          bottom: 0,
+        },
+        borderVisible: true,
+        borderColor: "rgba(197, 203, 206, 0.8)",
+      });
+      dollarVolumeSeries.setData(dollarVolumeData); // Set initial data
+
       // Handle real-time data
       if (realtimeData) {
         if (realtimeData.additionalBars && realtimeData.additionalBars.length > 0) {
@@ -725,6 +758,10 @@
             tradeCountSeries.update({
               time: bar.time,
               value: bar.trade_count,
+            });
+            dollarVolumeSeries.update({
+              time: bar.time,
+              value: bar.vwap * bar.volume, // Update Dollar Volume
             });
           });
         }
@@ -749,6 +786,10 @@
           tradeCountSeries.update({
             time: rt.time,
             value: rt.trade_count,
+          });
+          dollarVolumeSeries.update({
+            time: rt.time,
+            value: rt.vwap * rt.volume, // Update Dollar Volume
           });
         }
       }
@@ -778,6 +819,7 @@
         const vol = param.seriesData.get(volumeSeries);
         const vw = param.seriesData.get(vwapSeries);
         const tc = param.seriesData.get(tradeCountSeries);
+        const dv = param.seriesData.get(dollarVolumeSeries); // Retrieve Dollar Volume data
 
         // Candlestick info
         if (cndl) {
@@ -800,6 +842,11 @@
         // Trade Count info
         tooltipContent += `<div>Trade Count: ${
           tc?.value ?? "N/A"
+        }</div>`;
+
+        // Dollar Volume info
+        tooltipContent += `<div>Dollar Volume: ${
+          dv?.value ? dv.value.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "N/A"
         }</div>`;
 
         tooltip.innerHTML = tooltipContent;
@@ -1019,5 +1066,5 @@
     }
   </script>
 </body>
-v20241222114200
+v20241222132900
 </html>
