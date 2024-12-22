@@ -209,6 +209,10 @@
     // Function to Append Debug Logs
     function appendDebugLog(message) {
       const debugLogs = document.getElementById("debugLogs");
+      if (!debugLogs) {
+        console.error("Debug Logs element not found in the DOM.");
+        return;
+      }
       const logEntry = document.createElement("div");
       logEntry.textContent = message;
       debugLogs.appendChild(logEntry);
@@ -425,7 +429,7 @@
           if (realtimeData.time > lastHistoricalTimestamp) {
             // Fetch minute bars since lastHistoricalTimestamp
             const additionalBars = await fetchAdditionalMinuteBars(ticker, apiKey, apiSecret, lastHistoricalTimestamp);
-            return { ...realtimeData, additionalBars };
+            return { realtimeData, additionalBars };
           }
 
           return { realtimeData };
@@ -883,6 +887,11 @@
       const lastHistoricalTimestamp = historicalData.length > 0 ? historicalData[historicalData.length - 1].time : 0;
       const realtimeData = await fetchRealtimeData(ticker, alpacaApiKey, alpacaApiSecret, lastHistoricalTimestamp);
 
+      if (!realtimeData) {
+        appendDebugLog("No real-time data fetched.");
+        return;
+      }
+
       createOrUpdateChart(ticker, timeframe, historicalData, realtimeData);
     }
 
@@ -1007,7 +1016,7 @@
     }
   </script>
 </body>
-v20241222103500
+v20241222104100
 </html>
 
 
