@@ -444,10 +444,10 @@
                 updateChartTitle(ticker, timeframe);
 
             } else {
-                // ----- Create New Chart Instance with Multiple Series -----
+                // ----- Create New Chart Instance with Adjusted Scaling and Positioning -----
                 chart = LightweightCharts.createChart(chartContainer, {
                     width: chartContainer.offsetWidth,
-                    height: 500, // Increased height to accommodate both series
+                    height: 500, // Increased height
                     layout: {
                         backgroundColor: '#131722',
                         background: { type: 'solid', color: '#131722' },
@@ -497,7 +497,6 @@
                     priceFormat: {
                         type: 'number',
                     },
-                    // Assign a different priceScaleId to the volume series
                     priceScaleId: 'volume',
                 });
                 volumeSeries.setData(
@@ -507,14 +506,13 @@
                     }))
                 );
 
-                // Create a separate price scale for the volume series (right side)
+                // Create a separate price scale for the volume series (right side, smaller and at the bottom)
                 chart.addPriceScale({
                     borderColor: 'rgba(197, 203, 206, 0.8)',
                     scaleMargins: {
-                        top: 0.3,
-                        bottom: 0.3,
+                        top: 0.9, // Push the volume scale towards the bottom
+                        bottom: 0,
                     },
-                    // Assign the same ID as the series
                     id: 'volume',
                     position: 'right',
                     autoScale: true,
@@ -539,7 +537,7 @@
                         tooltip.style.top = param.point.y + 'px';
 
                         let tooltipContent = ``;
-                        const date = new Date(param.time * 1000); // Use param.time
+                        const date = new Date(param.time * 1000);
                         const formattedDate = date.toLocaleDateString();
                         const formattedTime = date.toLocaleTimeString();
                         tooltipContent += `<div><strong>${formattedDate} ${formattedTime}</strong></div>`;
@@ -551,7 +549,6 @@
                                 <div>High: ${candleBarData.high}</div>
                                 <div>Low: ${candleBarData.low}</div>
                                 <div>Close: ${candleBarData.close}</div>
-                                <div>Volume: ${candleBarData.volume}</div>
                             `;
                         }
 
