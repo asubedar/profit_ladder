@@ -421,7 +421,7 @@
 
         async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
             const chartContainer = document.getElementById('chartContainer');
-            const volumeChartContainer = document.getElementById('volumeChartContainer'); // Get volume chart container
+            const volumeChartContainer = document.getElementById('volumeChartContainer');
             const tooltip = chartContainer.querySelector('.chart-tooltip');
 
             currentTicker = ticker;
@@ -432,6 +432,7 @@
                 ...bar,
                 dollarVolume: bar.close * bar.volume
             }));
+            console.log('historicalDataWithDollarVolume:', historicalDataWithDollarVolume); // ADDED
 
             if (chart !== null && volumeChart !== null) {
                 // ----- Update Existing Series -----
@@ -454,7 +455,7 @@
                     }
                     volumeSeries.update({
                         time: realtimeData.time,
-                        value: realtimeDataWithDollarVolume.dollarVolume // Use calculated dollar volume
+                        value: realtimeDataWithDollarVolume.dollarVolume
                     });
                 }
                 updateChartTitle(ticker, timeframe);
@@ -463,7 +464,7 @@
                 // ----- Create New Price Chart Instance -----
                 chart = LightweightCharts.createChart(chartContainer, {
                     width: chartContainer.offsetWidth,
-                    height: 400, // Keep the reduced height for the price chart
+                    height: 400,
                     layout: {
                         backgroundColor: '#131722',
                         background: { type: 'solid', color: '#131722' },
@@ -509,7 +510,7 @@
                 // ----- Create New Volume Chart Instance -----
                 volumeChart = LightweightCharts.createChart(volumeChartContainer, {
                     width: volumeChartContainer.offsetWidth,
-                    height: 100, // Height for volume chart
+                    height: 100,
                     layout: {
                         backgroundColor: '#131722',
                         background: { type: 'solid', color: '#131722' },
@@ -528,7 +529,7 @@
                         timeVisible: true,
                         secondsVisible: false,
                     },
-                    priceScale: { // Style the volume price scale if needed
+                    priceScale: {
                         borderColor: 'rgba(197, 203, 206, 0.8)',
                         autoScale: true,
                     },
@@ -546,7 +547,6 @@
                     priceFormat: {
                         type: 'number',
                     },
-                    // No need to specify priceScaleId here as it's the default for this chart
                 });
                 volumeSeries.setData(
                     historicalDataWithDollarVolume.map(bar => ({
@@ -559,7 +559,7 @@
                     candlestickSeries.update(realtimeData);
                     volumeSeries.update({
                         time: realtimeData.time,
-                        value: realtimeData.close * realtimeData.volume
+                        value: realtimeData.volume * realtimeData.close
                     });
                 }
                 updateChartTitle(ticker, timeframe);
@@ -577,6 +577,7 @@
                         tooltipContent += `<div><strong>${formattedDate} ${formattedTime}</strong></div>`;
 
                         const candleBarData = param.seriesData.get(candlestickSeries);
+                        console.log('candleBarData:', candleBarData); // ADDED
                         if (candleBarData) {
                             tooltipContent += `
                                 <div>Open: ${candleBarData.open}</div>
@@ -597,11 +598,9 @@
                     }
                 });
 
-                chart.subscribeMouseLeave(() => {
+                chart.subscribeMouseLeave(() => { // Moved inside the 'else' block
                     tooltip.style.opacity = 0;
                 });
-
-                // Consider adding crosshair synchronization between the two charts if desired.
             }
         }
 
