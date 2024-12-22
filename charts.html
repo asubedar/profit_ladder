@@ -406,7 +406,6 @@
 
         async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
             const chartContainer = document.getElementById('chartContainer');
-            const volumeChartContainer = document.getElementById('volumeChartContainer');
             const tooltip = chartContainer.querySelector('.chart-tooltip');
 
             currentTicker = ticker;
@@ -419,8 +418,13 @@
             }));
 
             if (chart !== null) {
-                // ----- Update Existing Charts -----
+                // ----- Update Existing Series -----
                 candlestickSeries.setData(historicalDataWithDollarVolume);
+                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
+                    time: bar.time,
+                    value: bar.dollarVolume
+                })));
+
                 if (realtimeData) {
                     const realtimeDataWithDollarVolume = {
                         ...realtimeData,
@@ -432,26 +436,18 @@
                     } else if (!lastBar || realtimeDataWithDollarVolume.time > lastBar.time) {
                         candlestickSeries.update(realtimeDataWithDollarVolume);
                     }
-                }
-                updateChartTitle(ticker, timeframe);
-
-                // Update Volume
-                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
-                    time: bar.time,
-                    value: bar.dollarVolume
-                })));
-                if (realtimeData) {
                     volumeSeries.update({
                         time: realtimeData.time,
                         value: realtimeData.close * realtimeData.volume
                     });
                 }
+                updateChartTitle(ticker, timeframe);
 
             } else {
-                // ----- Create New Chart Instances -----
+                // ----- Create New Chart Instance with Multiple Series -----
                 chart = LightweightCharts.createChart(chartContainer, {
                     width: chartContainer.offsetWidth,
-                    height: 400,
+                    height: 500, // Increased height to accommodate both series
                     layout: {
                         backgroundColor: '#131722',
                         background: { type: 'solid', color: '#131722' },
@@ -468,6 +464,7 @@
                     crosshair: {
                         mode: LightweightCharts.CrosshairMode.Magnet,
                     },
+                    // Price scale for the candlestick series (default - left side)
                     priceScale: {
                         borderColor: 'rgba(197, 203, 206, 0.8)',
                     },
@@ -494,94 +491,14 @@
                 });
                 candlestickSeries.setData(historicalDataWithDollarVolume);
 
-                if (realtimeData) {
-                    candlestickSeries.update({
-                        ...realtimeData,
-                        dollarVolume: realtimeData.close * realtimeData.volume
-                    });
-                }
-                updateChartTitle(ticker, timeframe);
-
-                // Tooltip / Crosshair events for the main chart
-                chart.subscribeCrosshairMove(param => {
-                    if (param.point) {
-                        volumeChart.moveCrosshair(param.point); // synchronize crosshair
-                        const candleBar = param.seriesData.get(candlestickSeries);
-                        const volumeBar = param.seriesData.get(volumeSeries);
-
-                        if (candleBar && volumeBar) {
-                            tooltip.style.opacity = 1;
-                            tooltip.style.left = param.point.x + 'px';
-                            tooltip.style.top = param.point.y + 'px';
-
-                            const date = new Date(candleBar.time * 1000);
-                            const formattedDate = date.toLocaleDateString();
-                            const formattedTime = date.toLocaleTimeString();
-
-                            tooltip.innerHTML = `
-                                <div><strong>${formattedDate} ${formattedTime}</strong></div>
-                                <div>Open: ${candleBar.open}</div>
-                                <div>High: ${candleBar.high}</div>
-                                <div>Low: ${candleBar.low}</div>
-                                <div>Close: ${candleBar.close}</div>
-                                <div>Volume: ${candleBar.volume}</div>
-                                <div>Dollar Volume: ${volumeBar.value.toFixed(2)}</div>
-                            `;
-                        } else {
-                            tooltip.style.opacity = 0;
-                        }
-                    } else {
-                        volumeChart.clearCrosshair();
-                        tooltip.style.opacity = 0;
-                    }
-                });
-
-                chart.subscribeMouseLeave(() => {
-                    tooltip.style.opacity = 0;
-                    volumeChart.clearCrosshair();
-                });
-
-                // Create the volume chart
-                volumeChart = LightweightCharts.createChart(volumeChartContainer, {
-                    width: volumeChartContainer.offsetWidth,
-                    height: 100,
-                    layout: {
-                        backgroundColor: '#131722',
-                        background: { type: 'solid', color: '#131722' },
-                        textColor: 'rgba(255, 255, 255, 0.9)',
-                    },
-                    grid: {
-                        vertLines: {
-                            color: 'rgba(197, 203, 206, 0.5)',
-                        },
-                        horzLines: {
-                            color: 'rgba(197, 203, 206, 0.5)',
-                        },
-                    },
-                    priceScale: {
-                        borderColor: 'rgba(197, 203, 206, 0.8)',
-                        mode: LightweightCharts.PriceScaleMode.Logarithmic,
-                        autoScale: true,
-                    },
-                    timeScale: {
-                        borderColor: 'rgba(197, 203, 206, 0.8)',
-                        timeVisible: true,
-                        secondsVisible: false,
-                    },
-                    padding: {
-                        top: 5,
-                        bottom: 5,
-                        left: 0,
-                        right: 0,
-                    },
-                });
-
-                volumeSeries = volumeChart.addHistogramSeries({
+                volumeSeries = chart.addHistogramSeries({
                     color: '#26a69a',
                     lineWidth: 2,
                     priceFormat: {
                         type: 'number',
                     },
+                    // Assign a different priceScaleId to the volume series
+                    priceScaleId: 'volume',
                 });
                 volumeSeries.setData(
                     historicalDataWithDollarVolume.map(bar => ({
@@ -589,32 +506,70 @@
                         value: bar.dollarVolume,
                     }))
                 );
+
+                // Create a separate price scale for the volume series (right side)
+                chart.addPriceScale({
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                    scaleMargins: {
+                        top: 0.3,
+                        bottom: 0.3,
+                    },
+                    // Assign the same ID as the series
+                    id: 'volume',
+                    position: 'right',
+                    autoScale: true,
+                });
+
                 if (realtimeData) {
+                    candlestickSeries.update({
+                        ...realtimeData,
+                        dollarVolume: realtimeData.close * realtimeData.volume
+                    });
                     volumeSeries.update({
                         time: realtimeData.time,
                         value: realtimeData.close * realtimeData.volume
                     });
                 }
+                updateChartTitle(ticker, timeframe);
 
-                // --- 1) Synchronize the time scales manually ---
-                chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-                    if (range !== null) {
-                        volumeChart.timeScale().setVisibleLogicalRange(range);
-                    }
-                });
-                volumeChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-                    if (range !== null) {
-                        chart.timeScale().setVisibleLogicalRange(range);
-                    }
-                });
-
-                // --- 2) Synchronize crosshairs ---
-                volumeChart.subscribeCrosshairMove(param => {
+                // Tooltip / Crosshair events for the single chart
+                chart.subscribeCrosshairMove(param => {
                     if (param.point) {
-                        chart.moveCrosshair(param.point);
+                        tooltip.style.left = param.point.x + 'px';
+                        tooltip.style.top = param.point.y + 'px';
+
+                        let tooltipContent = ``;
+                        const date = new Date(param.time * 1000); // Use param.time
+                        const formattedDate = date.toLocaleDateString();
+                        const formattedTime = date.toLocaleTimeString();
+                        tooltipContent += `<div><strong>${formattedDate} ${formattedTime}</strong></div>`;
+
+                        const candleBarData = param.seriesData.get(candlestickSeries);
+                        if (candleBarData) {
+                            tooltipContent += `
+                                <div>Open: ${candleBarData.open}</div>
+                                <div>High: ${candleBarData.high}</div>
+                                <div>Low: ${candleBarData.low}</div>
+                                <div>Close: ${candleBarData.close}</div>
+                                <div>Volume: ${candleBarData.volume}</div>
+                            `;
+                        }
+
+                        const volumeBarData = param.seriesData.get(volumeSeries);
+                        if (volumeBarData) {
+                            tooltipContent += `<div>Dollar Volume: ${volumeBarData.value.toFixed(2)}</div>`;
+                        }
+
+                        tooltip.innerHTML = tooltipContent;
+                        tooltip.style.opacity = 1;
+
                     } else {
-                        chart.clearCrosshair();
+                        tooltip.style.opacity = 0;
                     }
+                });
+
+                chart.subscribeMouseLeave(() => {
+                    tooltip.style.opacity = 0;
                 });
             }
         }
