@@ -262,7 +262,7 @@
             const bars = [];
             const to = new Date();
             let from = new Date(to);
-            let limit = 1000; // Adjust limit as needed
+            let limit = 10000; // Adjust limit as needed
 
             // Adjust the 'from' date based on the timeframe
             switch (timeframe) {
@@ -305,8 +305,6 @@
                 const url = new URL(`https://data.alpaca.markets/v2/stocks/${ticker}/bars`);
                 const params = {
                     timeframe: timeframe,
-                    start: formattedFrom,
-                    end: formattedTo,
                     limit: limit,
                     adjustment: 'all'
                 };
