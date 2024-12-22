@@ -265,7 +265,7 @@
             let from = new Date(to);
             const limit = 10000; // Adjust limit as needed
 
-            // Adjust the 'from' date based on the timeframe (same as before)
+            // Adjust the 'from' date based on the timeframe
             switch (timeframe) {
                 case '1Min':
                     from.setDate(to.getDate() - 1); // 1 day
@@ -330,7 +330,7 @@
                     }
 
                     const data = await response.json();
-                    console.log('Raw historical data from Alpaca:', data); // VERIFY API RESPONSE
+                    console.log('Raw historical data from Alpaca:', data);
                     if (data.bars) {
                         data.bars.forEach(bar => {
                             bars.push({
@@ -340,8 +340,8 @@
                                 low: bar.l,
                                 close: bar.c,
                                 volume: bar.v,
-                                trade_count: bar.n, // ADDED - Extract number of trades
-                                vwap: bar.vw, // ADDED - Extract VWAP
+                                trade_count: bar.n, 
+                                vwap: bar.vw, 
                             });
                         });
                     } else {
@@ -397,7 +397,9 @@
                         high: minuteBar.h,
                         low: minuteBar.l,
                         close: minuteBar.c,
-                        volume: minuteBar.v
+                        volume: minuteBar.v,
+                        trade_count: minuteBar.n,
+                        vwap: minuteBar.vw,
                     };
                     console.log("Fetched real-time minute bar from Alpaca:", realtimeData);
                     appendDebugLog("Fetched real-time minute bar from Alpaca.");
@@ -416,7 +418,7 @@
 
         // Global variables to hold the chart objects and series
         let chart = null;
-        let volumeChart = null; // Add volumeChart variable
+        let volumeChart = null;
         let candlestickSeries = null;
         let volumeSeries = null;
         let currentTicker = '';
@@ -430,34 +432,69 @@
             currentTicker = ticker;
             currentTimeframe = timeframe;
 
-            // Calculate dollar volume
+            // Calculate a custom "dollarVolume"
             const historicalDataWithDollarVolume = historicalData.map(bar => ({
                 ...bar,
-                dollarVolume: bar.close * bar.volume
+                dollarVolume: bar.close * bar.volume,
             }));
-            console.log('historicalDataWithDollarVolume:', historicalDataWithDollarVolume); // ADDED
+            console.log('historicalDataWithDollarVolume:', historicalDataWithDollarVolume);
+
+            // Prepare a mapped version for candlestick (with nested custom fields)
+            const mappedCandles = historicalDataWithDollarVolume.map(bar => ({
+                time: bar.time,
+                open: bar.open,
+                high: bar.high,
+                low: bar.low,
+                close: bar.close,
+                custom: {
+                    volume: bar.volume,
+                    trade_count: bar.trade_count,
+                    vwap: bar.vwap,
+                    dollarVolume: bar.dollarVolume,
+                },
+            }));
 
             if (chart !== null && volumeChart !== null) {
                 // ----- Update Existing Series -----
-                candlestickSeries.setData(historicalDataWithDollarVolume);
-                volumeSeries.setData(historicalDataWithDollarVolume.map(bar => ({
-                    time: bar.time,
-                    value: bar.dollarVolume
-                })));
+                candlestickSeries.setData(mappedCandles);
+
+                volumeSeries.setData(
+                    historicalDataWithDollarVolume.map(bar => ({
+                        time: bar.time,
+                        value: bar.dollarVolume,
+                    }))
+                );
 
                 if (realtimeData) {
                     const realtimeDataWithDollarVolume = {
                         ...realtimeData,
-                        dollarVolume: realtimeData.close * realtimeData.volume
+                        dollarVolume: realtimeData.close * realtimeData.volume,
                     };
-                    const lastBar = historicalDataWithDollarVolume[historicalDataWithDollarVolume.length - 1];
-                    if (lastBar && lastBar.time === realtimeDataWithDollarVolume.time) {
-                        candlestickSeries.update(realtimeDataWithDollarVolume);
-                    } else if (!lastBar || realtimeDataWithDollarVolume.time > lastBar.time) {
-                        candlestickSeries.update(realtimeDataWithDollarVolume);
+
+                    // Prepare candlestick bar with nested custom fields
+                    const updatedCandle = {
+                        time: realtimeDataWithDollarVolume.time,
+                        open: realtimeDataWithDollarVolume.open,
+                        high: realtimeDataWithDollarVolume.high,
+                        low: realtimeDataWithDollarVolume.low,
+                        close: realtimeDataWithDollarVolume.close,
+                        custom: {
+                            volume: realtimeDataWithDollarVolume.volume,
+                            trade_count: realtimeDataWithDollarVolume.trade_count,
+                            vwap: realtimeDataWithDollarVolume.vwap,
+                            dollarVolume: realtimeDataWithDollarVolume.dollarVolume,
+                        }
+                    };
+
+                    const lastBar = mappedCandles[mappedCandles.length - 1];
+                    if (lastBar && lastBar.time === updatedCandle.time) {
+                        candlestickSeries.update(updatedCandle);
+                    } else if (!lastBar || updatedCandle.time > lastBar.time) {
+                        candlestickSeries.update(updatedCandle);
                     }
+
                     volumeSeries.update({
-                        time: realtimeData.time,
+                        time: realtimeDataWithDollarVolume.time,
                         value: realtimeDataWithDollarVolume.dollarVolume
                     });
                 }
@@ -508,7 +545,8 @@
                     wickDownColor: '#838ca1',
                     wickUpColor: '#838ca1',
                 });
-                candlestickSeries.setData(historicalDataWithDollarVolume);
+                // Set candlestick data with nested custom fields
+                candlestickSeries.setData(mappedCandles);
 
                 // ----- Create New Volume Chart Instance -----
                 volumeChart = LightweightCharts.createChart(volumeChartContainer, {
@@ -559,10 +597,29 @@
                 );
 
                 if (realtimeData) {
-                    candlestickSeries.update(realtimeData);
+                    const realtimeDataWithDollarVolume = {
+                        ...realtimeData,
+                        dollarVolume: realtimeData.close * realtimeData.volume,
+                    };
+
+                    // Update candlestick with nested custom fields
+                    candlestickSeries.update({
+                        time: realtimeDataWithDollarVolume.time,
+                        open: realtimeDataWithDollarVolume.open,
+                        high: realtimeDataWithDollarVolume.high,
+                        low: realtimeDataWithDollarVolume.low,
+                        close: realtimeDataWithDollarVolume.close,
+                        custom: {
+                            volume: realtimeDataWithDollarVolume.volume,
+                            trade_count: realtimeDataWithDollarVolume.trade_count,
+                            vwap: realtimeDataWithDollarVolume.vwap,
+                            dollarVolume: realtimeDataWithDollarVolume.dollarVolume,
+                        }
+                    });
+
                     volumeSeries.update({
-                        time: realtimeData.time,
-                        value: realtimeData.volume * realtimeData.close
+                        time: realtimeDataWithDollarVolume.time,
+                        value: realtimeDataWithDollarVolume.dollarVolume
                     });
                 }
                 updateChartTitle(ticker, timeframe);
@@ -574,34 +631,49 @@
                         tooltip.style.top = param.point.y + 'px';
 
                         let tooltipContent = ``;
-                        const date = new Date(param.time * 1000);
-                        const formattedDate = date.toLocaleDateString();
-                        const formattedTime = date.toLocaleTimeString();
-                        tooltipContent += `<div><strong>${formattedDate} ${formattedTime}</strong></div>`;
+                        // Convert time
+                        if (param.time) {
+                            const date = new Date(param.time * 1000);
+                            const formattedDate = date.toLocaleDateString();
+                            const formattedTime = date.toLocaleTimeString();
+                            tooltipContent += `<div><strong>${formattedDate} ${formattedTime}</strong></div>`;
+                        }
 
                         const candleBarData = param.seriesData.get(candlestickSeries);
                         console.log('candleBarData:', candleBarData);
+
                         if (candleBarData) {
                             tooltipContent += `
                                 <div>Open: ${candleBarData.open}</div>
                                 <div>High: ${candleBarData.high}</div>
                                 <div>Low: ${candleBarData.low}</div>
                                 <div>Close: ${candleBarData.close}</div>
-                                <div>Volume: ${candleBarData.volume}</div>
-                                <div>Trades: ${candleBarData.trade_count}</div>
-                                <div>VWAP: ${candleBarData.vwap ? candleBarData.vwap.toFixed(4) : 'N/A'}</div>
+                                <div>Volume: ${
+                                    candleBarData.custom
+                                        ? candleBarData.custom.volume
+                                        : 'N/A'
+                                }</div>
+                                <div>Trades: ${
+                                    candleBarData.custom
+                                        ? candleBarData.custom.trade_count
+                                        : 'N/A'
+                                }</div>
+                                <div>VWAP: ${
+                                    candleBarData.custom && candleBarData.custom.vwap
+                                        ? candleBarData.custom.vwap.toFixed(4)
+                                        : 'N/A'
+                                }</div>
                             `;
                         }
 
                         tooltip.innerHTML = tooltipContent;
                         tooltip.style.opacity = 1;
-
                     } else {
                         tooltip.style.opacity = 0;
                     }
                 });
 
-                chart.subscribeMouseLeave(() => { // Moved inside the 'else' block
+                chart.subscribeMouseLeave(() => {
                     tooltip.style.opacity = 0;
                 });
             }
@@ -726,7 +798,9 @@
             tickerInput.addEventListener('change', (event) => {
                 const newTicker = event.target.value.toUpperCase();
                 const currentActiveTimeframeButton = document.querySelector('.timeframe-button.active');
-                const currentTimeframe = currentActiveTimeframeButton ? currentActiveTimeframeButton.dataset.timeframe : '5Min';
+                const currentTimeframe = currentActiveTimeframeButton
+                    ? currentActiveTimeframeButton.dataset.timeframe
+                    : '5Min';
                 updateUrlParams(newTicker, currentTimeframe);
                 updateChartData(newTicker, currentTimeframe);
             });
@@ -749,5 +823,6 @@
         // Call initializeApp on page load
         window.addEventListener("load", initializeApp);
     </script>
+v20241222085100
 </body>
 </html>
