@@ -20,7 +20,7 @@
     }
     #chartContainer {
       width: 90%;
-      height: 500px; /* made taller to accommodate volume */
+      height: 600px; /* Increased height to better accommodate multiple series */
       margin: 20px auto 10px;
       background-color: #131722;
       position: relative; /* For tooltip positioning */
@@ -135,9 +135,7 @@
             <a class="nav-link" href="./portfolio.html">Portfolio</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="./charts.html"
-              >Charts</a
-            >
+            <a class="nav-link active" aria-current="page" href="./charts.html">Charts</a>
           </li>
         </ul>
       </div>
@@ -181,9 +179,7 @@
         />
       </div>
       <div class="mb-3">
-        <label for="alpacaApiSecret" class="form-label"
-          >Alpaca API Secret:</label
-        >
+        <label for="alpacaApiSecret" class="form-label">Alpaca API Secret:</label>
         <input
           type="text"
           id="alpacaApiSecret"
@@ -203,8 +199,11 @@
     <div id="debugLogs"></div>
   </div>
 
+  <!-- Bootstrap JS and Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Font Awesome JS for Icons -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/js/all.min.js"></script>
+  <!-- Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <script>
     // Function to Append Debug Logs
@@ -217,25 +216,21 @@
       debugLogs.scrollTop = debugLogs.scrollHeight;
     }
 
-    // Database Configuration (same as in portfolio.html)
+    // Database Configuration
     const dbName = "ProfitLadderDB";
     const positionsStoreName = "Positions";
     const settingsStoreName = "Settings";
 
-    // Function to Open IndexedDB (same as in portfolio.html)
+    // Function to Open IndexedDB
     function openDatabase() {
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, 3);
+        const request = indexedDB.open(dbName, 3); // Increment version if schema changes
 
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
           if (!db.objectStoreNames.contains(positionsStoreName)) {
-            const positionsStore = db.createObjectStore(positionsStoreName, {
-              keyPath: "id",
-            });
-            positionsStore.createIndex("tickerSymbol", "tickerSymbol", {
-              unique: false,
-            });
+            const positionsStore = db.createObjectStore(positionsStoreName, { keyPath: "id" });
+            positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
           }
           if (!db.objectStoreNames.contains(settingsStoreName)) {
             db.createObjectStore(settingsStoreName, { keyPath: "key" });
@@ -484,6 +479,11 @@
         value: bar.trade_count,
       }));
 
+      // Calculate Volume Min and Max for Scaling Trade Count
+      const volumeValues = volumeData.map(d => d.value);
+      const volumeMin = Math.min(...volumeValues);
+      const volumeMax = Math.max(...volumeValues);
+
       // If chart already exists, just update
       if (chart) {
         candlestickSeries.setData(candleData);
@@ -491,6 +491,13 @@
         vwapSeries.setData(vwapData);
         tradeCountSeries.setData(tradeCountData);
 
+        // Update the trade_count scale based on new volume data
+        chart.priceScale("left").applyOptions({
+          min: volumeMin,
+          max: volumeMax,
+        });
+
+        // If we have real-time data, update
         if (realtimeData) {
           const rtTime = realtimeData.time;
           candlestickSeries.update({
@@ -520,9 +527,9 @@
       // Otherwise, create a brand-new chart
       chart = LightweightCharts.createChart(chartContainer, {
         width: chartContainer.offsetWidth,
-        height: 500,
+        height: 600, // Increased height to better accommodate multiple series
         layout: {
-          backgroundColor: "#131722",
+          backgroundColor: "#131722", // Ensure dark background
           textColor: "rgba(255, 255, 255, 0.9)",
         },
         grid: {
@@ -535,6 +542,9 @@
         },
         crosshair: {
           mode: LightweightCharts.CrosshairMode.Magnet,
+        },
+        priceScale: {
+          borderColor: "rgba(197, 203, 206, 0.8)",
         },
         timeScale: {
           borderColor: "rgba(197, 203, 206, 0.8)",
@@ -554,31 +564,31 @@
       });
       candlestickSeries.setData(candleData);
 
-      // Volume histogram on separate price scale (bottom)
+      // Volume histogram on default (right) price scale
       volumeSeries = chart.addHistogramSeries({
         color: "#26a69a",
         lineWidth: 2,
         priceFormat: { type: "volume" },
-        priceScaleId: "", // put on the default (right) scale
+        priceScaleId: "", // default scale
       });
       volumeSeries.setData(volumeData);
 
-      // We can shrink the volume series to the bottom by adjusting scale margins
+      // Adjust scale margins to allocate bottom 30% for volume
       chart.priceScale("").applyOptions({
         scaleMargins: {
-          top: 0.7,     // top 70% for candlesticks
+          top: 0.7,     // top 70% for candlesticks and main series
           bottom: 0,
         },
       });
 
-      // VWAP line
+      // VWAP line on main price scale
       vwapSeries = chart.addLineSeries({
         color: "yellow",
         lineWidth: 2,
       });
       vwapSeries.setData(vwapData);
 
-      // Trade count line on a left scale
+      // Trade count line on 'left' price scale
       tradeCountSeries = chart.addLineSeries({
         color: "purple",
         lineWidth: 2,
@@ -588,10 +598,12 @@
         visible: true,
         borderVisible: true,
         borderColor: "rgba(197, 203, 206, 0.8)",
+        min: volumeMin, // Synchronize with volume scale
+        max: volumeMax,
       });
       tradeCountSeries.setData(tradeCountData);
 
-      // Update chart if realtime data is present
+      // If we have real-time data, update
       if (realtimeData) {
         const rtTime = realtimeData.time;
         candlestickSeries.update({
@@ -659,7 +671,7 @@
           vw?.value ? vw.value.toFixed(4) : "N/A"
         }</div>`;
 
-        // Trade Count
+        // Trade Count info
         tooltipContent += `<div>Trade Count: ${
           tc?.value ?? "N/A"
         }</div>`;
@@ -814,5 +826,5 @@
     window.addEventListener("load", initializeApp);
   </script>
 </body>
-v20241222093500
+v20241222095100
 </html>
