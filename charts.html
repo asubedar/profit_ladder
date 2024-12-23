@@ -168,24 +168,50 @@
     <!-- Settings Section -->
     <div class="settings d-none" id="settings">
       <h3>Settings</h3>
+      
+      <!-- Toggle Series Section -->
+      <div class="mb-3">
+        <h4>Toggle Series</h4>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="" id="toggleCandlesticks" checked>
+          <label class="form-check-label" for="toggleCandlesticks">
+            Candlesticks
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="" id="toggleVolume" checked>
+          <label class="form-check-label" for="toggleVolume">
+            Volume
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="" id="toggleVWAP" checked>
+          <label class="form-check-label" for="toggleVWAP">
+            VWAP
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="" id="toggleTradeCount" checked>
+          <label class="form-check-label" for="toggleTradeCount">
+            Trade Count
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="" id="toggleDollarVolume" checked>
+          <label class="form-check-label" for="toggleDollarVolume">
+            Dollar Volume
+          </label>
+        </div>
+      </div>
+
       <!-- API Keys Section -->
       <div class="mb-3">
         <label for="alpacaApiKey" class="form-label">Alpaca API Key:</label>
-        <input
-          type="text"
-          id="alpacaApiKey"
-          class="form-control"
-          placeholder="Enter your Alpaca API Key"
-        />
+        <input type="text" id="alpacaApiKey" class="form-control" placeholder="Enter your Alpaca API Key">
       </div>
       <div class="mb-3">
         <label for="alpacaApiSecret" class="form-label">Alpaca API Secret:</label>
-        <input
-          type="text"
-          id="alpacaApiSecret"
-          class="form-control"
-          placeholder="Enter your Alpaca API Secret"
-        />
+        <input type="text" id="alpacaApiSecret" class="form-control" placeholder="Enter your Alpaca API Secret">
       </div>
       <button id="saveKeys" class="btn btn-primary">Save Settings</button>
     </div>
@@ -515,6 +541,7 @@
     let currentTicker = "";
     let currentTimeframe = "";
     let lastHistoricalTimestamp = 0; // To track the last timestamp from historical data
+    let scaledMaxTradeCount = 0; // To keep track of scaled max trade count
 
     async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
       const chartContainer = document.getElementById("chartContainer");
@@ -562,6 +589,10 @@
       const volumeMin = Math.min(...volumeValues, 0); // Ensure at least 0
       const volumeMax = Math.max(...volumeValues);
 
+      // Calculate the maximum trade_count
+      const maxTradeCount = Math.max(...tradeCountData.map(d => d.value), 0);
+      scaledMaxTradeCount = maxTradeCount * 10;
+
       // If chart already exists, just update
       if (chart) {
         candlestickSeries.setData(candleData);
@@ -573,7 +604,7 @@
         // Update the trade_count scale based on new volume data
         chart.priceScale("left").applyOptions({
           min: 0, // Align with volume's bottom
-          max: volumeMax,
+          max: scaledMaxTradeCount, // 10x the max trade_count
         });
 
         // Handle real-time data
@@ -630,6 +661,18 @@
             dollarVolumeSeries.update({
               time: rt.time,
               value: rt.vwap * rt.volume, // Update Dollar Volume
+            });
+
+            // Recalculate the max trade_count if necessary
+            const updatedTradeCount = realtimeData.additionalBars 
+              ? realtimeData.additionalBars.map(bar => bar.trade_count) 
+              : [realtimeData.realtimeData.trade_count];
+            const currentMaxTradeCount = Math.max(scaledMaxTradeCount / 10, ...updatedTradeCount, 0);
+            scaledMaxTradeCount = currentMaxTradeCount * 10;
+
+            chart.priceScale("left").applyOptions({
+              min: 0,
+              max: scaledMaxTradeCount,
             });
           }
         }
@@ -713,7 +756,7 @@
         borderVisible: true,
         borderColor: "rgba(197, 203, 206, 0.8)",
         min: 0, // Align bottom with volume
-        max: volumeMax,
+        max: scaledMaxTradeCount, // 10x the max trade_count
       });
       tradeCountSeries.setData(tradeCountData);
 
@@ -791,10 +834,25 @@
             time: rt.time,
             value: rt.vwap * rt.volume, // Update Dollar Volume
           });
+
+          // Recalculate the max trade_count if necessary
+          const updatedTradeCount = realtimeData.additionalBars 
+            ? realtimeData.additionalBars.map(bar => bar.trade_count) 
+            : [realtimeData.realtimeData.trade_count];
+          const currentMaxTradeCount = Math.max(scaledMaxTradeCount / 10, ...updatedTradeCount, 0);
+          scaledMaxTradeCount = currentMaxTradeCount * 10;
+
+          chart.priceScale("left").applyOptions({
+            min: 0,
+            max: scaledMaxTradeCount,
+          });
         }
       }
 
       updateChartTitle(ticker, timeframe);
+
+      // Initialize Show/Hide Controls
+      initializeShowHideControls();
 
       // Crosshair event => single tooltip
       chart.subscribeCrosshairMove((param) => {
@@ -1064,7 +1122,85 @@
           return 60000; // Default to 1 minute
       }
     }
+
+    // **Function to Initialize Show/Hide Controls**
+    function initializeShowHideControls() {
+      const toggleCandlesticks = document.getElementById("toggleCandlesticks");
+      const toggleVolume = document.getElementById("toggleVolume");
+      const toggleVWAP = document.getElementById("toggleVWAP");
+      const toggleTradeCount = document.getElementById("toggleTradeCount");
+      const toggleDollarVolume = document.getElementById("toggleDollarVolume");
+
+      // **Toggle Candlesticks**
+      toggleCandlesticks.addEventListener("change", () => {
+        if (toggleCandlesticks.checked) {
+          candlestickSeries.applyOptions({ 
+            wickDownColor: "#838ca1",
+            wickUpColor: "#838ca1",
+            borderDownColor: "#ff4976",
+            borderUpColor: "#4bffb5",
+            upColor: "#4bffb5",
+            downColor: "#ff4976",
+          });
+        } else {
+          // Hide Candlesticks by setting colors to transparent and border to transparent
+          candlestickSeries.applyOptions({ 
+            wickDownColor: "rgba(0,0,0,0)",
+            wickUpColor: "rgba(0,0,0,0)",
+            borderDownColor: "rgba(0,0,0,0)",
+            borderUpColor: "rgba(0,0,0,0)",
+            upColor: "rgba(0,0,0,0)",
+            downColor: "rgba(0,0,0,0)",
+          });
+        }
+      });
+
+      // **Toggle Volume**
+      toggleVolume.addEventListener("change", () => {
+        if (toggleVolume.checked) {
+          volumeSeries.applyOptions({ color: "#26a69a" });
+        } else {
+          // Hide Volume by setting color to transparent
+          volumeSeries.applyOptions({ color: "rgba(0,0,0,0)" });
+        }
+      });
+
+      // **Toggle VWAP**
+      toggleVWAP.addEventListener("change", () => {
+        if (toggleVWAP.checked) {
+          vwapSeries.applyOptions({ color: "yellow", lineWidth: 2 });
+        } else {
+          // Hide VWAP by setting color to transparent and lineWidth to 0
+          vwapSeries.applyOptions({ color: "rgba(0,0,0,0)", lineWidth: 0 });
+        }
+      });
+
+      // **Toggle Trade Count**
+      toggleTradeCount.addEventListener("change", () => {
+        if (toggleTradeCount.checked) {
+          tradeCountSeries.applyOptions({ color: "purple", lineWidth: 1 });
+          // Reapply scale options if necessary
+          chart.priceScale("left").applyOptions({
+            min: 0,
+            max: scaledMaxTradeCount, // Ensure the scale is correct
+          });
+        } else {
+          // Hide Trade Count by setting color to transparent and lineWidth to 0
+          tradeCountSeries.applyOptions({ color: "rgba(0,0,0,0)", lineWidth: 0 });
+        }
+      });
+
+      // **Toggle Dollar Volume**
+      toggleDollarVolume.addEventListener("change", () => {
+        if (toggleDollarVolume.checked) {
+          dollarVolumeSeries.applyOptions({ color: "orange", lineWidth: 2 });
+        } else {
+          // Hide Dollar Volume by setting color to transparent and lineWidth to 0
+          dollarVolumeSeries.applyOptions({ color: "rgba(0,0,0,0)", lineWidth: 0 });
+        }
+      });
+    }
   </script>
 </body>
-v20241222132900
+v20241222192700
 </html>
