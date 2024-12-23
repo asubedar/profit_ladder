@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Real-time Stock Chart</title>
+  <!-- Bootstrap CSS -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
+  <!-- Font Awesome for Icons -->
   <link
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css"
@@ -140,8 +142,9 @@
         </ul>
       </div>
     </div>
-   </nav>
+  </nav>
 
+  <!-- Main Container -->
   <div class="container">
     <!-- Chart Controls -->
     <div id="chartControls">
@@ -161,6 +164,7 @@
       </div>
     </div>
 
+    <!-- Settings Toggle -->
     <div class="settings-toggle text-end mt-4">
       <span id="settingsIcon"><i class="fas fa-cog"></i> Settings</span>
     </div>
@@ -584,14 +588,17 @@
         lastHistoricalTimestamp = historicalData[historicalData.length - 1].time;
       }
 
-      // Calculate Volume Min and Max for Scaling Trade Count
-      const volumeValues = volumeData.map(d => d.value);
-      const volumeMin = Math.min(...volumeValues, 0); // Ensure at least 0
-      const volumeMax = Math.max(...volumeValues);
-
       // Calculate the maximum trade_count
       const maxTradeCount = Math.max(...tradeCountData.map(d => d.value), 0);
       scaledMaxTradeCount = maxTradeCount * 10;
+
+      // Optional: Set a minimum to prevent too small scales
+      if (scaledMaxTradeCount < 100) { // Example threshold
+        scaledMaxTradeCount = 100;
+      }
+
+      console.log(`Max Trade Count: ${maxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
+      appendDebugLog(`Max Trade Count: ${maxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
 
       // If chart already exists, just update
       if (chart) {
@@ -601,10 +608,13 @@
         tradeCountSeries.setData(tradeCountData);
         dollarVolumeSeries.setData(dollarVolumeData); // Update Dollar Volume Series
 
-        // Update the trade_count scale based on new volume data
+        // Update the trade_count scale based on new data
         chart.priceScale("left").applyOptions({
-          min: 0, // Align with volume's bottom
+          min: 0,
           max: scaledMaxTradeCount, // 10x the max trade_count
+          tickFormatter: () => "", // Hide tick labels
+          borderVisible: true,
+          borderColor: "rgba(197, 203, 206, 0.8)",
         });
 
         // Handle real-time data
@@ -670,9 +680,21 @@
             const currentMaxTradeCount = Math.max(scaledMaxTradeCount / 10, ...updatedTradeCount, 0);
             scaledMaxTradeCount = currentMaxTradeCount * 10;
 
+            // Optional: Set a minimum to prevent too small scales
+            if (scaledMaxTradeCount < 100) { // Example threshold
+              scaledMaxTradeCount = 100;
+            }
+
+            console.log(`Updated Max Trade Count: ${currentMaxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
+            appendDebugLog(`Updated Max Trade Count: ${currentMaxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
+
+            // Apply the new scale
             chart.priceScale("left").applyOptions({
               min: 0,
               max: scaledMaxTradeCount,
+              tickFormatter: () => "", // Ensure labels remain hidden
+              borderVisible: true,
+              borderColor: "rgba(197, 203, 206, 0.8)",
             });
           }
         }
@@ -730,7 +752,7 @@
       });
       volumeSeries.setData(volumeData);
 
-      // Adjust scale margins to allocate bottom 30% for volume
+      // Adjust scale margins to allocate top 70% for candlesticks and main series
       chart.priceScale("").applyOptions({
         scaleMargins: {
           top: 0.7,     // top 70% for candlesticks and main series
@@ -757,6 +779,7 @@
         borderColor: "rgba(197, 203, 206, 0.8)",
         min: 0, // Align bottom with volume
         max: scaledMaxTradeCount, // 10x the max trade_count
+        tickFormatter: () => "", // Hides the tick labels
       });
       tradeCountSeries.setData(tradeCountData);
 
@@ -842,9 +865,21 @@
           const currentMaxTradeCount = Math.max(scaledMaxTradeCount / 10, ...updatedTradeCount, 0);
           scaledMaxTradeCount = currentMaxTradeCount * 10;
 
+          // Optional: Set a minimum to prevent too small scales
+          if (scaledMaxTradeCount < 100) { // Example threshold
+            scaledMaxTradeCount = 100;
+          }
+
+          console.log(`Updated Max Trade Count: ${currentMaxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
+          appendDebugLog(`Updated Max Trade Count: ${currentMaxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
+
+          // Apply the new scale
           chart.priceScale("left").applyOptions({
             min: 0,
             max: scaledMaxTradeCount,
+            tickFormatter: () => "", // Ensure labels remain hidden
+            borderVisible: true,
+            borderColor: "rgba(197, 203, 206, 0.8)",
           });
         }
       }
@@ -1183,6 +1218,9 @@
           chart.priceScale("left").applyOptions({
             min: 0,
             max: scaledMaxTradeCount, // Ensure the scale is correct
+            tickFormatter: () => "", // Ensure labels remain hidden
+            borderVisible: true,
+            borderColor: "rgba(197, 203, 206, 0.8)",
           });
         } else {
           // Hide Trade Count by setting color to transparent and lineWidth to 0
@@ -1202,5 +1240,6 @@
     }
   </script>
 </body>
-v20241223104600
+v20241223105800
 </html>
+
