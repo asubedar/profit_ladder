@@ -309,10 +309,10 @@
       // Adjust the 'from' date based on the timeframe
       switch (timeframe) {
         case "1Min":
-          from.setDate(to.getDate() - 1); // 1 day
+          from.setDate(to.getDate() - 3); // 3 days
           break;
         case "5Min":
-          from.setDate(to.getDate() - 7); // 7 days
+          from.setDate(to.getDate() - 10); // 10 days
           break;
         case "15Min":
           from.setDate(to.getDate() - 30); // 30 days
@@ -1202,5 +1202,5 @@
     }
   </script>
 </body>
-v20241222192700
+v20241223104600
 </html>
