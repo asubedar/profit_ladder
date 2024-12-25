@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stock News</title>
+  <!-- Bootstrap CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <!-- Font Awesome for Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css"
+  />
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      margin-top: 20px;
+    }
+    .news-article {
+      background-color: #1e1e1e;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+    }
+    .news-article h4 {
+      color: #00bcd4;
+      margin-bottom: 10px;
+    }
+    .news-article a {
+      color: #ffffff;
+      text-decoration: none;
+    }
+    .news-article a:hover {
+      text-decoration: underline;
+    }
+    #newsDisplay {
+      margin-top: 20px;
+    }
+    #fetchNewsBtn {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="./"><i class="fas fa-calculator"></i> Profit Ladder</a>
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#navbarNav"
+        aria-controls="navbarNav"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="./">Profit Ladder</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="./portfolio.html">Portfolio</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="./charts.html">Charts</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="./news.html">News</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="container">
+    <h1>Stock News</h1>
+    <div class="mb-3">
+      <label for="tickerInput" class="form-label">Enter Stock Ticker:</label>
+      <input type="text" class="form-control" id="tickerInput" placeholder="e.g., AAPL">
+    </div>
+    <button id="fetchNewsBtn" class="btn btn-primary">Fetch News</button>
+
+    <div id="newsDisplay">
+      <!-- News articles will be displayed here -->
+    </div>
+  </div>
+
+  <!-- Bootstrap JS and Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Font Awesome JS for Icons -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/js/all.min.js"></script>
+  <script>
+    // Database Configuration (consistent with charts.html)
+    const dbName = "ProfitLadderDB";
+    const settingsStoreName = "Settings";
+
+    // Function to Open IndexedDB (consistent with charts.html)
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, 3); // Ensure version matches
+
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(settingsStoreName)) {
+            db.createObjectStore(settingsStoreName, { keyPath: "key" });
+          }
+        };
+
+        request.onsuccess = (event) => {
+          resolve(event.target.result);
+        };
+
+        request.onerror = (event) => {
+          reject(event.target.error);
+        };
+      });
+    }
+
+    // Function to Fetch Alpaca API Keys from IndexedDB (consistent with charts.html)
+    async function getAlpacaApiKeys() {
+      try {
+        const db = await openDatabase();
+        const transaction = db.transaction(settingsStoreName, "readonly");
+        const store = transaction.objectStore(settingsStoreName);
+
+        const getKey = (keyName) => {
+          return new Promise((resolve, reject) => {
+            const request = store.get(keyName);
+            request.onsuccess = (event) => resolve(event.target.result?.value);
+            request.onerror = (event) => reject(event.target.error);
+          });
+        };
+
+        const alpacaApiKey = await getKey("APCA_API_KEY_ID");
+        const alpacaApiSecret = await getKey("APCA_API_SECRET_KEY");
+
+        return { alpacaApiKey, alpacaApiSecret };
+      } catch (error) {
+        console.error("Error fetching Alpaca API keys:", error);
+        alert("Error fetching Alpaca API keys. Please make sure they are saved in settings on the charts page.");
+        return { alpacaApiKey: null, alpacaApiSecret: null };
+      }
+    }
+
+    // Function to Fetch News from Alpaca API
+    async function fetchNews(ticker) {
+      const newsDisplay = document.getElementById('newsDisplay');
+      newsDisplay.innerHTML = '<p>Loading news...</p>';
+
+      const { alpacaApiKey, alpacaApiSecret } = await getAlpacaApiKeys();
+      if (!alpacaApiKey || !alpacaApiSecret) {
+        return; // Stop if API keys are not available
+      }
+
+      const apiUrl = `https://data.alpaca.markets/v1beta1/news?symbols=${ticker}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            'APCA-API-KEY-ID': alpacaApiKey,
+            'APCA-API-SECRET-KEY': alpacaApiSecret
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        displayNews(data.news);
+      } catch (error) {
+        console.error('Error fetching news:', error);
+        newsDisplay.innerHTML = '<p>Error fetching news. Please try again.</p>';
+      }
+    }
+
+    // Function to Display News Articles
+    function displayNews(newsArticles) {
+      const newsDisplay = document.getElementById('newsDisplay');
+      newsDisplay.innerHTML = ''; // Clear previous content
+
+      if (newsArticles && newsArticles.length > 0) {
+        newsArticles.forEach(article => {
+          const articleDiv = document.createElement('div');
+          articleDiv.classList.add('news-article');
+
+          const title = document.createElement('h4');
+          const link = document.createElement('a');
+          link.href = article.url;
+          link.textContent = article.headline;
+          link.target = '_blank';
+          title.appendChild(link);
+          articleDiv.appendChild(title);
+
+          const source = document.createElement('p');
+          source.textContent = `Source: ${article.source}`;
+          articleDiv.appendChild(source);
+
+          const summary = document.createElement('p');
+          summary.textContent = article.summary;
+          articleDiv.appendChild(summary);
+
+          const date = new Date(article.created_at);
+          const formattedDate = date.toLocaleDateString();
+          const formattedTime = date.toLocaleTimeString();
+          const dateP = document.createElement('p');
+          dateP.textContent = `Published on: ${formattedDate} ${formattedTime}`;
+          articleDiv.appendChild(dateP);
+
+          newsDisplay.appendChild(articleDiv);
+        });
+      } else {
+        newsDisplay.innerHTML = '<p>No news found for this ticker.</p>';
+      }
+    }
+
+    // Event listener for the Fetch News button
+    document.getElementById('fetchNewsBtn').addEventListener('click', () => {
+      const ticker = document.getElementById('tickerInput').value.toUpperCase().trim();
+      if (ticker) {
+        fetchNews(ticker);
+      } else {
+        alert('Please enter a stock ticker symbol.');
+      }
+    });
+
+    // Initialize if a ticker is in the URL parameters
+    function initializeNewsPage() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tickerFromURL = urlParams.get('ticker');
+      if (tickerFromURL) {
+        document.getElementById('tickerInput').value = tickerFromURL.toUpperCase();
+        fetchNews(tickerFromURL.toUpperCase());
+      }
+    }
+
+    window.addEventListener('load', initializeNewsPage);
+  </script>
+</body>
+</html>
