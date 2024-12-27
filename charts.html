@@ -419,7 +419,7 @@
     }
 
     // Function to Fetch Real-time Data (latest minuteBar) from Alpaca
-    async function fetchRealtimeData(ticker, apiKey, apiSecret, lastHistoricalTimestamp) {
+    async function fetchRealtimeData(ticker, apiKey, apiSecret, lastHistoricalTimestamp, timeframe) {
       const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${ticker}`;
       try {
         const response = await fetch(url, {
@@ -459,10 +459,10 @@
           if (realtimeData.time > lastHistoricalTimestamp) {
             // Fetch minute bars since lastHistoricalTimestamp
             const additionalBars = await fetchAdditionalMinuteBars(ticker, apiKey, apiSecret, lastHistoricalTimestamp);
-            return { realtimeData, additionalBars };
+            return { realtimeData, additionalBars, timeframe };
           }
 
-          return { realtimeData };
+          return { realtimeData, timeframe };
         } else {
           console.error(`No real-time minute bar found for ${ticker}`);
           appendDebugLog(`No real-time minute bar found for ${ticker}`);
@@ -546,6 +546,9 @@
     let currentTimeframe = "";
     let lastHistoricalTimestamp = 0; // To track the last timestamp from historical data
     let scaledMaxTradeCount = 0; // To keep track of scaled max trade count
+
+    // Object to hold the current partial bar for aggregation
+    let currentPartialBar = null;
 
     async function createOrUpdateChart(ticker, timeframe, historicalData, realtimeData) {
       const chartContainer = document.getElementById("chartContainer");
@@ -649,29 +652,119 @@
 
           if (realtimeData.realtimeData) {
             const rt = realtimeData.realtimeData;
-            candlestickSeries.update({
-              time: rt.time,
-              open: rt.open,
-              high: rt.high,
-              low: rt.low,
-              close: rt.close,
-            });
-            volumeSeries.update({
-              time: rt.time,
-              value: rt.volume,
-            });
-            vwapSeries.update({
-              time: rt.time,
-              value: rt.vwap,
-            });
-            tradeCountSeries.update({
-              time: rt.time,
-              value: rt.trade_count,
-            });
-            dollarVolumeSeries.update({
-              time: rt.time,
-              value: rt.vwap * rt.volume, // Update Dollar Volume
-            });
+
+            // Determine if aggregation is needed based on timeframe
+            const needsAggregation = ["4H", "1H", "30Min", "15Min", "5Min", "1Min"].includes(timeframe);
+
+            if (needsAggregation && timeframe !== "1Min") {
+              // Calculate the timeframe duration in seconds
+              const timeframeDuration = getTimeframeDuration(timeframe);
+
+              // Calculate the start time of the current partial bar
+              const partialBarStartTime = Math.floor(rt.time / timeframeDuration) * timeframeDuration;
+
+              if (!currentPartialBar || currentPartialBar.time !== partialBarStartTime) {
+                // If there's an existing partial bar, replace the last bar in the chart with it
+                if (currentPartialBar) {
+                  candlestickSeries.update({
+                    time: currentPartialBar.time,
+                    open: currentPartialBar.open,
+                    high: currentPartialBar.high,
+                    low: currentPartialBar.low,
+                    close: currentPartialBar.close,
+                  });
+                  volumeSeries.update({
+                    time: currentPartialBar.time,
+                    value: currentPartialBar.volume,
+                  });
+                  vwapSeries.update({
+                    time: currentPartialBar.time,
+                    value: currentPartialBar.vwap,
+                  });
+                  tradeCountSeries.update({
+                    time: currentPartialBar.time,
+                    value: currentPartialBar.trade_count,
+                  });
+                  dollarVolumeSeries.update({
+                    time: currentPartialBar.time,
+                    value: currentPartialBar.dollar_volume,
+                  });
+                }
+
+                // Initialize a new partial bar
+                currentPartialBar = {
+                  time: partialBarStartTime,
+                  open: rt.open,
+                  high: rt.high,
+                  low: rt.low,
+                  close: rt.close,
+                  volume: rt.volume,
+                  trade_count: rt.trade_count,
+                  vwap: rt.vwap,
+                  dollar_volume: rt.vwap * rt.volume,
+                };
+              } else {
+                // Update the existing partial bar
+                currentPartialBar.high = Math.max(currentPartialBar.high, rt.high);
+                currentPartialBar.low = Math.min(currentPartialBar.low, rt.low);
+                currentPartialBar.close = rt.close;
+                currentPartialBar.volume += rt.volume;
+                currentPartialBar.trade_count += rt.trade_count;
+                // Recalculate VWAP
+                currentPartialBar.vwap = currentPartialBar.volume !== 0 ? (currentPartialBar.vwap * (currentPartialBar.volume - rt.volume) + rt.vwap * rt.volume) / currentPartialBar.volume : rt.vwap;
+                currentPartialBar.dollar_volume += rt.vwap * rt.volume;
+              }
+
+              // Update the chart with the partial bar
+              candlestickSeries.update({
+                time: currentPartialBar.time,
+                open: currentPartialBar.open,
+                high: currentPartialBar.high,
+                low: currentPartialBar.low,
+                close: currentPartialBar.close,
+              });
+              volumeSeries.update({
+                time: currentPartialBar.time,
+                value: currentPartialBar.volume,
+              });
+              vwapSeries.update({
+                time: currentPartialBar.time,
+                value: currentPartialBar.vwap,
+              });
+              tradeCountSeries.update({
+                time: currentPartialBar.time,
+                value: currentPartialBar.trade_count,
+              });
+              dollarVolumeSeries.update({
+                time: currentPartialBar.time,
+                value: currentPartialBar.dollar_volume,
+              });
+            } else {
+              // For 1Min timeframe, handle as usual
+              candlestickSeries.update({
+                time: rt.time,
+                open: rt.open,
+                high: rt.high,
+                low: rt.low,
+                close: rt.close,
+              });
+              volumeSeries.update({
+                time: rt.time,
+                value: rt.volume,
+              });
+              vwapSeries.update({
+                time: rt.time,
+                value: rt.vwap,
+              });
+              tradeCountSeries.update({
+                time: rt.time,
+                value: rt.trade_count,
+              });
+              dollarVolumeSeries.update({
+                time: rt.time,
+                value: rt.vwap * rt.volume, // Update Dollar Volume
+              });
+            }
 
             // Recalculate the max trade_count if necessary
             const updatedTradeCount = realtimeData.additionalBars 
@@ -697,550 +790,315 @@
               borderColor: "rgba(197, 203, 206, 0.8)",
             });
           }
-        }
 
-        updateChartTitle(ticker, timeframe);
-        return;
-      }
-
-      // Otherwise, create a brand-new chart
-      chart = LightweightCharts.createChart(chartContainer, {
-        width: chartContainer.offsetWidth,
-        height: 600, // Increased height to better accommodate multiple series
-        layout: {
-          background: "#131722", // Corrected property name
-          textColor: "rgba(255, 255, 255, 0.9)",
-        },
-        grid: {
-          vertLines: {
-            color: "rgba(197, 203, 206, 0.5)",
-          },
-          horzLines: {
-            color: "rgba(197, 203, 206, 0.5)",
-          },
-        },
-        crosshair: {
-          mode: LightweightCharts.CrosshairMode.Magnet,
-        },
-        priceScale: {
-          borderColor: "rgba(197, 203, 206, 0.8)",
-        },
-        timeScale: {
-          borderColor: "rgba(197, 203, 206, 0.8)",
-          timeVisible: true,
-          timezone: 'America/New_York',
-          secondsVisible: false,
-        },
-      });
-
-      // Main candlestick
-      candlestickSeries = chart.addCandlestickSeries({
-        upColor: "#4bffb5",
-        downColor: "#ff4976",
-        borderDownColor: "#ff4976",
-        borderUpColor: "#4bffb5",
-        wickDownColor: "#838ca1",
-        wickUpColor: "#838ca1",
-      });
-      candlestickSeries.setData(candleData);
-
-      // Volume histogram on default (right) price scale
-      volumeSeries = chart.addHistogramSeries({
-        color: "#26a69a",
-        lineWidth: 2,
-        priceFormat: { type: "volume" },
-        priceScaleId: "", // default scale
-      });
-      volumeSeries.setData(volumeData);
-
-      // Adjust scale margins to allocate top 70% for candlesticks and main series
-      chart.priceScale("").applyOptions({
-        scaleMargins: {
-          top: 0.7,     // top 70% for candlesticks and main series
-          bottom: 0,
-        },
-      });
-
-      // VWAP line on main price scale
-      vwapSeries = chart.addLineSeries({
-        color: "yellow",
-        lineWidth: 2,
-      });
-      vwapSeries.setData(vwapData);
-
-      // Trade count line on 'left' price scale
-      tradeCountSeries = chart.addLineSeries({
-        color: "purple",
-        lineWidth: 1,
-        priceScaleId: "left",
-      });
-      chart.priceScale("left").applyOptions({
-        visible: true,
-        borderVisible: true,
-        borderColor: "rgba(197, 203, 206, 0.8)",
-        min: 0, // Align bottom with volume
-        max: scaledMaxTradeCount, // 10x the max trade_count
-        tickFormatter: () => "", // Hides the tick labels
-      });
-      tradeCountSeries.setData(tradeCountData);
-
-      // *** Adding Dollar Volume Series ***
-      dollarVolumeSeries = chart.addLineSeries({
-        color: "orange",
-        lineWidth: 2,
-        priceScaleId: "right-dollar-volume", // Assign a unique price scale
-      });
-
-      // Create a separate price scale for Dollar Volume
-      chart.priceScale("right-dollar-volume").applyOptions({
-        position: 'right',
-        scaleMargins: {
-          top: 0.7, // Align with other series
-          bottom: 0,
-        },
-        borderVisible: true,
-        borderColor: "rgba(197, 203, 206, 0.8)",
-      });
-      dollarVolumeSeries.setData(dollarVolumeData); // Set initial data
-
-      // Handle real-time data
-      if (realtimeData) {
-        if (realtimeData.additionalBars && realtimeData.additionalBars.length > 0) {
-          realtimeData.additionalBars.forEach(bar => {
-            candlestickSeries.update({
-              time: bar.time,
-              open: bar.open,
-              high: bar.high,
-              low: bar.low,
-              close: bar.close,
-            });
-            volumeSeries.update({
-              time: bar.time,
-              value: bar.volume,
-            });
-            vwapSeries.update({
-              time: bar.time,
-              value: bar.vwap,
-            });
-            tradeCountSeries.update({
-              time: bar.time,
-              value: bar.trade_count,
-            });
-            dollarVolumeSeries.update({
-              time: bar.time,
-              value: bar.vwap * bar.volume, // Update Dollar Volume
-            });
-          });
-        }
-
-        if (realtimeData.realtimeData) {
-          const rt = realtimeData.realtimeData;
-          candlestickSeries.update({
-            time: rt.time,
-            open: rt.open,
-            high: rt.high,
-            low: rt.low,
-            close: rt.close,
-          });
-          volumeSeries.update({
-            time: rt.time,
-            value: rt.volume,
-          });
-          vwapSeries.update({
-            time: rt.time,
-            value: rt.vwap,
-          });
-          tradeCountSeries.update({
-            time: rt.time,
-            value: rt.trade_count,
-          });
-          dollarVolumeSeries.update({
-            time: rt.time,
-            value: rt.vwap * rt.volume, // Update Dollar Volume
-          });
-
-          // Recalculate the max trade_count if necessary
-          const updatedTradeCount = realtimeData.additionalBars 
-            ? realtimeData.additionalBars.map(bar => bar.trade_count) 
-            : [realtimeData.realtimeData.trade_count];
-          const currentMaxTradeCount = Math.max(scaledMaxTradeCount / 10, ...updatedTradeCount, 0);
-          scaledMaxTradeCount = currentMaxTradeCount * 10;
-
-          // Optional: Set a minimum to prevent too small scales
-          if (scaledMaxTradeCount < 100) { // Example threshold
-            scaledMaxTradeCount = 100;
-          }
-
-          console.log(`Updated Max Trade Count: ${currentMaxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
-          appendDebugLog(`Updated Max Trade Count: ${currentMaxTradeCount}, Scaled Max Trade Count: ${scaledMaxTradeCount}`);
-
-          // Apply the new scale
-          chart.priceScale("left").applyOptions({
-            min: 0,
-            max: scaledMaxTradeCount,
-            tickFormatter: () => "", // Ensure labels remain hidden
-            borderVisible: true,
-            borderColor: "rgba(197, 203, 206, 0.8)",
-          });
-        }
-      }
-
-      updateChartTitle(ticker, timeframe);
-
-      // Initialize Show/Hide Controls
-      initializeShowHideControls();
-
-      // Crosshair event => single tooltip
-      chart.subscribeCrosshairMove((param) => {
-        if (!param.point) {
-          tooltip.style.opacity = 0;
+          updateChartTitle(ticker, timeframe);
           return;
         }
+    
+    /**
+     * Helper function to get timeframe duration in seconds
+     * Supports "1Min", "5Min", "15Min", "30Min", "1H", "4H", "1D", "1W", "1M"
+     */
+    function getTimeframeDuration(timeframe) {
+      const mapping = {
+        "1Min": 60,
+        "5Min": 300,
+        "15Min": 900,
+        "30Min": 1800,
+        "1H": 3600,
+        "4H": 14400,
+        "1D": 86400,
+        "1W": 604800,
+        "1M": 2592000 // Approximate
+      };
+      return mapping[timeframe] || 300; // Default to 5Min
+    }
 
-        tooltip.style.left = param.point.x + "px";
-        tooltip.style.top = param.point.y + "px";
-
-        let tooltipContent = "";
-        if (param.time) {
-          const date = new Date(param.time * 1000);
-          const formattedDate = date.toLocaleDateString();
-          const formattedTime = date.toLocaleTimeString();
-          tooltipContent += `<div><strong>${formattedDate} ${formattedTime}</strong></div>`;
+        function updateChartTitle(ticker, timeframe) {
+          const title = `${ticker} - ${timeframe} - Real-time Chart`;
+          chart.applyOptions({
+            watermark: {
+              visible: true,
+              fontSize: 24,
+              horzAlign: "left",
+              vertAlign: "top",
+              color: "rgba(255, 255, 255, 0.7)",
+              text: title,
+            },
+          });
         }
 
-        // Retrieve data from each series
-        const cndl = param.seriesData.get(candlestickSeries);
-        const vol = param.seriesData.get(volumeSeries);
-        const vw = param.seriesData.get(vwapSeries);
-        const tc = param.seriesData.get(tradeCountSeries);
-        const dv = param.seriesData.get(dollarVolumeSeries); // Retrieve Dollar Volume data
-
-        // Candlestick info
-        if (cndl) {
-          tooltipContent += `
-            <div>Open: ${cndl.open}</div>
-            <div>High: ${cndl.high}</div>
-            <div>Low: ${cndl.low}</div>
-            <div>Close: ${cndl.close}</div>
-          `;
+        // Settings Toggle
+        function handleSettingsToggle() {
+          const settings = document.getElementById("settings");
+          document.getElementById("settingsIcon").addEventListener("click", () => {
+            settings.classList.toggle("d-none");
+            appendDebugLog("Settings panel toggled.");
+          });
         }
 
-        // Volume info
-        tooltipContent += `<div>Volume: ${vol?.value ?? "N/A"}</div>`;
+        // Save Keys
+        async function handleSaveKeys() {
+          document.getElementById("saveKeys").addEventListener("click", async () => {
+            const alpacaApiKey = document
+              .getElementById("alpacaApiKey")
+              .value.trim();
+            const alpacaApiSecret = document
+              .getElementById("alpacaApiSecret")
+              .value.trim();
 
-        // VWAP info
-        tooltipContent += `<div>VWAP: ${
-          vw?.value ? vw.value.toFixed(4) : "N/A"
-        }</div>`;
+            try {
+              const db = await openDatabase();
+              const transaction = db.transaction(settingsStoreName, "readwrite");
+              const store = transaction.objectStore(settingsStoreName);
 
-        // Trade Count info
-        tooltipContent += `<div>Trade Count: ${
-          tc?.value ?? "N/A"
-        }</div>`;
+              if (alpacaApiKey) {
+                store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
+              }
+              if (alpacaApiSecret) {
+                store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
+              }
 
-        // Dollar Volume info
-        tooltipContent += `<div>Dollar Volume: ${
-          dv?.value ? dv.value.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "N/A"
-        }</div>`;
+              await new Promise((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = (event) => reject(event.target.error);
+              });
 
-        tooltip.innerHTML = tooltipContent;
-        tooltip.style.opacity = 1;
-      });
+              appendDebugLog("API keys saved successfully.");
+              alert("API keys saved successfully.");
+            } catch (error) {
+              console.error("Error saving API keys:", error);
+              appendDebugLog(`Error saving API keys: ${error}`);
+              alert("Failed to save API keys. Please try again.");
+            }
+          });
+        }
 
-      chart.subscribeMouseLeave(() => {
-        tooltip.style.opacity = 0;
-      });
-    }
-
-    function updateChartTitle(ticker, timeframe) {
-      const title = `${ticker} - ${timeframe} - Real-time Chart`;
-      chart.applyOptions({
-        watermark: {
-          visible: true,
-          fontSize: 24,
-          horzAlign: "left",
-          vertAlign: "top",
-          color: "rgba(255, 255, 255, 0.7)",
-          text: title,
-        },
-      });
-    }
-
-    // Settings Toggle
-    function handleSettingsToggle() {
-      const settings = document.getElementById("settings");
-      document.getElementById("settingsIcon").addEventListener("click", () => {
-        settings.classList.toggle("d-none");
-        appendDebugLog("Settings panel toggled.");
-      });
-    }
-
-    // Save Keys
-    async function handleSaveKeys() {
-      document.getElementById("saveKeys").addEventListener("click", async () => {
-        const alpacaApiKey = document
-          .getElementById("alpacaApiKey")
-          .value.trim();
-        const alpacaApiSecret = document
-          .getElementById("alpacaApiSecret")
-          .value.trim();
-
-        try {
-          const db = await openDatabase();
-          const transaction = db.transaction(settingsStoreName, "readwrite");
-          const store = transaction.objectStore(settingsStoreName);
-
-          if (alpacaApiKey) {
-            store.put({ key: "APCA_API_KEY_ID", value: alpacaApiKey });
-          }
-          if (alpacaApiSecret) {
-            store.put({ key: "APCA_API_SECRET_KEY", value: alpacaApiSecret });
+        // Update Chart Data
+        async function updateChartData(ticker, timeframe) {
+          if (!ticker) {
+            alert("Please enter a ticker symbol.");
+            return;
           }
 
-          await new Promise((resolve, reject) => {
-            transaction.oncomplete = () => resolve();
-            transaction.onerror = (event) => reject(event.target.error);
+          const { alpacaApiKey, alpacaApiSecret } = await getAlpacaApiKeys();
+          if (!alpacaApiKey || !alpacaApiSecret) {
+            alert("Alpaca API keys are not set. Please enter them in the settings.");
+            return;
+          }
+
+          const historicalData = await fetchHistoricalData(ticker, alpacaApiKey, alpacaApiSecret, timeframe);
+          const lastHistoricalTimestamp = historicalData.length > 0 ? historicalData[historicalData.length - 1].time : 0;
+          const realtimeData = await fetchRealtimeData(ticker, alpacaApiKey, alpacaApiSecret, lastHistoricalTimestamp, timeframe);
+
+          if (!realtimeData) {
+            appendDebugLog("No real-time data fetched.");
+            return;
+          }
+
+          createOrUpdateChart(ticker, timeframe, historicalData, realtimeData);
+        }
+
+        // Initialize Chart with default or query params
+        async function initializeChart() {
+          const urlParams = new URLSearchParams(window.location.search);
+          const tickerInput = document.getElementById("tickerInput");
+          const timeframeButtons = document.querySelectorAll(".timeframe-button");
+
+          const ticker = (urlParams.get("ticker") || "AAPL").toUpperCase(); // default
+          const timeframe = urlParams.get("timeframe") || "5Min"; // default
+
+          tickerInput.value = ticker;
+          timeframeButtons.forEach((button) => {
+            button.classList.remove("active");
+            if (button.dataset.timeframe === timeframe) {
+              button.classList.add("active");
+            }
           });
 
-          appendDebugLog("API keys saved successfully.");
-          alert("API keys saved successfully.");
-        } catch (error) {
-          console.error("Error saving API keys:", error);
-          appendDebugLog(`Error saving API keys: ${error}`);
-          alert("Failed to save API keys. Please try again.");
+          updateChartData(ticker, timeframe);
         }
-      });
-    }
 
-    // Update Chart Data
-    async function updateChartData(ticker, timeframe) {
-      if (!ticker) {
-        alert("Please enter a ticker symbol.");
-        return;
-      }
-
-      const { alpacaApiKey, alpacaApiSecret } = await getAlpacaApiKeys();
-      if (!alpacaApiKey || !alpacaApiSecret) {
-        alert("Alpaca API keys are not set. Please enter them in the settings.");
-        return;
-      }
-
-      const historicalData = await fetchHistoricalData(ticker, alpacaApiKey, alpacaApiSecret, timeframe);
-      const lastHistoricalTimestamp = historicalData.length > 0 ? historicalData[historicalData.length - 1].time : 0;
-      const realtimeData = await fetchRealtimeData(ticker, alpacaApiKey, alpacaApiSecret, lastHistoricalTimestamp);
-
-      if (!realtimeData) {
-        appendDebugLog("No real-time data fetched.");
-        return;
-      }
-
-      createOrUpdateChart(ticker, timeframe, historicalData, realtimeData);
-    }
-
-    // Initialize Chart with default or query params
-    async function initializeChart() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tickerInput = document.getElementById("tickerInput");
-      const timeframeButtons = document.querySelectorAll(".timeframe-button");
-
-      const ticker = (urlParams.get("ticker") || "AAPL").toUpperCase(); // default
-      const timeframe = urlParams.get("timeframe") || "5Min"; // default
-
-      tickerInput.value = ticker;
-      timeframeButtons.forEach((button) => {
-        button.classList.remove("active");
-        if (button.dataset.timeframe === timeframe) {
-          button.classList.add("active");
+        // Update URL parameters
+        function updateUrlParams(ticker, timeframe) {
+          const urlParams = new URLSearchParams(window.location.search);
+          urlParams.set("ticker", ticker);
+          urlParams.set("timeframe", timeframe);
+          const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+          window.history.pushState({ path: newUrl }, "", newUrl);
         }
-      });
 
-      updateChartData(ticker, timeframe);
-    }
+        // Initialize the Application
+        async function initializeApp() {
+          handleSettingsToggle();
+          handleSaveKeys();
 
-    // Update URL parameters
-    function updateUrlParams(ticker, timeframe) {
-      const urlParams = new URLSearchParams(window.location.search);
-      urlParams.set("ticker", ticker);
-      urlParams.set("timeframe", timeframe);
-      const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-      window.history.pushState({ path: newUrl }, "", newUrl);
-    }
+          const tickerInput = document.getElementById("tickerInput");
+          const timeframeButtons = document.querySelectorAll(".timeframe-button");
 
-    // Initialize the Application
-    async function initializeApp() {
-      handleSettingsToggle();
-      handleSaveKeys();
+          tickerInput.addEventListener("change", (event) => {
+            const newTicker = event.target.value.toUpperCase();
+            const activeBtn = document.querySelector(".timeframe-button.active");
+            const activeTimeframe = activeBtn ? activeBtn.dataset.timeframe : "5Min";
+            updateUrlParams(newTicker, activeTimeframe);
+            updateChartData(newTicker, activeTimeframe);
+          });
 
-      const tickerInput = document.getElementById("tickerInput");
-      const timeframeButtons = document.querySelectorAll(".timeframe-button");
+          timeframeButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+              timeframeButtons.forEach((b) => b.classList.remove("active"));
+              button.classList.add("active");
+              const newTimeframe = button.dataset.timeframe;
+              const ticker = document.getElementById("tickerInput").value.toUpperCase();
+              updateUrlParams(ticker, newTimeframe);
+              updateChartData(ticker, newTimeframe);
+            });
+          });
 
-      tickerInput.addEventListener("change", (event) => {
-        const newTicker = event.target.value.toUpperCase();
-        const activeBtn = document.querySelector(".timeframe-button.active");
-        const activeTimeframe = activeBtn ? activeBtn.dataset.timeframe : "5Min";
-        updateUrlParams(newTicker, activeTimeframe);
-        updateChartData(newTicker, activeTimeframe);
-      });
+          initializeChart();
 
-      timeframeButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          timeframeButtons.forEach((b) => b.classList.remove("active"));
-          button.classList.add("active");
-          const newTimeframe = button.dataset.timeframe;
-          const ticker = document.getElementById("tickerInput").value.toUpperCase();
-          updateUrlParams(ticker, newTimeframe);
-          updateChartData(ticker, newTimeframe);
-        });
-      });
+          // Set up real-time updates based on timeframe
+          setupRealTimeUpdates();
+        }
 
-      initializeChart();
+        window.addEventListener("load", initializeApp);
 
-      // Set up real-time updates based on timeframe
-      setupRealTimeUpdates();
-    }
+        // Function to Set Up Real-time Updates
+        let refreshIntervalId; // Declare refreshIntervalId outside the function
 
-    window.addEventListener("load", initializeApp);
+        function setupRealTimeUpdates() {
+          const timeframeButtons = document.querySelectorAll(".timeframe-button");
+          timeframeButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+              const newTimeframe = button.dataset.timeframe;
+              if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+              }
+              // Set refresh interval based on timeframe
+              const interval = getRefreshInterval(newTimeframe);
+              if (interval) {
+                refreshIntervalId = setInterval(() => {
+                  const ticker = document.getElementById("tickerInput").value.toUpperCase();
+                  if (ticker) {
+                    updateChartData(ticker, newTimeframe);
+                  }
+                }, interval);
+              }
+            });
+          });
 
-    // Function to Set Up Real-time Updates
-    let refreshIntervalId; // Declare refreshIntervalId outside the function
-
-    function setupRealTimeUpdates() {
-      const timeframeButtons = document.querySelectorAll(".timeframe-button");
-      timeframeButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          const newTimeframe = button.dataset.timeframe;
-          if (refreshIntervalId) {
-            clearInterval(refreshIntervalId);
-          }
-          // Set refresh interval based on timeframe
-          const interval = getRefreshInterval(newTimeframe);
-          if (interval) {
+          // Initialize the first interval
+          const activeBtn = document.querySelector(".timeframe-button.active");
+          const activeTimeframe = activeBtn ? activeBtn.dataset.timeframe : "5Min";
+          const initialInterval = getRefreshInterval(activeTimeframe);
+          if (initialInterval) {
             refreshIntervalId = setInterval(() => {
               const ticker = document.getElementById("tickerInput").value.toUpperCase();
               if (ticker) {
-                updateChartData(ticker, newTimeframe);
+                updateChartData(ticker, activeTimeframe);
               }
-            }, interval);
+            }, initialInterval);
+          }
+        }
+
+        // Function to Determine Refresh Interval Based on Timeframe
+        function getRefreshInterval(timeframe) {
+          switch (timeframe) {
+            case "1Min":
+            case "5Min":
+            case "15Min":
+            case "30Min":
+              return 60000; // 1 minute
+            case "1H":
+            case "4H":
+              return 300000; // 5 minutes
+            case "1D":
+            case "1W":
+            case "1M":
+              return 900000; // 15 minutes
+            default:
+              return 60000; // Default to 1 minute
+          }
+        }
+
+        // **Function to Initialize Show/Hide Controls**
+        function initializeShowHideControls() {
+          const toggleCandlesticks = document.getElementById("toggleCandlesticks");
+          const toggleVolume = document.getElementById("toggleVolume");
+          const toggleVWAP = document.getElementById("toggleVWAP");
+          const toggleTradeCount = document.getElementById("toggleTradeCount");
+          const toggleDollarVolume = document.getElementById("toggleDollarVolume");
+
+          // **Toggle Candlesticks**
+          toggleCandlesticks.addEventListener("change", () => {
+            if (toggleCandlesticks.checked) {
+              candlestickSeries.applyOptions({ 
+                wickDownColor: "#838ca1",
+                wickUpColor: "#838ca1",
+                borderDownColor: "#ff4976",
+                borderUpColor: "#4bffb5",
+                upColor: "#4bffb5",
+                downColor: "#ff4976",
+              });
+              appendDebugLog("Candlesticks series shown.");
+            } else {
+              candlestickSeries.applyOptions({ visible: false });
+              appendDebugLog("Candlesticks series hidden.");
+            }
+          });
+
+          // **Toggle Volume**
+          toggleVolume.addEventListener("change", () => {
+            if (toggleVolume.checked) {
+              volumeSeries.applyOptions({ visible: true });
+              appendDebugLog("Volume series shown.");
+            } else {
+              volumeSeries.applyOptions({ visible: false });
+              appendDebugLog("Volume series hidden.");
+            }
+          });
+
+          // **Toggle VWAP**
+          toggleVWAP.addEventListener("change", () => {
+            if (toggleVWAP.checked) {
+              vwapSeries.applyOptions({ visible: true });
+              appendDebugLog("VWAP series shown.");
+            } else {
+              vwapSeries.applyOptions({ visible: false });
+              appendDebugLog("VWAP series hidden.");
+            }
+          });
+
+          // **Toggle Trade Count**
+          toggleTradeCount.addEventListener("change", () => {
+            if (toggleTradeCount.checked) {
+              tradeCountSeries.applyOptions({ visible: true });
+              appendDebugLog("Trade Count series shown.");
+            } else {
+              tradeCountSeries.applyOptions({ visible: false });
+              appendDebugLog("Trade Count series hidden.");
+            }
+          });
+
+          // **Toggle Dollar Volume**
+          toggleDollarVolume.addEventListener("change", () => {
+            if (toggleDollarVolume.checked) {
+              dollarVolumeSeries.applyOptions({ visible: true });
+              appendDebugLog("Dollar Volume series shown.");
+            } else {
+              dollarVolumeSeries.applyOptions({ visible: false });
+              appendDebugLog("Dollar Volume series hidden.");
+            }
+          });
+        }
+
+        // Function to Handle Window Resize
+        window.addEventListener('resize', () => {
+          if (chart) {
+            chart.applyOptions({ width: document.getElementById("chartContainer").offsetWidth });
           }
         });
-      });
-
-      // Initialize the first interval
-      const activeBtn = document.querySelector(".timeframe-button.active");
-      const activeTimeframe = activeBtn ? activeBtn.dataset.timeframe : "5Min";
-      const initialInterval = getRefreshInterval(activeTimeframe);
-      if (initialInterval) {
-        refreshIntervalId = setInterval(() => {
-          const ticker = document.getElementById("tickerInput").value.toUpperCase();
-          if (ticker) {
-            updateChartData(ticker, activeTimeframe);
-          }
-        }, initialInterval);
-      }
-    }
-
-    // Function to Determine Refresh Interval Based on Timeframe
-    function getRefreshInterval(timeframe) {
-      switch (timeframe) {
-        case "1Min":
-        case "5Min":
-        case "15Min":
-        case "30Min":
-          return 60000; // 1 minute
-        case "1H":
-        case "4H":
-          return 300000; // 5 minutes
-        case "1D":
-        case "1W":
-        case "1M":
-          return 900000; // 15 minutes
-        default:
-          return 60000; // Default to 1 minute
-      }
-    }
-
-    // **Function to Initialize Show/Hide Controls**
-    function initializeShowHideControls() {
-      const toggleCandlesticks = document.getElementById("toggleCandlesticks");
-      const toggleVolume = document.getElementById("toggleVolume");
-      const toggleVWAP = document.getElementById("toggleVWAP");
-      const toggleTradeCount = document.getElementById("toggleTradeCount");
-      const toggleDollarVolume = document.getElementById("toggleDollarVolume");
-
-      // **Toggle Candlesticks**
-      toggleCandlesticks.addEventListener("change", () => {
-        if (toggleCandlesticks.checked) {
-          candlestickSeries.applyOptions({ 
-            wickDownColor: "#838ca1",
-            wickUpColor: "#838ca1",
-            borderDownColor: "#ff4976",
-            borderUpColor: "#4bffb5",
-            upColor: "#4bffb5",
-            downColor: "#ff4976",
-          });
-        } else {
-          // Hide Candlesticks by setting colors to transparent and border to transparent
-          candlestickSeries.applyOptions({ 
-            wickDownColor: "rgba(0,0,0,0)",
-            wickUpColor: "rgba(0,0,0,0)",
-            borderDownColor: "rgba(0,0,0,0)",
-            borderUpColor: "rgba(0,0,0,0)",
-            upColor: "rgba(0,0,0,0)",
-            downColor: "rgba(0,0,0,0)",
-          });
-        }
-      });
-
-      // **Toggle Volume**
-      toggleVolume.addEventListener("change", () => {
-        if (toggleVolume.checked) {
-          volumeSeries.applyOptions({ color: "#26a69a" });
-        } else {
-          // Hide Volume by setting color to transparent
-          volumeSeries.applyOptions({ color: "rgba(0,0,0,0)" });
-        }
-      });
-
-      // **Toggle VWAP**
-      toggleVWAP.addEventListener("change", () => {
-        if (toggleVWAP.checked) {
-          vwapSeries.applyOptions({ color: "yellow", lineWidth: 2 });
-        } else {
-          // Hide VWAP by setting color to transparent and lineWidth to 0
-          vwapSeries.applyOptions({ color: "rgba(0,0,0,0)", lineWidth: 0 });
-        }
-      });
-
-      // **Toggle Trade Count**
-      toggleTradeCount.addEventListener("change", () => {
-        if (toggleTradeCount.checked) {
-          tradeCountSeries.applyOptions({ color: "purple", lineWidth: 1 });
-          // Reapply scale options if necessary
-          chart.priceScale("left").applyOptions({
-            min: 0,
-            max: scaledMaxTradeCount, // Ensure the scale is correct
-            tickFormatter: () => "", // Ensure labels remain hidden
-            borderVisible: true,
-            borderColor: "rgba(197, 203, 206, 0.8)",
-          });
-        } else {
-          // Hide Trade Count by setting color to transparent and lineWidth to 0
-          tradeCountSeries.applyOptions({ color: "rgba(0,0,0,0)", lineWidth: 0 });
-        }
-      });
-
-      // **Toggle Dollar Volume**
-      toggleDollarVolume.addEventListener("change", () => {
-        if (toggleDollarVolume.checked) {
-          dollarVolumeSeries.applyOptions({ color: "orange", lineWidth: 2 });
-        } else {
-          // Hide Dollar Volume by setting color to transparent and lineWidth to 0
-          dollarVolumeSeries.applyOptions({ color: "rgba(0,0,0,0)", lineWidth: 0 });
-        }
-      });
-    }
-  </script>
+      </script>
 </body>
-v20241223105800
+v20241227112100
 </html>
-
