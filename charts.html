@@ -123,7 +123,7 @@
         state.chart = LightweightCharts.createChart(el, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-            timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39' },
+            timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39', minBarSpacing: 0.005 },
             crosshair: { mode: 0 },
         });
 
