@@ -168,44 +168,53 @@
         
         const keys = await getKeys();
         
-        // --- SMART LIMIT CALCULATION ---
-        // 1. Get current visible range (e.g., "From index -50 to index 50")
+        // 1. Smart Limit: Calculate how many bars we need to fill the screen
         const logicalRange = state.chart.timeScale().getVisibleLogicalRange();
-        
-        // 2. Calculate how many bars fit on the screen
-        let visibleBars = 0;
-        if (logicalRange) {
-            visibleBars = Math.ceil(logicalRange.to - logicalRange.from);
-        }
-        
-        // 3. Set limit to 2x the visible bars (so we have a buffer), but clamp it
-        // Min: 500 (avoid tiny requests)
-        // Max: 10,000 (Alpaca API limit)
+        const visibleBars = logicalRange ? Math.ceil(logicalRange.to - logicalRange.from) : 100;
+        // Fetch 2x the visible width, clamped between 500 and 10,000
         const dynamicLimit = Math.min(Math.max(visibleBars * 2, 500), 10000);
         
+        // 2. Anchors
+        // End: 1 second BEFORE our current oldest bar (Perfect stitching point)
         const endStr = new Date((state.earliestTime - 1) * 1000).toISOString();
-        const startStr = "2020-01-01T00:00:00Z"; // Force start date to past
+        // Start: Far past to ensure we don't hit a "start date" wall
+        const startStr = "2015-01-01T00:00:00Z";
 
-        // Use dynamicLimit instead of hardcoded 5000
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}`;
+        // 3. THE FIX: sort=desc
+        // "Start from endStr and work backwards"
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&sort=desc`;
         
-        log(`Fetching ${dynamicLimit} bars before ${endStr}...`);
+        log(`Fetching ${dynamicLimit} bars ending ${endStr}...`);
 
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            
+            if (!res.ok) {
+                log(`API Error: ${res.statusText}`, 'error');
+                state.isLoadingHistory = false;
+                document.getElementById('history-loader').style.display = 'none';
+                return;
+            }
+
             const json = await res.json();
 
             if (json.bars && json.bars.length > 0) {
-                const oldBars = parseBars(json.bars);
+                // Since we requested DESC (Newest -> Oldest), Alpaca gives us: [Dec 31, Dec 30, Dec 29...]
+                // We need ASC (Oldest -> Newest) for the chart: [Dec 29, Dec 30, Dec 31...]
+                const reversedBars = json.bars.reverse();
+                const oldBars = parseBars(reversedBars);
                 
+                // Prepend to master data
                 state.masterData = [...oldBars.ohlc, ...state.masterData];
-                const newVolData = [...oldBars.vol, ...state.series.volume.data()]; 
+                
+                // Merge Volume (Required regen for Lightweight Charts)
+                const newVolData = [...oldBars.vol, ...state.series.volume.data()];
 
                 state.series.candle.setData(state.masterData);
                 state.series.volume.setData(newVolData); 
 
                 state.earliestTime = oldBars.ohlc[0].time;
-                log(`Loaded ${json.bars.length} older bars.`);
+                log(`Stitched ${json.bars.length} older bars.`);
             } else {
                 log("No older history available.");
                 state.noMoreHistory = true;
@@ -217,7 +226,6 @@
             document.getElementById('history-loader').style.display = 'none';
         }
     }
-
     // --- INITIAL DATA LOAD ---
     async function loadInitialData() {
         state.masterData = [];
