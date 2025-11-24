@@ -24,17 +24,16 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            overflow: hidden; /* Prevent page scroll */
+            overflow: hidden;
         }
 
-        /* Layout Grid */
         .app-container {
             display: flex;
             flex-direction: column;
             height: 100vh;
         }
 
-        /* Navbar (Top Strip) */
+        /* Navbar */
         .toolbar {
             height: 50px;
             background-color: var(--panel-color);
@@ -54,9 +53,6 @@
         }
 
         /* Ticker Input */
-        .symbol-search {
-            position: relative;
-        }
         .symbol-search input {
             background-color: #2a2e39;
             border: 1px solid transparent;
@@ -67,11 +63,8 @@
             font-weight: bold;
             outline: none;
             width: 100px;
-            transition: border 0.2s;
         }
-        .symbol-search input:focus {
-            border-color: var(--accent-color);
-        }
+        .symbol-search input:focus { border-color: var(--accent-color); }
 
         /* Timeframe Buttons */
         .intervals {
@@ -91,84 +84,38 @@
             font-size: 13px;
             font-weight: 500;
         }
-        .interval-btn:hover {
-            color: var(--text-color);
-            background-color: #2a2e39;
-        }
-        .interval-btn.active {
-            color: var(--accent-color);
-            background-color: rgba(41, 98, 255, 0.1);
-        }
+        .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
+        .interval-btn.active { color: var(--accent-color); background-color: rgba(41, 98, 255, 0.1); }
 
-        /* Dropdowns (Indicators) */
-        .dropdown {
-            position: relative;
-            cursor: pointer;
-            font-size: 14px;
-        }
+        /* Dropdowns */
+        .dropdown { position: relative; cursor: pointer; font-size: 14px; }
         .dropdown-menu {
-            position: absolute;
-            top: 100%;
-            left: 0;
+            position: absolute; top: 100%; left: 0;
             background-color: var(--panel-color);
             border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 5px 0;
-            min-width: 150px;
-            display: none;
-            z-index: 100;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-radius: 4px; padding: 5px 0;
+            min-width: 150px; display: none; z-index: 100;
         }
-        .dropdown.open .dropdown-menu {
-            display: block;
-        }
-        .dropdown-item {
-            padding: 8px 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-color);
-        }
-        .dropdown-item:hover {
-            background-color: #2a2e39;
-        }
+        .dropdown.open .dropdown-menu { display: block; }
+        .dropdown-item { padding: 8px 15px; display: flex; align-items: center; gap: 8px; color: var(--text-color); }
+        .dropdown-item:hover { background-color: #2a2e39; }
 
-        /* Main Chart Area */
-        #chart-container {
-            flex-grow: 1;
-            position: relative;
-            width: 100%;
-        }
+        /* Chart Area */
+        #chart-container { flex-grow: 1; position: relative; width: 100%; }
 
-        /* Floating Legend */
+        /* Legend */
         .chart-legend {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 20;
-            font-size: 12px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            pointer-events: none; /* Let clicks pass through to chart */
+            position: absolute; top: 10px; left: 10px; z-index: 20;
+            font-size: 12px; font-family: 'Monaco', 'Consolas', monospace; pointer-events: none;
         }
-        .legend-row {
-            margin-bottom: 4px;
-            display: flex;
-            gap: 10px;
-        }
+        .legend-row { margin-bottom: 4px; display: flex; gap: 10px; }
         .legend-ticker { font-size: 1.2em; font-weight: bold; }
-        .legend-value { color: var(--text-color); }
-        .legend-label { font-weight: bold; margin-right: 4px; }
-        
         .color-up { color: var(--up-color); }
         .color-down { color: var(--down-color); }
 
-        /* Loading Spinner */
         #loader {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 50;
-            display: none;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 50; display: none;
         }
     </style>
 </head>
@@ -182,7 +129,7 @@
             <input type="text" id="tickerInput" value="AAPL">
         </div>
 
-        <div class="intervals" id="intervalContainer">
+        <div class="intervals">
             <button class="interval-btn" data-tf="1Min">1m</button>
             <button class="interval-btn active" data-tf="5Min">5m</button>
             <button class="interval-btn" data-tf="15Min">15m</button>
@@ -193,47 +140,35 @@
         <div class="dropdown" id="indicatorsDropdown">
             <span><i class="fas fa-layer-group"></i> Indicators</span>
             <div class="dropdown-menu">
-                <div class="dropdown-item">
-                    <input type="checkbox" id="toggleVol" checked> <label for="toggleVol">Volume</label>
-                </div>
-                <div class="dropdown-item">
-                    <input type="checkbox" id="toggleVWAP" checked> <label for="toggleVWAP">VWAP</label>
-                </div>
-                <div class="dropdown-item">
-                    <input type="checkbox" id="toggleSMA"> <label for="toggleSMA">SMA 20</label>
-                </div>
-                <div class="dropdown-item">
-                    <input type="checkbox" id="toggleEMA"> <label for="toggleEMA">EMA 9</label>
-                </div>
+                <div class="dropdown-item"><input type="checkbox" id="toggleVol" checked> <label for="toggleVol">Volume</label></div>
+                <div class="dropdown-item"><input type="checkbox" id="toggleVWAP" checked> <label for="toggleVWAP">VWAP</label></div>
+                <div class="dropdown-item"><input type="checkbox" id="toggleSMA"> <label for="toggleSMA">SMA 20</label></div>
+                <div class="dropdown-item"><input type="checkbox" id="toggleEMA"> <label for="toggleEMA">EMA 9</label></div>
             </div>
         </div>
         
-        <div style="flex-grow:1;"></div> <div class="dropdown" id="settingsDropdown">
+        <div style="flex-grow:1;"></div>
+        
+        <div class="dropdown">
             <span><i class="fas fa-cog"></i></span>
             <div class="dropdown-menu" style="right: 0; left: auto;">
-               <div class="dropdown-item" id="openSettings">API Keys</div>
+               <div class="dropdown-item" id="openSettings">Manage Keys</div>
             </div>
         </div>
     </div>
 
     <div id="chart-container">
         <div id="loader"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
-        
-        <div class="chart-legend" id="legend">
+        <div class="chart-legend">
             <div class="legend-row">
                 <span class="legend-ticker" id="lg-ticker">AAPL</span>
-                <span id="lg-tf">5m</span>
-                <span id="lg-status" style="color: #666;">- Market Closed</span>
+                <span id="lg-tf">5Min</span>
             </div>
             <div class="legend-row" id="lg-ohlc">
-                O: <span class="legend-value">0.00</span> 
-                H: <span class="legend-value">0.00</span> 
-                L: <span class="legend-value">0.00</span> 
-                C: <span class="legend-value">0.00</span> 
+                O: <span class="legend-value">0.00</span> H: <span class="legend-value">0.00</span> 
+                L: <span class="legend-value">0.00</span> C: <span class="legend-value">0.00</span> 
             </div>
-            <div class="legend-row" id="lg-vol">
-                Vol: <span class="legend-value">0</span>
-            </div>
+            <div class="legend-row" id="lg-vol">Vol: <span class="legend-value">0</span></div>
         </div>
     </div>
 </div>
@@ -243,219 +178,141 @@
 <script src="shared.js"></script>
 
 <script>
-    // --- State Management ---
+    // --- Chart State ---
     const state = {
-        ticker: 'AAPL',
-        timeframe: '5Min',
-        chart: null,
-        series: {
-            candle: null,
-            volume: null,
-            vwap: null,
-            sma: null,
-            ema: null
-        },
-        data: {
-            ohlc: [],
-            volume: []
-        },
-        indicators: {
-            vwap: true,
-            volume: true,
-            sma: false,
-            ema: false
-        }
+        ticker: 'AAPL', timeframe: '5Min', chart: null,
+        series: { candle: null, volume: null, vwap: null, sma: null, ema: null }
     };
 
-    // --- Indicator Logic (Client Side Calculation) ---
-    const Indicators = {
-        calculateSMA: (data, period) => {
-            let result = [];
-            for (let i = 0; i < data.length; i++) {
-                if (i < period - 1) {
-                    continue; 
-                }
-                let sum = 0;
-                for (let j = 0; j < period; j++) {
-                    sum += data[i - j].close;
-                }
-                result.push({ time: data[i].time, value: sum / period });
-            }
-            return result;
-        },
-        calculateEMA: (data, period) => {
-            let result = [];
-            let k = 2 / (period + 1);
-            let ema = data[0].close;
-            for (let i = 0; i < data.length; i++) {
-                ema = data[i].close * k + ema * (1 - k);
-                result.push({ time: data[i].time, value: ema });
-            }
-            return result;
+    // --- Math Helpers ---
+    function calculateSMA(data, count){
+        let result = [];
+        for (let i=0; i < data.length; i++) {
+            if (i < count-1) continue;
+            let sum=0;
+            for(let j=0;j<count;j++) sum += data[i-j].close;
+            result.push({ time: data[i].time, value: sum/count });
         }
-    };
+        return result;
+    }
 
-    // --- Chart Initialization ---
+    function calculateEMA(data, count){
+        if(data.length===0) return [];
+        let result = [];
+        let k = 2/(count+1);
+        let ema = data[0].close;
+        for (let i=0; i<data.length; i++) {
+            ema = data[i].close * k + ema * (1-k);
+            result.push({ time: data[i].time, value: ema });
+        }
+        return result;
+    }
+
+    // --- Chart Init ---
     function initChart() {
-        const container = document.getElementById('chart-container');
+        const el = document.getElementById('chart-container');
         
-        state.chart = LightweightCharts.createChart(container, {
-            layout: {
-                backgroundColor: '#131722',
-                textColor: '#d1d4dc',
+        // FIX: Version 4.0 'background' syntax
+        state.chart = LightweightCharts.createChart(el, {
+            layout: { 
+                background: { type: 'solid', color: '#131722' }, 
+                textColor: '#d1d4dc' 
             },
-            grid: {
-                vertLines: { color: '#1e222d' },
-                horzLines: { color: '#1e222d' },
-            },
-            crosshair: {
-                mode: LightweightCharts.CrosshairMode.Normal,
-            },
-            timeScale: {
-                borderColor: '#2a2e39',
-                timeVisible: true,
-                secondsVisible: false,
-            },
-            rightPriceScale: {
-                borderColor: '#2a2e39',
-            },
+            grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+            timeScale: { borderColor: '#2a2e39', timeVisible: true, secondsVisible: false },
         });
 
-        // 1. Volume Series (Added first so it sits behind candles)
-        state.series.volume = state.chart.addHistogramSeries({
-            color: '#26a69a',
-            priceFormat: { type: 'volume' },
-            priceScaleId: '', // Overlay mode
-            scaleMargins: { top: 0.8, bottom: 0 },
-        });
+        // Add Series
+        state.series.volume = state.chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 } });
+        state.series.candle = state.chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+        state.series.vwap = state.chart.addLineSeries({ color: '#fb8c00', lineWidth: 1 });
+        state.series.sma = state.chart.addLineSeries({ color: '#2962ff', lineWidth: 2 });
+        state.series.ema = state.chart.addLineSeries({ color: '#e91e63', lineWidth: 2 });
 
-        // 2. Candlestick Series
-        state.series.candle = state.chart.addCandlestickSeries({
-            upColor: '#26a69a',
-            downColor: '#ef5350',
-            borderVisible: false,
-            wickUpColor: '#26a69a',
-            wickDownColor: '#ef5350',
-        });
+        // Auto-Resize
+        new ResizeObserver(e => {
+            if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height });
+        }).observe(el);
 
-        // 3. Indicators
-        state.series.vwap = state.chart.addLineSeries({ color: '#fb8c00', lineWidth: 1, title: 'VWAP' });
-        state.series.sma = state.chart.addLineSeries({ color: '#2962ff', lineWidth: 2, title: 'SMA 20' });
-        state.series.ema = state.chart.addLineSeries({ color: '#e91e63', lineWidth: 2, title: 'EMA 9' });
-
-        // Responsive Resize
-        new ResizeObserver(entries => {
-            if (entries.length === 0 || entries[0].target !== container) { return; }
-            const newRect = entries[0].contentRect;
-            state.chart.applyOptions({ height: newRect.height, width: newRect.width });
-        }).observe(container);
-
-        // Crosshair Handler for Legend
-        state.chart.subscribeCrosshairMove(param => {
-            updateLegend(param);
-        });
+        // Crosshair Legend
+        state.chart.subscribeCrosshairMove(p => updateLegend(p));
     }
 
     // --- Data Fetching ---
     async function fetchData() {
         document.getElementById('loader').style.display = 'block';
-        const { alpacaKey, alpacaSecret } = await getApiKeys(); // From shared.js
+        
+        // CALL TO SHARED.JS
+        // Ensure shared.js exports { alpacaKey, alpacaSecret } or { k, s }
+        // We will adapt based on the variable names you likely have in shared.js
+        const keys = await getApiKeys(); 
+        
+        // Handle different variable names from shared.js versions
+        const apiKey = keys.alpacaKey || keys.k || keys.APCA_API_KEY_ID;
+        const apiSecret = keys.alpacaSecret || keys.s || keys.APCA_API_SECRET_KEY;
 
-        if (!alpacaKey) {
-            alert("API Keys missing! Check Settings.");
+        if (!apiKey || !apiSecret) {
+            alert("No API Keys found! Go to Portfolio > Settings to save them.");
             document.getElementById('loader').style.display = 'none';
             return;
         }
 
-        // Calculate date range based on timeframe
         const end = new Date();
         const start = new Date();
         if(state.timeframe.includes('Min')) start.setDate(end.getDate() - 5);
-        else if(state.timeframe.includes('H')) start.setMonth(end.getMonth() - 2);
-        else start.setFullYear(end.getFullYear() - 2);
+        else start.setMonth(end.getMonth() - 6);
 
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000`;
 
         try {
-            const response = await fetch(url, {
-                headers: {
-                    "APCA-API-KEY-ID": alpacaKey,
-                    "APCA-API-SECRET-KEY": alpacaSecret
-                }
-            });
-            const json = await response.json();
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": apiKey, "APCA-API-SECRET-KEY": apiSecret } });
             
+            if(!res.ok) {
+                console.error("Alpaca Error:", res.status, res.statusText);
+                document.getElementById('loader').style.display = 'none';
+                return;
+            }
+
+            const json = await res.json();
             if(json.bars) {
                 processData(json.bars);
+            } else {
+                console.warn("No data for " + state.ticker);
+                state.series.candle.setData([]); // Clear chart
+                state.series.volume.setData([]);
             }
-        } catch(e) {
-            console.error(e);
-        } finally {
-            document.getElementById('loader').style.display = 'none';
-        }
+        } catch(e) { console.error(e); }
+        finally { document.getElementById('loader').style.display = 'none'; }
     }
 
     function processData(bars) {
-        const ohlc = [];
-        const volume = [];
-        const vwap = [];
-
-        bars.forEach(bar => {
-            const time = new Date(bar.t).getTime() / 1000;
-            ohlc.push({ time, open: bar.o, high: bar.h, low: bar.l, close: bar.c });
-            
-            // Color volume based on previous close
-            const color = (bar.c >= bar.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)';
-            volume.push({ time, value: bar.v, color: color });
-
-            if(bar.vw) vwap.push({ time, value: bar.vw });
+        const ohlc = [], vol = [], vwap = [];
+        bars.forEach(b => {
+            const t = new Date(b.t).getTime() / 1000;
+            ohlc.push({ time: t, open: b.o, high: b.h, low: b.l, close: b.c });
+            vol.push({ time: t, value: b.v, color: (b.c >= b.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)') });
+            if(b.vw) vwap.push({ time: t, value: b.vw });
         });
 
-        // Store raw data
-        state.data.ohlc = ohlc;
-
-        // Set Main Series
         state.series.candle.setData(ohlc);
-        state.series.volume.setData(volume);
-
-        // Set Indicators
-        if(vwap.length > 0) state.series.vwap.setData(vwap);
+        state.series.volume.setData(vol);
+        state.series.vwap.setData(vwap);
+        state.series.sma.setData(calculateSMA(ohlc, 20));
+        state.series.ema.setData(calculateEMA(ohlc, 9));
         
-        // Calculate Client-Side Indicators
-        const smaData = Indicators.calculateSMA(ohlc, 20);
-        state.series.sma.setData(smaData);
-
-        const emaData = Indicators.calculateEMA(ohlc, 9);
-        state.series.ema.setData(emaData);
-
-        // Apply Visibility based on checkboxes
         updateVisibility();
+        state.chart.timeScale().fitContent();
     }
 
-    // --- UI Logic ---
-    function updateLegend(param) {
-        const lgOhlc = document.getElementById('lg-ohlc');
-        const lgVol = document.getElementById('lg-vol');
-        
-        if (param.time) {
-            const data = param.seriesPrices.get(state.series.candle);
-            const vol = param.seriesPrices.get(state.series.volume);
-            
-            if(data) {
-                const colorClass = data.close >= data.open ? 'color-up' : 'color-down';
-                lgOhlc.innerHTML = `
-                    O: <span class="${colorClass}">${data.open.toFixed(2)}</span> 
-                    H: <span class="${colorClass}">${data.high.toFixed(2)}</span> 
-                    L: <span class="${colorClass}">${data.low.toFixed(2)}</span> 
-                    C: <span class="${colorClass}">${data.close.toFixed(2)}</span>`;
-            }
-            if(vol) {
-                lgVol.innerHTML = `Vol: <span class="legend-value">${(vol).toLocaleString()}</span>`;
-            }
-        } else {
-            // Revert to last bar if not hovering
-            // (Optional: Implement Logic to show last bar data)
+    function updateLegend(p) {
+        if (!p.time) return;
+        const c = p.seriesPrices.get(state.series.candle);
+        const v = p.seriesPrices.get(state.series.volume);
+        if (c) {
+            const cl = c.close >= c.open ? 'color-up' : 'color-down';
+            document.getElementById('lg-ohlc').innerHTML = `O: <span class="${cl}">${c.open.toFixed(2)}</span> H: <span class="${cl}">${c.high.toFixed(2)}</span> L: <span class="${cl}">${c.low.toFixed(2)}</span> C: <span class="${cl}">${c.close.toFixed(2)}</span>`;
         }
+        if (v) document.getElementById('lg-vol').innerHTML = `Vol: <span class="legend-value">${Math.round(v).toLocaleString()}</span>`;
     }
 
     function updateVisibility() {
@@ -465,59 +322,41 @@
         state.series.ema.applyOptions({ visible: document.getElementById('toggleEMA').checked });
     }
 
-    // --- Event Listeners ---
-    document.addEventListener('DOMContentLoaded', () => {
-        initChart();
-        fetchData(); // Initial Fetch
+    // --- Init ---
+    initChart();
+    
+    // Give shared.js a moment to init DB connection
+    setTimeout(fetchData, 500);
 
-        // Ticker Input
-        const tickerInput = document.getElementById('tickerInput');
-        tickerInput.addEventListener('change', (e) => {
-            state.ticker = e.target.value.toUpperCase();
+    // --- Event Listeners ---
+    const input = document.getElementById('tickerInput');
+
+    // 1. Enter Key Listener (Fixes the issue where typing didn't work)
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            state.ticker = input.value.toUpperCase();
             document.getElementById('lg-ticker').innerText = state.ticker;
             fetchData();
-        });
-
-        // Timeframe Buttons
-        const btns = document.querySelectorAll('.interval-btn');
-        btns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                btns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.timeframe = btn.dataset.tf;
-                document.getElementById('lg-tf').innerText = btn.innerText;
-                fetchData();
-            });
-        });
-
-        // Dropdowns
-        document.querySelectorAll('.dropdown').forEach(d => {
-            d.addEventListener('click', (e) => {
-                // Close others
-                document.querySelectorAll('.dropdown').forEach(x => {
-                    if(x !== d) x.classList.remove('open');
-                });
-                d.classList.toggle('open');
-                e.stopPropagation();
-            });
-        });
-
-        // Close dropdowns on click outside
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
-        });
-
-        // Indicator Toggles
-        document.getElementById('toggleVol').addEventListener('change', updateVisibility);
-        document.getElementById('toggleVWAP').addEventListener('change', updateVisibility);
-        document.getElementById('toggleSMA').addEventListener('change', updateVisibility);
-        document.getElementById('toggleEMA').addEventListener('change', updateVisibility);
-        
-        // Open Settings (Simple alert for now, connects to shared logic ideally)
-        document.getElementById('openSettings').addEventListener('click', () => {
-             alert("To update API keys, please go back to the Portfolio page.");
-        });
+            input.blur(); // Remove focus
+        }
     });
+
+    document.querySelectorAll('.interval-btn').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.interval-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        state.timeframe = b.dataset.tf;
+        document.getElementById('lg-tf').innerText = b.innerText;
+        fetchData();
+    }));
+
+    document.querySelectorAll('.dropdown').forEach(d => d.addEventListener('click', e => {
+        d.classList.toggle('open'); e.stopPropagation();
+    }));
+    document.addEventListener('click', () => document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open')));
+    
+    ['toggleVol', 'toggleVWAP', 'toggleSMA', 'toggleEMA'].forEach(id => document.getElementById(id).addEventListener('change', updateVisibility));
+    
+    document.getElementById('openSettings').addEventListener('click', () => alert("Go to Portfolio > Settings to manage keys."));
 
 </script>
 </body>
