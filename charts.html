@@ -182,7 +182,7 @@
 
         // 3. THE FIX: sort=desc
         // "Start from endStr and work backwards"
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&sort=desc`;
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&adjustment=split&sort=desc`;
         
         log(`Fetching ${dynamicLimit} bars ending ${endStr}...`);
 
@@ -239,7 +239,7 @@
         const start = new Date();
         start.setDate(end.getDate() - 30); // Start with 30 days
 
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000`;
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000&adjustment=split`;
 
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
