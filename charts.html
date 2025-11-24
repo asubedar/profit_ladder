@@ -110,8 +110,8 @@
         ticker: 'AAPL', timeframe: '5Min', chart: null,
         series: { candle: null, volume: null },
         refreshInterval: null,
-        masterData: [], // Stores ALL loaded bars
-        earliestTime: null, // Timestamp of the oldest loaded bar
+        masterData: [], 
+        earliestTime: null,
         isLoadingHistory: false,
         noMoreHistory: false,
         lastPrice: 0
@@ -127,32 +127,34 @@
             crosshair: { mode: 0 },
         });
 
-        state.series.volume = state.chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 } });
-        state.series.candle = state.chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+        state.series.volume = state.chart.addHistogramSeries({ 
+            color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 } 
+        });
+        state.series.candle = state.chart.addCandlestickSeries({ 
+            upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' 
+        });
 
         new ResizeObserver(e => {
             if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height });
         }).observe(el);
 
+        // Subscribe to Crosshair (This was the cause of the crash)
         state.chart.subscribeCrosshairMove(updateLegend);
         
-        // ** INFINITE SCROLL LISTENER **
+        // Infinite Scroll Listener
         state.chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
 
         log("Chart initialized.");
-        await loadInitialData(); // Load first batch
+        await loadInitialData(); 
         
-        // Start Polling
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         state.refreshInterval = setInterval(updateRealtime, 3000);
     }
 
     // --- INFINITE SCROLL LOGIC ---
     function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
-        // If we detect the user has scrolled near the start (left side) of data
-        const barsInfo = state.series.candle.barsInLogicalRange(newVisibleLogicalRange);
-        
-        // If visible range start is close to the beginning of our known data (e.g., < 10 bars from start)
+        if (!newVisibleLogicalRange) return;
+        // If we are less than 10 bars from the left edge
         if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) {
             loadOlderData();
         }
@@ -165,11 +167,9 @@
         document.getElementById('history-loader').style.display = 'block';
         
         const keys = await getKeys();
-        // Request data ENDING at our current earliest time
-        const endStr = new Date(state.earliestTime * 1000).toISOString();
-        
-        // Limit 10,000 bars per fetch (Alpaca limit)
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&end=${endStr}&limit=10000`;
+        // Request bars ending 1 second BEFORE our current oldest bar to avoid overlap
+        const endStr = new Date((state.earliestTime - 1) * 1000).toISOString();
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&end=${endStr}&limit=5000`; // Reduced limit for stability
         
         log(`Fetching history before ${endStr}...`);
 
@@ -180,15 +180,13 @@
             if (json.bars && json.bars.length > 0) {
                 const oldBars = parseBars(json.bars);
                 
-                // Prepend new old bars to master data
+                // Prepend data
                 state.masterData = [...oldBars.ohlc, ...state.masterData];
-                const newVolData = [...oldBars.vol, ...state.series.volume.data()]; // simplistic merge for volume
+                const newVolData = [...oldBars.vol, ...state.series.volume.data()]; 
 
-                // Update Chart
                 state.series.candle.setData(state.masterData);
-                state.series.volume.setData(newVolData); // Resetting data is required for prepending in Lightweight Charts
+                state.series.volume.setData(newVolData); 
 
-                // Update Earliest Time
                 state.earliestTime = oldBars.ohlc[0].time;
                 log(`Loaded ${json.bars.length} older bars.`);
             } else {
@@ -212,10 +210,9 @@
         const keys = await getKeys();
         if (!keys) return;
 
-        // Default start: 1 month ago (User can scroll back for more)
         const end = new Date();
         const start = new Date();
-        start.setDate(end.getDate() - 30); 
+        start.setDate(end.getDate() - 30); // Start with 30 days
 
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000`;
 
@@ -235,6 +232,8 @@
                 document.getElementById('lg-header').innerText = `${state.ticker} · ${state.timeframe}`;
                 if (data.ohlc.length > 0) state.lastPrice = data.ohlc[data.ohlc.length-1].close;
                 updateRealtime();
+            } else {
+                log("No initial data found.", 'error');
             }
         } catch (e) { log(e.message, 'error'); }
     }
@@ -266,11 +265,9 @@
             }
             if (day) document.getElementById('q-vol').innerText = (day.v / 1000000).toFixed(2) + 'M';
 
-            // Tick Update (Only if timeframe matches approximation)
+            // Tick Update (Only for minute bars)
             if (mb && state.timeframe.includes('Min')) {
                 const time = new Date(mb.t).getTime() / 1000;
-                // Merge logic for realtime would go here, 
-                // typically updating the *last* bar of masterData
                 state.series.candle.update({ time: time, open: mb.o, high: mb.h, low: mb.l, close: mb.c });
             }
         } catch (e) { }
@@ -297,9 +294,13 @@
         return { k, s };
     }
 
+    // --- FIXED LEGEND UPDATER (v4 Compatible) ---
     function updateLegend(p) {
         if (!p.time) return;
-        const c = p.seriesPrices.get(state.series.candle);
+        
+        // FIX: Use 'seriesData' instead of 'seriesPrices'
+        const c = p.seriesData.get(state.series.candle);
+        
         if (c) {
             const cl = c.close >= c.open ? 'color-up' : 'color-down';
             document.getElementById('lg-ohlc').innerHTML = `O:<span class="${cl}">${c.open.toFixed(2)}</span> H:<span class="${cl}">${c.high.toFixed(2)}</span> L:<span class="${cl}">${c.low.toFixed(2)}</span> C:<span class="${cl}">${c.close.toFixed(2)}</span>`;
