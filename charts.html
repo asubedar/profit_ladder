@@ -3,72 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting</title>
+    <title>Pro Charting (Infinite Scroll)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
-            --bg-color: #131722;
-            --panel-color: #1e222d;
-            --border-color: #2a2e39;
-            --text-color: #d1d4dc;
-            --accent-color: #2962ff;
-            --up-color: #26a69a;
-            --down-color: #ef5350;
+            --bg-color: #131722; --panel-color: #1e222d; --border-color: #2a2e39;
+            --text-color: #d1d4dc; --accent-color: #2962ff; --up-color: #26a69a; --down-color: #ef5350;
         }
-
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         .app-container { display: flex; flex-direction: column; height: 100vh; }
         
         /* Toolbar */
         .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 10px; }
-        
-        .symbol-search input { 
-            background-color: #2a2e39; border: 1px solid #2a2e39; color: white; 
-            padding: 4px 8px; border-radius: 4px; text-transform: uppercase; 
-            font-weight: bold; width: 80px; transition: 0.2s;
-        }
+        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; }
         .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
         
-        /* Timeframe Buttons */
+        /* Intervals */
         .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; }
         .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
         .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
         .interval-btn.active { color: #fff; background-color: var(--accent-color); }
 
-        /* Quote Strip (New) */
-        .quote-strip {
-            height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color);
-            display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px;
-        }
-        .q-item { display: flex; gap: 5px; }
-        .q-label { color: #787b86; }
-        .q-val { color: #d1d4dc; font-weight: bold; }
+        /* Quote Strip */
+        .quote-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px; }
+        .q-item { display: flex; gap: 5px; } .q-label { color: #787b86; } .q-val { color: #d1d4dc; font-weight: bold; }
         .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
 
         /* Chart Area */
         #chart-container { flex-grow: 1; position: relative; width: 100%; }
-        
-        /* Legend */
         .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
         
-        /* Debug Logger (Hidden by default) */
-        #screen-logger {
-            position: absolute; right: 0; top: 70px; bottom: 0; width: 350px;
-            background: rgba(0,0,0,0.9); border-left: 1px solid #444;
-            font-family: monospace; font-size: 11px; color: #0f0;
-            padding: 10px; overflow-y: auto; z-index: 999;
-            display: none; /* Hidden by default */
+        /* Loading History Indicator */
+        #history-loader {
+            position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+            background: rgba(41, 98, 255, 0.9); color: white; padding: 4px 12px;
+            border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 30;
+            display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
-        .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; }
-        .log-err { color: #f55; }
-        
-        /* Right Controls */
+
+        /* Debug & Right Controls */
+        #screen-logger { position: absolute; right: 0; top: 70px; bottom: 0; width: 350px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
+        .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
         .right-controls { margin-left: auto; display: flex; gap: 10px; }
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; }
         .icon-btn:hover { color: var(--text-color); }
-        .icon-btn.active { color: var(--accent-color); }
-
     </style>
 </head>
 <body>
@@ -76,9 +55,7 @@
 <div class="app-container">
     <div class="toolbar">
         <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
-        
         <div class="symbol-search"><input type="text" id="tickerInput" value="AAPL"></div>
-        
         <div class="intervals">
             <button class="interval-btn" data-tf="1Min">1m</button>
             <button class="interval-btn active" data-tf="5Min">5m</button>
@@ -86,34 +63,22 @@
             <button class="interval-btn" data-tf="1H">1h</button>
             <button class="interval-btn" data-tf="1D">D</button>
         </div>
-
         <div class="right-controls">
-            <button class="icon-btn" id="refreshBtn" title="Refresh Data"><i class="fas fa-sync-alt"></i></button>
-            <button class="icon-btn" id="debugToggle" title="Toggle Debug Log"><i class="fas fa-bug"></i></button>
-            <button class="icon-btn" id="settingsBtn" title="Settings"><i class="fas fa-cog"></i></button>
+            <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+            <button class="icon-btn" id="debugToggle"><i class="fas fa-bug"></i></button>
+            <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
         </div>
     </div>
 
     <div class="quote-strip">
-        <div class="q-item">
-            <span class="q-label">LAST:</span>
-            <span class="q-val" id="q-last">0.00</span>
-        </div>
-        <div class="q-item">
-            <span class="q-label">BID:</span>
-            <span class="q-val" id="q-bid">0.00</span>
-        </div>
-        <div class="q-item">
-            <span class="q-label">ASK:</span>
-            <span class="q-val" id="q-ask">0.00</span>
-        </div>
-        <div class="q-item" style="margin-left: auto;">
-            <span class="q-label">VOL:</span>
-            <span class="q-val" id="q-vol">0</span>
-        </div>
+        <div class="q-item"><span class="q-label">LAST:</span><span class="q-val" id="q-last">0.00</span></div>
+        <div class="q-item"><span class="q-label">BID:</span><span class="q-val" id="q-bid">0.00</span></div>
+        <div class="q-item"><span class="q-label">ASK:</span><span class="q-val" id="q-ask">0.00</span></div>
+        <div class="q-item" style="margin-left: auto;"><span class="q-label">VOL:</span><span class="q-val" id="q-vol">0</span></div>
     </div>
 
     <div id="chart-container">
+        <div id="history-loader"><i class="fas fa-circle-notch fa-spin"></i> Loading older data...</div>
         <div class="chart-legend">
             <div id="lg-header" style="font-weight:bold; font-size:1.2em; color: #787b86;">LOADING...</div>
             <div id="lg-ohlc"></div>
@@ -121,10 +86,7 @@
     </div>
 
     <div id="screen-logger">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <strong>System Logs</strong>
-            <button id="clearLogs" style="font-size:10px;">Clear</button>
-        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>System Logs</strong><button id="clearLogs">Clear</button></div>
     </div>
 </div>
 
@@ -148,116 +110,153 @@
         ticker: 'AAPL', timeframe: '5Min', chart: null,
         series: { candle: null, volume: null },
         refreshInterval: null,
+        masterData: [], // Stores ALL loaded bars
+        earliestTime: null, // Timestamp of the oldest loaded bar
+        isLoadingHistory: false,
+        noMoreHistory: false,
         lastPrice: 0
     };
 
     // --- INIT ---
     async function init() {
-        // 1. Setup Chart
         const el = document.getElementById('chart-container');
-        try {
-            state.chart = LightweightCharts.createChart(el, {
-                layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
-                grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-                timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39' },
-                crosshair: { mode: 0 }, // Normal
-            });
-            
-            state.series.volume = state.chart.addHistogramSeries({ 
-                color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 } 
-            });
-            state.series.candle = state.chart.addCandlestickSeries({ 
-                upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' 
-            });
-            
-            new ResizeObserver(e => {
-                if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height });
-            }).observe(el);
-            
-            state.chart.subscribeCrosshairMove(updateLegend);
-            log("Chart initialized.");
-        } catch (e) {
-            log("Chart Init Error: " + e.message, 'error');
-            return;
-        }
+        state.chart = LightweightCharts.createChart(el, {
+            layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+            grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+            timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39' },
+            crosshair: { mode: 0 },
+        });
 
-        // 2. Fetch Initial Data
-        await loadHistory();
+        state.series.volume = state.chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 } });
+        state.series.candle = state.chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
-        // 3. Start Polling for Real-Time Updates (every 3s)
+        new ResizeObserver(e => {
+            if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height });
+        }).observe(el);
+
+        state.chart.subscribeCrosshairMove(updateLegend);
+        
+        // ** INFINITE SCROLL LISTENER **
+        state.chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
+
+        log("Chart initialized.");
+        await loadInitialData(); // Load first batch
+        
+        // Start Polling
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         state.refreshInterval = setInterval(updateRealtime, 3000);
     }
 
-    // --- FETCH HISTORY (Bars) ---
-    async function loadHistory() {
-        log(`Loading history for ${state.ticker}...`);
+    // --- INFINITE SCROLL LOGIC ---
+    function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
+        // If we detect the user has scrolled near the start (left side) of data
+        const barsInfo = state.series.candle.barsInLogicalRange(newVisibleLogicalRange);
+        
+        // If visible range start is close to the beginning of our known data (e.g., < 10 bars from start)
+        if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) {
+            loadOlderData();
+        }
+    }
+
+    async function loadOlderData() {
+        if (!state.earliestTime) return;
+        
+        state.isLoadingHistory = true;
+        document.getElementById('history-loader').style.display = 'block';
+        
+        const keys = await getKeys();
+        // Request data ENDING at our current earliest time
+        const endStr = new Date(state.earliestTime * 1000).toISOString();
+        
+        // Limit 10,000 bars per fetch (Alpaca limit)
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&end=${endStr}&limit=10000`;
+        
+        log(`Fetching history before ${endStr}...`);
+
+        try {
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            const json = await res.json();
+
+            if (json.bars && json.bars.length > 0) {
+                const oldBars = parseBars(json.bars);
+                
+                // Prepend new old bars to master data
+                state.masterData = [...oldBars.ohlc, ...state.masterData];
+                const newVolData = [...oldBars.vol, ...state.series.volume.data()]; // simplistic merge for volume
+
+                // Update Chart
+                state.series.candle.setData(state.masterData);
+                state.series.volume.setData(newVolData); // Resetting data is required for prepending in Lightweight Charts
+
+                // Update Earliest Time
+                state.earliestTime = oldBars.ohlc[0].time;
+                log(`Loaded ${json.bars.length} older bars.`);
+            } else {
+                log("No older history available.");
+                state.noMoreHistory = true;
+            }
+        } catch(e) {
+            log("Error loading history: " + e.message, 'error');
+        } finally {
+            state.isLoadingHistory = false;
+            document.getElementById('history-loader').style.display = 'none';
+        }
+    }
+
+    // --- INITIAL DATA LOAD ---
+    async function loadInitialData() {
+        state.masterData = [];
+        state.earliestTime = null;
+        state.noMoreHistory = false;
+        
         const keys = await getKeys();
         if (!keys) return;
 
-        // Date Logic
+        // Default start: 1 month ago (User can scroll back for more)
         const end = new Date();
         const start = new Date();
-        if(state.timeframe.includes('Min')) start.setDate(end.getDate() - 5);
-        else start.setMonth(end.getMonth() - 6);
+        start.setDate(end.getDate() - 30); 
 
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000`;
 
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            if (!res.ok) throw new Error(res.statusText);
             const json = await res.json();
             
             if (json.bars) {
-                const ohlc = [], vol = [];
-                json.bars.forEach(b => {
-                    const t = new Date(b.t).getTime() / 1000;
-                    ohlc.push({ time: t, open: b.o, high: b.h, low: b.l, close: b.c });
-                    vol.push({ time: t, value: b.v, color: (b.c >= b.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)') });
-                });
-                state.series.candle.setData(ohlc);
-                state.series.volume.setData(vol);
+                const data = parseBars(json.bars);
+                state.masterData = data.ohlc;
+                state.earliestTime = state.masterData[0].time;
+                
+                state.series.candle.setData(data.ohlc);
+                state.series.volume.setData(data.vol);
                 state.chart.timeScale().fitContent();
                 
-                // Set Header
                 document.getElementById('lg-header').innerText = `${state.ticker} · ${state.timeframe}`;
-                
-                // Update Last Price State
-                if (ohlc.length > 0) state.lastPrice = ohlc[ohlc.length-1].close;
-                
-            } else {
-                log("No historical data found.", 'error');
+                if (data.ohlc.length > 0) state.lastPrice = data.ohlc[data.ohlc.length-1].close;
+                updateRealtime();
             }
-            
-            // Immediately trigger one realtime update to get Quotes
-            updateRealtime();
-
-        } catch (e) {
-            log("History Fetch Error: " + e.message, 'error');
-        }
+        } catch (e) { log(e.message, 'error'); }
     }
 
-    // --- FETCH REALTIME (Snapshot) ---
+    // --- REALTIME UPDATES ---
     async function updateRealtime() {
         const keys = await getKeys();
         if (!keys) return;
-
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/snapshot`;
-
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            if (!res.ok) return; // Silent fail on poll
+            if (!res.ok) return;
             const json = await res.json();
             
-            // 1. Update Quote Strip
             const q = json.latestQuote;
             const t = json.latestTrade;
             const mb = json.minuteBar;
             const day = json.dailyBar;
 
             if (q) {
-                updateQuoteUI('q-bid', q.bp, q.bs);
-                updateQuoteUI('q-ask', q.ap, q.as);
+                document.getElementById('q-bid').innerText = `${q.bp.toFixed(2)}x${q.bs}`;
+                document.getElementById('q-ask').innerText = `${q.ap.toFixed(2)}x${q.as}`;
             }
             if (t) {
                 const el = document.getElementById('q-last');
@@ -265,45 +264,39 @@
                 el.className = 'q-val ' + (t.p >= state.lastPrice ? 'color-up' : 'color-down');
                 state.lastPrice = t.p;
             }
-            if (day) {
-                document.getElementById('q-vol').innerText = (day.v / 1000000).toFixed(2) + 'M';
-            }
+            if (day) document.getElementById('q-vol').innerText = (day.v / 1000000).toFixed(2) + 'M';
 
-            // 2. Update Candle on Chart (Live Ticking)
-            // Note: This approximates the current candle using the snapshot's minuteBar
+            // Tick Update (Only if timeframe matches approximation)
             if (mb && state.timeframe.includes('Min')) {
                 const time = new Date(mb.t).getTime() / 1000;
-                
-                state.series.candle.update({
-                    time: time,
-                    open: mb.o, high: mb.h, low: mb.l, close: mb.c
-                });
-                state.series.volume.update({
-                    time: time, value: mb.v,
-                    color: (mb.c >= mb.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)')
-                });
+                // Merge logic for realtime would go here, 
+                // typically updating the *last* bar of masterData
+                state.series.candle.update({ time: time, open: mb.o, high: mb.h, low: mb.l, close: mb.c });
             }
-
-        } catch (e) {
-            // console.error(e); // Suppress poll errors
-        }
+        } catch (e) { }
     }
 
-    function updateQuoteUI(id, price, size) {
-        document.getElementById(id).innerText = `${price.toFixed(2)} x ${size}`;
+    // --- HELPERS ---
+    function parseBars(bars) {
+        const ohlc = [];
+        const vol = [];
+        bars.forEach(b => {
+            const t = new Date(b.t).getTime() / 1000;
+            ohlc.push({ time: t, open: b.o, high: b.h, low: b.l, close: b.c });
+            vol.push({ time: t, value: b.v, color: (b.c >= b.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)') });
+        });
+        return { ohlc, vol };
     }
 
-    // --- HELPER: Get Keys ---
     async function getKeys() {
-        if (typeof getApiKeys !== 'function') { log("shared.js missing!", 'error'); return null; }
+        if (typeof getApiKeys !== 'function') return null;
         const keys = await getApiKeys();
         const k = keys.alpacaKey || keys.k || keys.APCA_API_KEY_ID;
         const s = keys.alpacaSecret || keys.s || keys.APCA_API_SECRET_KEY;
-        if (!k || !s) { log("Keys missing!", 'error'); return null; }
+        if (!k || !s) return null;
         return { k, s };
     }
 
-    // --- UI HELPERS ---
     function updateLegend(p) {
         if (!p.time) return;
         const c = p.seriesPrices.get(state.series.candle);
@@ -313,33 +306,18 @@
         }
     }
 
-    // --- LISTENERS ---
+    // --- EVENTS ---
     document.addEventListener('DOMContentLoaded', init);
-
-    // Ticker Search
     const input = document.getElementById('tickerInput');
     input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            state.ticker = input.value.toUpperCase();
-            loadHistory();
-            input.blur();
-        }
+        if (e.key === 'Enter') { state.ticker = input.value.toUpperCase(); loadInitialData(); input.blur(); }
     });
-
-    // Timeframes
     document.querySelectorAll('.interval-btn').forEach(b => b.addEventListener('click', () => {
         document.querySelectorAll('.interval-btn').forEach(btn => btn.classList.remove('active'));
-        b.classList.add('active');
-        state.timeframe = b.dataset.tf;
-        loadHistory();
+        b.classList.add('active'); state.timeframe = b.dataset.tf; loadInitialData();
     }));
-
-    // Toolbar Buttons
-    document.getElementById('debugToggle').addEventListener('click', () => {
-        logger.style.display = logger.style.display === 'block' ? 'none' : 'block';
-    });
-    document.getElementById('refreshBtn').addEventListener('click', loadHistory);
-    document.getElementById('settingsBtn').addEventListener('click', () => alert("Manage keys in Portfolio Settings"));
+    document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
+    document.getElementById('refreshBtn').addEventListener('click', loadInitialData);
     document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
 
 </script>
