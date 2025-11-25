@@ -281,7 +281,15 @@
             const track = document.getElementById('tickerTrack');
             // Only update innerHTML if we have data to prevent flickering? 
             // Actually innerHTML replace is fine for this frequency.
-            track.innerHTML = html + html; 
+            // Only duplicate if the content is short, or always duplicate for the loop effect
+            // A simple heuristic: duplicate if we have fewer than 20 items
+            if (state.portfolioTickers.length < 20) {
+                // Repeat 4 times to ensure it fills the screen width
+                track.innerHTML = html + html + html + html; 
+            } else {
+                // Standard duplication for longer lists
+                track.innerHTML = html + html;
+            }
             
         } catch(e) { /* silent fail on poll */ }
     }
