@@ -115,6 +115,7 @@
 <script src="shared.js"></script>
 
 <script>
+    // --- UTILS ---
     const logger = document.getElementById('screen-logger');
     function log(msg, type='info') {
         const div = document.createElement('div');
@@ -122,7 +123,9 @@
         div.innerText = `> ${msg}`;
         logger.appendChild(div);
         logger.scrollTop = logger.scrollHeight;
+        if(type==='error') console.error(msg);
     }
+    
     function formatNum(num) {
         if (!num) return '0';
         if (num >= 1000000) return (num/1000000).toFixed(2) + 'M';
@@ -130,17 +133,28 @@
         return Math.floor(num).toString();
     }
 
+    // --- STATE ---
     const state = {
         ticker: 'AAPL', timeframe: '5Min', chart: null,
         series: { candle: null, volume: null },
         refreshInterval: null, screenerInterval: null,
         masterData: [], earliestTime: null,
         isLoadingHistory: false, noMoreHistory: false, lastPrice: 0,
-        portfolioTickers: [] 
+        
+        // TAPE DATA STORE (Separated)
+        tapeData: {
+            portfolio: '',
+            gainers: '',
+            losers: '',
+            activeVol: '',
+            activeTrd: ''
+        }
     };
 
+    // --- INIT ---
     async function init() {
         const el = document.getElementById('chart-container');
+        
         state.chart = LightweightCharts.createChart(el, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
@@ -149,11 +163,19 @@
             rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.25 } },
         });
 
-        state.series.volume = state.chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'volume_scale' });
+        state.series.volume = state.chart.addHistogramSeries({ 
+            color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'volume_scale', 
+        });
         state.chart.priceScale('volume_scale').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
-        state.series.candle = state.chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
-        new ResizeObserver(e => { if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(el);
+        state.series.candle = state.chart.addCandlestickSeries({ 
+            upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' 
+        });
+
+        new ResizeObserver(e => {
+            if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height });
+        }).observe(el);
+
         state.chart.subscribeCrosshairMove(updateLegend);
         state.chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
 
@@ -161,61 +183,59 @@
         await loadSavedState();
         await loadInitialData(); 
         
-        // Init Ticker Tape (Updates every 60s)
-        refreshScreenerList(); 
-        state.screenerInterval = setInterval(refreshScreenerList, 60000);
-
+        // START TAPE (Decoupled)
+        refreshPortfolioTape(); // Runs instantly
+        refreshScreenerTape();  // Runs in background
+        
+        // Polling Intervals
         if (state.refreshInterval) clearInterval(state.refreshInterval);
-        state.refreshInterval = setInterval(updateRealtime, 3000); // Only polls chart ticker
+        state.refreshInterval = setInterval(() => {
+            updateRealtime();
+            refreshPortfolioTape(); // Keep portfolio fresh (3s)
+        }, 3000);
+
+        // Screener Interval (60s)
+        if (state.screenerInterval) clearInterval(state.screenerInterval);
+        state.screenerInterval = setInterval(refreshScreenerTape, 60000);
     }
 
-    // --- ADVANCED MARKET SCANNER TAPE ---
-    async function refreshScreenerList() {
+    // --- 1. PORTFOLIO TAPE (Critical) ---
+    async function refreshPortfolioTape() {
         const keys = await getKeys();
         if(!keys) return;
-        
-        log("Refreshing Market Scanner...");
-        
-        // 1. Fetch Portfolio Tickers (Local DB)
-        let portTickers = [];
+
         try {
             const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e=>r(e.target.result); req.onerror = j; });
             const tx = db.transaction("Positions", "readonly");
             const positions = await new Promise(r => { tx.objectStore("Positions").getAll().onsuccess = e => r(e.target.result); });
-            portTickers = positions.map(p => p.tickerSymbol);
-        } catch(e) { }
-
-        // 2. Fetch Portfolio Snapshot (Live Price)
-        let portHtml = '';
-        if (portTickers.length > 0) {
-            try {
-                const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${portTickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            const tickers = positions.map(p => p.tickerSymbol);
+            
+            if (tickers.length > 0) {
+                const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
                 if(res.ok) {
                     const json = await res.json();
-                    portHtml = generateSectionHTML("PORTFOLIO", Object.values(json).map(d => parseSnapshot(d, d.symbol)));
+                    state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", Object.values(json).map(d => parseSnapshot(d, d.symbol)));
+                    renderTape(); // Update UI immediately
                 }
-            } catch(e) { }
-        }
+            } else {
+                state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>';
+                renderTape();
+            }
+        } catch(e) { /* Silent fail */ }
+    }
 
-        // 3. Fetch Screeners (Top 10 each)
-        const [vol, trd, gain, lose] = await Promise.all([
-            fetchScreener(keys, 'most-actives?by=volume&top=10', 'most_actives'),
-            fetchScreener(keys, 'most-actives?by=trades&top=10', 'most_actives'),
-            fetchScreener(keys, 'movers?top=10', 'gainers'),
-            fetchScreener(keys, 'movers?top=10', 'losers')
-        ]);
+    // --- 2. SCREENER TAPE (Background) ---
+    async function refreshScreenerTape() {
+        const keys = await getKeys();
+        if(!keys) return;
+        
+        log("Fetching Screeners...");
 
-        // 4. Build Tape String
-        const fullHtml = `
-            ${portHtml}
-            ${generateSectionHTML("MOST ACTIVE (VOL)", vol)}
-            ${generateSectionHTML("MOST ACTIVE (TRADES)", trd)}
-            ${generateSectionHTML("TOP GAINERS", gain)}
-            ${generateSectionHTML("TOP LOSERS", lose)}
-        `;
-
-        // 5. Update DOM (Duplicate for loop)
-        document.getElementById('tickerTrack').innerHTML = fullHtml + fullHtml;
+        // Fetch each independently so one failure doesn't kill the others
+        fetchScreener(keys, 'movers?top=10', 'gainers').then(d => { state.tapeData.gainers = generateSectionHTML("TOP GAINERS", d); renderTape(); });
+        fetchScreener(keys, 'movers?top=10', 'losers').then(d => { state.tapeData.losers = generateSectionHTML("TOP LOSERS", d); renderTape(); });
+        fetchScreener(keys, 'most-actives?by=volume&top=10', 'most_actives').then(d => { state.tapeData.activeVol = generateSectionHTML("MOST ACTIVE (VOL)", d); renderTape(); });
+        fetchScreener(keys, 'most-actives?by=trades&top=10', 'most_actives').then(d => { state.tapeData.activeTrd = generateSectionHTML("MOST ACTIVE (TRDS)", d); renderTape(); });
     }
 
     async function fetchScreener(keys, endpoint, keyName) {
@@ -223,30 +243,40 @@
             const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             if(!res.ok) return [];
             const json = await res.json();
-            // Normalize data to { symbol, price, changePercent }
-            return (json[keyName] || []).map(item => ({
-                symbol: item.symbol,
-                price: item.price,
-                pct: item.percent_change
-            }));
+            return (json[keyName] || []).map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change }));
         } catch(e) { return []; }
+    }
+
+    // --- RENDERER ---
+    function renderTape() {
+        const track = document.getElementById('tickerTrack');
+        
+        // Combine all available sections
+        let fullHtml = `
+            ${state.tapeData.portfolio}
+            ${state.tapeData.gainers}
+            ${state.tapeData.losers}
+            ${state.tapeData.activeVol}
+            ${state.tapeData.activeTrd}
+        `;
+
+        // Fallback if empty
+        if (fullHtml.trim().length === 0) fullHtml = '<span style="color:#666; font-size:11px;">Waiting for Data...</span>';
+        
+        // Duplicate for infinite scroll
+        track.innerHTML = fullHtml + fullHtml;
     }
 
     function parseSnapshot(data, symbol) {
         if(!data || !data.latestTrade) return null;
         const price = data.latestTrade.p;
         const prev = (data.prevDailyBar) ? data.prevDailyBar.c : price;
-        return {
-            symbol: symbol,
-            price: price,
-            pct: ((price - prev) / prev) * 100
-        };
+        return { symbol: symbol, price: price, pct: ((price - prev) / prev) * 100 };
     }
 
     function generateSectionHTML(title, items) {
         if (!items || items.length === 0) return '';
         let html = `<div class="ticker-section"><span class="section-label">${title}</span>`;
-        
         items.forEach(item => {
             if(!item) return;
             const colorClass = item.pct >= 0 ? 'color-up' : 'color-down';
@@ -270,7 +300,7 @@
         loadInitialData();
     };
 
-    // --- CHART LOGIC (UNCHANGED FROM PREVIOUS ROBUST VERSION) ---
+    // --- CHART & DATA LOGIC (Standard) ---
     function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
         if (!newVisibleLogicalRange) return;
         if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) {
@@ -300,6 +330,7 @@
                 state.series.candle.setData(state.masterData);
                 state.series.volume.setData(newVolData); 
                 state.earliestTime = oldBars.ohlc[0].time;
+                log(`Stitched ${json.bars.length} older bars.`);
             } else { state.noMoreHistory = true; }
         } catch(e) { log(e.message, 'error'); } 
         finally { state.isLoadingHistory = false; document.getElementById('history-loader').style.display = 'none'; }
@@ -386,7 +417,6 @@
         if (v && c) { const dVol = v.value * c.close; document.getElementById('lg-vol').innerHTML = `V: <span style="color:${v.color}">${formatNum(v.value)}</span> &nbsp;&nbsp; $V: <span style="color:#d1d4dc">$${formatNum(dVol)}</span>`; }
     }
 
-    // --- STATE SAVE/LOAD ---
     async function saveState() {
         try {
             const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
@@ -407,7 +437,6 @@
         } catch(e) { }
     }
 
-    // --- EVENTS ---
     document.addEventListener('DOMContentLoaded', init);
     const input = document.getElementById('tickerInput');
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { state.ticker = input.value.toUpperCase(); saveState(); loadInitialData(); input.blur(); } });
