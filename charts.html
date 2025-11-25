@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Split View)</title>
+    <title>Pro Charting (Live Ticker)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -14,21 +14,62 @@
         .app-container { display: flex; flex-direction: column; height: 100vh; }
         
         /* Toolbar */
-        .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; }
-        .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 10px; }
+        .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 15px; font-size: 13px; }
+        .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
+        
+        /* Inputs */
         .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; }
         .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
         
         /* Intervals */
-        .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; }
+        .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
         .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
         .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
         .interval-btn.active { color: #fff; background-color: var(--accent-color); }
 
+        /* SCROLLING TICKER (New) */
+        .ticker-container {
+            flex-grow: 1; /* Takes up all available space */
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+        
+        .ticker-track {
+            display: flex;
+            gap: 25px;
+            animation: tickerScroll 30s linear infinite;
+        }
+        
+        .ticker-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Monaco', monospace;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .ticker-item:hover { opacity: 0.8; }
+        .t-sym { font-weight: bold; color: #d1d4dc; }
+        .t-price { color: #d1d4dc; }
+        .t-chg { font-weight: bold; }
+        
+        @keyframes tickerScroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        /* Helper Colors */
+        .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
+
         /* Quote Strip */
         .quote-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px; }
         .q-item { display: flex; gap: 5px; } .q-label { color: #787b86; } .q-val { color: #d1d4dc; font-weight: bold; }
-        .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
 
         /* Chart Area */
         #chart-container { flex-grow: 1; position: relative; width: 100%; }
@@ -41,7 +82,7 @@
         /* Debug & Right Controls */
         #screen-logger { position: absolute; right: 0; top: 70px; bottom: 0; width: 350px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
-        .right-controls { margin-left: auto; display: flex; gap: 10px; }
+        .right-controls { margin-left: auto; display: flex; gap: 10px; flex-shrink: 0; background: var(--panel-color); z-index: 2; padding-left: 10px; } /* Added BG to cover ticker */
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; }
         .icon-btn:hover { color: var(--text-color); }
     </style>
@@ -59,6 +100,13 @@
             <button class="interval-btn" data-tf="1H">1h</button>
             <button class="interval-btn" data-tf="1D">D</button>
         </div>
+
+        <div class="ticker-container" id="tickerContainer">
+            <div class="ticker-track" id="tickerTrack">
+                <span style="font-size:11px; color:#666;">Loading Portfolio...</span>
+            </div>
+        </div>
+
         <div class="right-controls">
             <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
             <button class="icon-btn" id="debugToggle"><i class="fas fa-bug"></i></button>
@@ -102,7 +150,6 @@
         if(type==='error') console.error(msg);
     }
     
-    // Formatting: 1.2M, 500k, 123
     function formatNum(num) {
         if (!num) return '0';
         if (num >= 1000000) return (num/1000000).toFixed(2) + 'M';
@@ -115,11 +162,10 @@
         ticker: 'AAPL', timeframe: '5Min', chart: null,
         series: { candle: null, volume: null },
         refreshInterval: null,
-        masterData: [], 
-        earliestTime: null,
-        isLoadingHistory: false,
-        noMoreHistory: false,
-        lastPrice: 0
+        tickerTapeInterval: null,
+        masterData: [], earliestTime: null,
+        isLoadingHistory: false, noMoreHistory: false, lastPrice: 0,
+        portfolioTickers: [] // New: Store tickers
     };
 
     // --- INIT ---
@@ -131,27 +177,13 @@
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
             timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39', minBarSpacing: 0.005 },
             crosshair: { mode: 0 },
-            rightPriceScale: {
-                scaleMargins: {
-                    top: 0.1,    // Candles take top 70% (10% margin + 20% reserved for vol)
-                    bottom: 0.25, // Leave bottom 25% empty for Volume
-                },
-            },
+            rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.25 } },
         });
 
-        // Volume Series (Bottom 25%)
         state.series.volume = state.chart.addHistogramSeries({ 
-            color: '#26a69a', 
-            priceFormat: { type: 'volume' }, 
-            priceScaleId: 'volume_scale', 
+            color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'volume_scale', 
         });
-        
-        state.chart.priceScale('volume_scale').applyOptions({
-            scaleMargins: {
-                top: 0.75, // Push volume down to the bottom 25%
-                bottom: 0,
-            },
-        });
+        state.chart.priceScale('volume_scale').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
 
         state.series.candle = state.chart.addCandlestickSeries({ 
             upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' 
@@ -167,9 +199,99 @@
         log("Chart initialized.");
         await loadInitialData(); 
         
+        // Init Ticker Tape
+        await initTickerTape();
+
         if (state.refreshInterval) clearInterval(state.refreshInterval);
-        state.refreshInterval = setInterval(updateRealtime, 3000);
+        state.refreshInterval = setInterval(() => {
+            updateRealtime();
+            updateTickerTape(); // Also update tape every 3s
+        }, 3000);
     }
+
+    // --- NEW: TICKER TAPE LOGIC ---
+    async function initTickerTape() {
+        const keys = await getKeys();
+        if(!keys) return;
+
+        // 1. Fetch Tickers from IndexedDB (Positions Store)
+        try {
+            const db = await new Promise((resolve, reject) => {
+                const req = indexedDB.open("ProfitLadderDB", 3);
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = e => reject(e);
+            });
+            
+            const tx = db.transaction("Positions", "readonly");
+            const store = tx.objectStore("Positions");
+            const req = store.getAll();
+            
+            req.onsuccess = async () => {
+                const positions = req.result;
+                if(positions && positions.length > 0) {
+                    state.portfolioTickers = positions.map(p => p.tickerSymbol);
+                    log(`Loaded ${state.portfolioTickers.length} tickers for tape.`);
+                    updateTickerTape();
+                } else {
+                    document.getElementById('tickerTrack').innerHTML = '<span style="color:#444; font-size:11px; padding-left:10px;">Portfolio Empty</span>';
+                }
+            };
+        } catch(e) { log("Error loading portfolio for tape: " + e.message); }
+    }
+
+    async function updateTickerTape() {
+        if(state.portfolioTickers.length === 0) return;
+        const keys = await getKeys();
+        
+        // Alpaca Snapshots Endpoint
+        const symbols = state.portfolioTickers.join(',');
+        const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols}`;
+        
+        try {
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if(!res.ok) return;
+            const json = await res.json();
+            
+            let html = '';
+            
+            // Sort alphabetically for consistency
+            state.portfolioTickers.sort().forEach(sym => {
+                const data = json[sym];
+                if(data && data.dailyBar && data.latestTrade) {
+                    const price = data.latestTrade.p;
+                    const prev = data.prevDailyBar ? data.prevDailyBar.c : price;
+                    const chg = price - prev;
+                    const pct = (chg / prev) * 100;
+                    
+                    const colorClass = chg >= 0 ? 'color-up' : 'color-down';
+                    const icon = chg >= 0 ? '▲' : '▼';
+                    
+                    // Click to load this symbol on chart
+                    html += `
+                        <div class="ticker-item" onclick="changeTicker('${sym}')">
+                            <span class="t-sym">${sym}</span>
+                            <span class="t-price">${price.toFixed(2)}</span>
+                            <span class="t-chg ${colorClass}">${icon} ${Math.abs(pct).toFixed(2)}%</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            // Double the content to allow smooth infinite scroll if content is short
+            const track = document.getElementById('tickerTrack');
+            // Only update innerHTML if we have data to prevent flickering? 
+            // Actually innerHTML replace is fine for this frequency.
+            track.innerHTML = html + html; 
+            
+        } catch(e) { /* silent fail on poll */ }
+    }
+    
+    window.changeTicker = function(sym) {
+        document.getElementById('tickerInput').value = sym;
+        state.ticker = sym;
+        loadInitialData();
+    };
+
 
     // --- INFINITE SCROLL ---
     function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
@@ -201,19 +323,13 @@
             if (json.bars && json.bars.length > 0) {
                 const reversedBars = json.bars.reverse();
                 const oldBars = parseBars(reversedBars);
-                
                 state.masterData = [...oldBars.ohlc, ...state.masterData];
-                // Regenerate volume data
                 const newVolData = [...oldBars.vol, ...state.series.volume.data()]; 
-
                 state.series.candle.setData(state.masterData);
                 state.series.volume.setData(newVolData); 
-
                 state.earliestTime = oldBars.ohlc[0].time;
                 log(`Stitched ${json.bars.length} older bars.`);
-            } else {
-                state.noMoreHistory = true;
-            }
+            } else { state.noMoreHistory = true; }
         } catch(e) { log(e.message, 'error'); } 
         finally { state.isLoadingHistory = false; document.getElementById('history-loader').style.display = 'none'; }
     }
@@ -223,29 +339,22 @@
         state.masterData = [];
         state.earliestTime = null;
         state.noMoreHistory = false;
-        
         const keys = await getKeys();
         if (!keys) return;
-
         const end = new Date();
         const start = new Date();
         start.setDate(end.getDate() - 30); 
-
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000&adjustment=split`;
-
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
-            
             if (json.bars) {
                 const data = parseBars(json.bars);
                 state.masterData = data.ohlc;
                 state.earliestTime = state.masterData[0].time;
-                
                 state.series.candle.setData(data.ohlc);
                 state.series.volume.setData(data.vol);
                 state.chart.timeScale().fitContent();
-                
                 document.getElementById('lg-header').innerText = `${state.ticker} · ${state.timeframe}`;
                 if (data.ohlc.length > 0) state.lastPrice = data.ohlc[data.ohlc.length-1].close;
                 updateRealtime();
@@ -253,23 +362,21 @@
         } catch (e) { log(e.message, 'error'); }
     }
 
-    // --- REALTIME UPDATES (Universal) ---
+    // --- REALTIME UPDATES ---
     async function updateRealtime() {
         const keys = await getKeys();
         if (!keys) return;
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/snapshot`;
-        
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             if (!res.ok) return;
             const json = await res.json();
             
-            const q = json.latestQuote; // Bid/Ask
-            const t = json.latestTrade; // Last Price
-            const mb = json.minuteBar;  // Current Minute Candle
-            const day = json.dailyBar;  // Current Day Candle
+            const q = json.latestQuote;
+            const t = json.latestTrade;
+            const mb = json.minuteBar;
+            const day = json.dailyBar;
 
-            // 1. Update Top Quote Strip
             if (q) {
                 document.getElementById('q-bid').innerText = `${q.bp.toFixed(2)}x${q.bs}`;
                 document.getElementById('q-ask').innerText = `${q.ap.toFixed(2)}x${q.as}`;
@@ -282,43 +389,31 @@
             }
             if (day) document.getElementById('q-vol').innerText = (day.v / 1000000).toFixed(2) + 'M';
 
-            // 2. Chart Update Logic
-            // Get the last bar currently on the chart to reference its time/open/high/low
+            // Chart Updates
             const currentData = state.series.candle.data();
             if (currentData.length === 0) return;
             const lastBar = currentData[currentData.length - 1];
 
-            // A. Handle Daily (1D)
             if (state.timeframe === '1D' && day) {
                 const time = new Date(day.t).getTime() / 1000;
-                // Only update if it matches the current bar time or is newer
-                if (time >= lastBar.time) {
-                    updateChartBar(time, day.o, day.h, day.l, day.c, day.v);
-                }
+                if (time >= lastBar.time) updateChartBar(time, day.o, day.h, day.l, day.c, day.v);
             }
-            // B. Handle Minutes (1m, 5m, 15m)
             else if (state.timeframe.includes('Min') && mb) {
                  const time = new Date(mb.t).getTime() / 1000;
                  updateChartBar(time, mb.o, mb.h, mb.l, mb.c, mb.v);
             }
-            // C. Handle Hourly (1H) - Manual Patching
             else if (state.timeframe === '1H' && t) {
-                // We don't have a live "Hourly Bar", so we manually update the 
-                // Close, High, and Low of the existing bar using the Latest Trade.
+                // Manual hourly patch using last price
                 const price = t.p;
                 const newHigh = Math.max(lastBar.high, price);
                 const newLow = Math.min(lastBar.low, price);
-                
-                // Keep Volume same as last known (since we can't calculate hourly vol easily from a trade)
                 const currentVol = state.series.volume.data()[currentData.length - 1].value;
-                
                 updateChartBar(lastBar.time, lastBar.open, newHigh, newLow, price, currentVol);
             }
 
         } catch (e) { }
     }
 
-    // Helper to update both Candle and Volume series at once
     function updateChartBar(time, o, h, l, c, v) {
         state.series.candle.update({ time: time, open: o, high: h, low: l, close: c });
         state.series.volume.update({ 
@@ -334,10 +429,7 @@
         bars.forEach(b => {
             const t = new Date(b.t).getTime() / 1000;
             ohlc.push({ time: t, open: b.o, high: b.h, low: b.l, close: b.c });
-            vol.push({ 
-                time: t, value: b.v, 
-                color: (b.c >= b.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'),
-            });
+            vol.push({ time: t, value: b.v, color: (b.c >= b.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)') });
         });
         return { ohlc, vol };
     }
@@ -351,28 +443,18 @@
         return { k, s };
     }
 
-    // --- FIXED LEGEND UPDATER ---
     function updateLegend(p) {
         if (!p.time) return;
-        
         const c = p.seriesData.get(state.series.candle);
         const v = p.seriesData.get(state.series.volume);
         
-        // Update OHLC
         if (c) {
             const cl = c.close >= c.open ? 'color-up' : 'color-down';
             document.getElementById('lg-ohlc').innerHTML = `O:<span class="${cl}">${c.open.toFixed(2)}</span> H:<span class="${cl}">${c.high.toFixed(2)}</span> L:<span class="${cl}">${c.low.toFixed(2)}</span> C:<span class="${cl}">${c.close.toFixed(2)}</span>`;
         }
-        
-        // Update Volume & Calculate Dollar Volume on the Fly
         if (v && c) {
-            const vol = v.value;
-            const dVol = vol * c.close; // Derived from Close Price
-            
-            document.getElementById('lg-vol').innerHTML = `
-                V: <span style="color:${v.color}">${formatNum(vol)}</span> 
-                &nbsp;&nbsp; $V: <span style="color:#d1d4dc">$${formatNum(dVol)}</span>
-            `;
+            const dVol = v.value * c.close; 
+            document.getElementById('lg-vol').innerHTML = `V: <span style="color:${v.color}">${formatNum(v.value)}</span> &nbsp;&nbsp; $V: <span style="color:#d1d4dc">$${formatNum(dVol)}</span>`;
         }
     }
 
