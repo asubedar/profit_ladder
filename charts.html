@@ -123,6 +123,7 @@
         div.innerText = `> ${msg}`;
         logger.appendChild(div);
         logger.scrollTop = logger.scrollHeight;
+        if(type==='error') console.error(msg);
     }
     function formatNum(num) {
         if (!num) return '0';
@@ -140,7 +141,7 @@
         isLoadingHistory: false, noMoreHistory: false, lastPrice: 0,
         
         // TAPE DATA STORE
-        tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '' }
+        tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' }
     };
 
     // --- INIT ---
@@ -167,7 +168,7 @@
         await loadSavedState();
         await loadInitialData(); 
         
-        // START TAPE
+        // Init Ticker Tape
         refreshPortfolioTape();
         refreshScreenerTape();
         
@@ -181,7 +182,7 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
     }
 
-    // --- 1. PORTFOLIO TAPE (Corrected Symbol Extraction) ---
+    // --- 1. PORTFOLIO TAPE ---
     async function refreshPortfolioTape() {
         const keys = await getKeys();
         if(!keys) return;
@@ -196,10 +197,8 @@
                 const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
                 if(res.ok) {
                     const json = await res.json();
-                    
-                    // --- FIX IS HERE: Use Object.entries to get the Symbol Key ---
+                    // Correctly map over entries to get symbols
                     const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym));
-                    
                     state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", items);
                     renderTape();
                 }
@@ -210,52 +209,73 @@
         } catch(e) { /* Silent fail */ }
     }
 
-    // --- 2. SCREENER TAPE ---
+    // --- 2. SCREENER TAPE (With Debugging) ---
     async function refreshScreenerTape() {
         const keys = await getKeys();
         if(!keys) return;
         
-        // Fallback: If screeners fail, provide default indices
-        const fetchOrFallback = async (endpoint, keyName, sectionTitle, fallbackArr) => {
-            const res = await fetchScreener(keys, endpoint, keyName);
-            if (res.length > 0) return generateSectionHTML(sectionTitle, res);
-            return ''; // Return empty if failed
-        };
+        log("Fetching Screeners...");
 
-        Promise.all([
-            fetchOrFallback('movers?top=10', 'gainers', "TOP GAINERS"),
-            fetchOrFallback('movers?top=10', 'losers', "TOP LOSERS"),
-            fetchOrFallback('most-actives?by=volume&top=10', 'most_actives', "MOST ACTIVE (VOL)"),
-            fetchOrFallback('most-actives?by=trades&top=10', 'most_actives', "MOST ACTIVE (TRDS)")
-        ]).then(([gain, lose, vol, trd]) => {
-            state.tapeData.gainers = gain;
-            state.tapeData.losers = lose;
-            state.tapeData.activeVol = vol;
-            state.tapeData.activeTrd = trd;
-            renderTape();
-        });
+        // Fetch independantly
+        fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); });
+        fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); });
+        fetchScreener(keys, 'most-actives?by=volume&top=10', 'most_actives', "MOST ACTIVE (VOL)").then(html => { state.tapeData.activeVol = html; renderTape(); });
+        fetchScreener(keys, 'most-actives?by=trades&top=10', 'most_actives', "MOST ACTIVE (TRDS)").then(html => { state.tapeData.activeTrd = html; renderTape(); });
+        
+        // Fallback
+        if (!state.tapeData.activeVol && !state.tapeData.gainers) {
+             fetchFallbackIndices(keys);
+        }
     }
 
-    async function fetchScreener(keys, endpoint, keyName) {
+    async function fetchScreener(keys, endpoint, keyName, title) {
         try {
             const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            if(!res.ok) return [];
+            
+            if(!res.ok) {
+                log(`Screener Fail (${title}): ${res.status}`, 'error');
+                return '';
+            }
+            
             const json = await res.json();
-            return (json[keyName] || []).map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change }));
-        } catch(e) { return []; }
+            const list = json[keyName] || [];
+            log(`${title}: Found ${list.length} items.`);
+            
+            const items = list.map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change }));
+            return generateSectionHTML(title, items);
+        } catch(e) { 
+            log(`Screener Error: ${e.message}`, 'error');
+            return ''; 
+        }
+    }
+
+    async function fetchFallbackIndices(keys) {
+        try {
+            const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if(res.ok) {
+                const json = await res.json();
+                const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym));
+                state.tapeData.fallback = generateSectionHTML("INDICES (FALLBACK)", items);
+                renderTape();
+            }
+        } catch(e) {}
     }
 
     // --- RENDERER ---
     function renderTape() {
         const track = document.getElementById('tickerTrack');
-        let fullHtml = `
-            ${state.tapeData.portfolio}
-            ${state.tapeData.activeVol}
-            ${state.tapeData.activeTrd}
-            ${state.tapeData.gainers}
-            ${state.tapeData.losers}
-        `;
-        if (fullHtml.trim().length === 0) fullHtml = '<span style="color:#666; font-size:11px;">Loading Market Data...</span>';
+        
+        // Combine non-empty sections
+        let fullHtml = [
+            state.tapeData.portfolio,
+            state.tapeData.gainers,
+            state.tapeData.losers,
+            state.tapeData.activeVol,
+            state.tapeData.activeTrd,
+            state.tapeData.fallback // Only shows if others failed
+        ].join('');
+
+        if (fullHtml.trim().length === 0) fullHtml = '<span style="color:#666; font-size:11px;">Loading Data...</span>';
         track.innerHTML = fullHtml + fullHtml;
     }
 
@@ -291,7 +311,7 @@
         saveState(); loadInitialData();
     };
 
-    // --- CHART DATA LOGIC ---
+    // --- CHART LOGIC ---
     function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
         if (!newVisibleLogicalRange) return;
         if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) {
@@ -427,7 +447,6 @@
         } catch(e) { }
     }
 
-    // --- EVENTS ---
     document.addEventListener('DOMContentLoaded', init);
     const input = document.getElementById('tickerInput');
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { state.ticker = input.value.toUpperCase(); saveState(); loadInitialData(); input.blur(); } });
