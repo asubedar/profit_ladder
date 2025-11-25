@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Infinite Scroll)</title>
+    <title>Pro Charting (Split View)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -33,14 +33,10 @@
         /* Chart Area */
         #chart-container { flex-grow: 1; position: relative; width: 100%; }
         .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
+        .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
         
-        /* Loading History Indicator */
-        #history-loader {
-            position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
-            background: rgba(41, 98, 255, 0.9); color: white; padding: 4px 12px;
-            border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 30;
-            display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
+        /* Loader */
+        #history-loader { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); background: rgba(41, 98, 255, 0.9); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 30; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
         /* Debug & Right Controls */
         #screen-logger { position: absolute; right: 0; top: 70px; bottom: 0; width: 350px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
@@ -81,7 +77,8 @@
         <div id="history-loader"><i class="fas fa-circle-notch fa-spin"></i> Loading older data...</div>
         <div class="chart-legend">
             <div id="lg-header" style="font-weight:bold; font-size:1.2em; color: #787b86;">LOADING...</div>
-            <div id="lg-ohlc"></div>
+            <div class="legend-row" id="lg-ohlc"></div>
+            <div class="legend-row" id="lg-vol"></div>
         </div>
     </div>
 
@@ -104,6 +101,13 @@
         logger.scrollTop = logger.scrollHeight;
         if(type==='error') console.error(msg);
     }
+    
+    // Format large numbers (1.2M, 500k)
+    function formatNum(num) {
+        if(num >= 1000000) return (num/1000000).toFixed(2) + 'M';
+        if(num >= 1000) return (num/1000).toFixed(1) + 'k';
+        return num.toString();
+    }
 
     // --- STATE ---
     const state = {
@@ -120,16 +124,39 @@
     // --- INIT ---
     async function init() {
         const el = document.getElementById('chart-container');
+        
         state.chart = LightweightCharts.createChart(el, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+            // Allow massive zoom out (0.005 spacing)
             timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39', minBarSpacing: 0.005 },
             crosshair: { mode: 0 },
+            
+            // --- SPLIT PANE CONFIG ---
+            // We give the right price scale margins to push candles up.
+            rightPriceScale: {
+                scaleMargins: {
+                    top: 0.1,    // Leave 10% space at top
+                    bottom: 0.3, // Leave 30% space at bottom for Volume
+                },
+            },
         });
 
+        // Volume Series: Uses a custom overlay scale so it sits at the bottom
         state.series.volume = state.chart.addHistogramSeries({ 
-            color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 } 
+            color: '#26a69a', 
+            priceFormat: { type: 'volume' }, 
+            priceScaleId: 'volume_scale', // Separate ID
         });
+        
+        // Define margins for the Volume Scale ID
+        state.chart.priceScale('volume_scale').applyOptions({
+            scaleMargins: {
+                top: 0.75, // Volume starts at 75% down the screen
+                bottom: 0,
+            },
+        });
+
         state.series.candle = state.chart.addCandlestickSeries({ 
             upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' 
         });
@@ -138,10 +165,7 @@
             if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height });
         }).observe(el);
 
-        // Subscribe to Crosshair (This was the cause of the crash)
         state.chart.subscribeCrosshairMove(updateLegend);
-        
-        // Infinite Scroll Listener
         state.chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
 
         log("Chart initialized.");
@@ -151,10 +175,9 @@
         state.refreshInterval = setInterval(updateRealtime, 3000);
     }
 
-    // --- INFINITE SCROLL LOGIC ---
+    // --- INFINITE SCROLL ---
     function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
         if (!newVisibleLogicalRange) return;
-        // If we are less than 10 bars from the left edge
         if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) {
             loadOlderData();
         }
@@ -167,48 +190,27 @@
         document.getElementById('history-loader').style.display = 'block';
         
         const keys = await getKeys();
-        
-        // 1. Smart Limit: Calculate how many bars we need to fill the screen
         const logicalRange = state.chart.timeScale().getVisibleLogicalRange();
         const visibleBars = logicalRange ? Math.ceil(logicalRange.to - logicalRange.from) : 100;
-        // Fetch 2x the visible width, clamped between 500 and 10,000
         const dynamicLimit = Math.min(Math.max(visibleBars * 2, 500), 10000);
         
-        // 2. Anchors
-        // End: 1 second BEFORE our current oldest bar (Perfect stitching point)
         const endStr = new Date((state.earliestTime - 1) * 1000).toISOString();
-        // Start: Far past to ensure we don't hit a "start date" wall
         const startStr = "2015-01-01T00:00:00Z";
 
-        // 3. THE FIX: sort=desc
-        // "Start from endStr and work backwards"
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&adjustment=split&sort=desc`;
+        // Adjustment=split to fix gaps
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&sort=desc&adjustment=split`;
         
-        log(`Fetching ${dynamicLimit} bars ending ${endStr}...`);
-
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            
-            if (!res.ok) {
-                log(`API Error: ${res.statusText}`, 'error');
-                state.isLoadingHistory = false;
-                document.getElementById('history-loader').style.display = 'none';
-                return;
-            }
-
             const json = await res.json();
 
             if (json.bars && json.bars.length > 0) {
-                // Since we requested DESC (Newest -> Oldest), Alpaca gives us: [Dec 31, Dec 30, Dec 29...]
-                // We need ASC (Oldest -> Newest) for the chart: [Dec 29, Dec 30, Dec 31...]
                 const reversedBars = json.bars.reverse();
                 const oldBars = parseBars(reversedBars);
                 
-                // Prepend to master data
                 state.masterData = [...oldBars.ohlc, ...state.masterData];
-                
-                // Merge Volume (Required regen for Lightweight Charts)
-                const newVolData = [...oldBars.vol, ...state.series.volume.data()];
+                // Merge Volume (Required regen)
+                const newVolData = [...oldBars.vol, ...state.series.volume.data()]; 
 
                 state.series.candle.setData(state.masterData);
                 state.series.volume.setData(newVolData); 
@@ -216,16 +218,12 @@
                 state.earliestTime = oldBars.ohlc[0].time;
                 log(`Stitched ${json.bars.length} older bars.`);
             } else {
-                log("No older history available.");
                 state.noMoreHistory = true;
             }
-        } catch(e) {
-            log("Error loading history: " + e.message, 'error');
-        } finally {
-            state.isLoadingHistory = false;
-            document.getElementById('history-loader').style.display = 'none';
-        }
+        } catch(e) { log(e.message, 'error'); } 
+        finally { state.isLoadingHistory = false; document.getElementById('history-loader').style.display = 'none'; }
     }
+
     // --- INITIAL DATA LOAD ---
     async function loadInitialData() {
         state.masterData = [];
@@ -237,8 +235,9 @@
 
         const end = new Date();
         const start = new Date();
-        start.setDate(end.getDate() - 30); // Start with 30 days
+        start.setDate(end.getDate() - 30); 
 
+        // Adjustment=split
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000&adjustment=split`;
 
         try {
@@ -257,8 +256,6 @@
                 document.getElementById('lg-header').innerText = `${state.ticker} · ${state.timeframe}`;
                 if (data.ohlc.length > 0) state.lastPrice = data.ohlc[data.ohlc.length-1].close;
                 updateRealtime();
-            } else {
-                log("No initial data found.", 'error');
             }
         } catch (e) { log(e.message, 'error'); }
     }
@@ -290,22 +287,34 @@
             }
             if (day) document.getElementById('q-vol').innerText = (day.v / 1000000).toFixed(2) + 'M';
 
-            // Tick Update (Only for minute bars)
             if (mb && state.timeframe.includes('Min')) {
                 const time = new Date(mb.t).getTime() / 1000;
+                // Live tick updates
                 state.series.candle.update({ time: time, open: mb.o, high: mb.h, low: mb.l, close: mb.c });
+                state.series.volume.update({ 
+                    time: time, value: mb.v, 
+                    color: (mb.c >= mb.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)')
+                });
             }
         } catch (e) { }
     }
 
-    // --- HELPERS ---
+    // --- PARSE + DOLLAR VOLUME ---
     function parseBars(bars) {
         const ohlc = [];
         const vol = [];
         bars.forEach(b => {
             const t = new Date(b.t).getTime() / 1000;
+            const dVol = b.c * b.v; // Dollar Volume Calculation
+            
             ohlc.push({ time: t, open: b.o, high: b.h, low: b.l, close: b.c });
-            vol.push({ time: t, value: b.v, color: (b.c >= b.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)') });
+            
+            // Store Dollar Volume in 'custom' property for legend
+            vol.push({ 
+                time: t, value: b.v, 
+                color: (b.c >= b.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'),
+                dollarVol: dVol 
+            });
         });
         return { ohlc, vol };
     }
@@ -319,16 +328,23 @@
         return { k, s };
     }
 
-    // --- FIXED LEGEND UPDATER (v4 Compatible) ---
+    // --- UPDATED LEGEND WITH DOLLAR VOLUME ---
     function updateLegend(p) {
         if (!p.time) return;
         
-        // FIX: Use 'seriesData' instead of 'seriesPrices'
         const c = p.seriesData.get(state.series.candle);
+        const v = p.seriesData.get(state.series.volume);
         
         if (c) {
             const cl = c.close >= c.open ? 'color-up' : 'color-down';
             document.getElementById('lg-ohlc').innerHTML = `O:<span class="${cl}">${c.open.toFixed(2)}</span> H:<span class="${cl}">${c.high.toFixed(2)}</span> L:<span class="${cl}">${c.low.toFixed(2)}</span> C:<span class="${cl}">${c.close.toFixed(2)}</span>`;
+        }
+        if (v) {
+            // Show Volume AND Dollar Volume
+            document.getElementById('lg-vol').innerHTML = `
+                V: <span style="color:${v.color}">${formatNum(v.value)}</span> 
+                &nbsp;&nbsp; $V: <span style="color:#d1d4dc">$${formatNum(v.dollarVol)}</span>
+            `;
         }
     }
 
@@ -344,6 +360,7 @@
     }));
     document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
     document.getElementById('refreshBtn').addEventListener('click', loadInitialData);
+    document.getElementById('settingsBtn').addEventListener('click', () => alert("Manage keys in Portfolio Settings"));
     document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
 
 </script>
