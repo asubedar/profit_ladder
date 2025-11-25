@@ -253,21 +253,23 @@
         } catch (e) { log(e.message, 'error'); }
     }
 
-    // --- REALTIME UPDATES ---
+    // --- REALTIME UPDATES (Universal) ---
     async function updateRealtime() {
         const keys = await getKeys();
         if (!keys) return;
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/snapshot`;
+        
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             if (!res.ok) return;
             const json = await res.json();
             
-            const q = json.latestQuote;
-            const t = json.latestTrade;
-            const mb = json.minuteBar;
-            const day = json.dailyBar;
+            const q = json.latestQuote; // Bid/Ask
+            const t = json.latestTrade; // Last Price
+            const mb = json.minuteBar;  // Current Minute Candle
+            const day = json.dailyBar;  // Current Day Candle
 
+            // 1. Update Top Quote Strip
             if (q) {
                 document.getElementById('q-bid').innerText = `${q.bp.toFixed(2)}x${q.bs}`;
                 document.getElementById('q-ask').innerText = `${q.ap.toFixed(2)}x${q.as}`;
@@ -280,15 +282,49 @@
             }
             if (day) document.getElementById('q-vol').innerText = (day.v / 1000000).toFixed(2) + 'M';
 
-            if (mb && state.timeframe.includes('Min')) {
-                const time = new Date(mb.t).getTime() / 1000;
-                state.series.candle.update({ time: time, open: mb.o, high: mb.h, low: mb.l, close: mb.c });
-                state.series.volume.update({ 
-                    time: time, value: mb.v, 
-                    color: (mb.c >= mb.o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)')
-                });
+            // 2. Chart Update Logic
+            // Get the last bar currently on the chart to reference its time/open/high/low
+            const currentData = state.series.candle.data();
+            if (currentData.length === 0) return;
+            const lastBar = currentData[currentData.length - 1];
+
+            // A. Handle Daily (1D)
+            if (state.timeframe === '1D' && day) {
+                const time = new Date(day.t).getTime() / 1000;
+                // Only update if it matches the current bar time or is newer
+                if (time >= lastBar.time) {
+                    updateChartBar(time, day.o, day.h, day.l, day.c, day.v);
+                }
             }
+            // B. Handle Minutes (1m, 5m, 15m)
+            else if (state.timeframe.includes('Min') && mb) {
+                 const time = new Date(mb.t).getTime() / 1000;
+                 updateChartBar(time, mb.o, mb.h, mb.l, mb.c, mb.v);
+            }
+            // C. Handle Hourly (1H) - Manual Patching
+            else if (state.timeframe === '1H' && t) {
+                // We don't have a live "Hourly Bar", so we manually update the 
+                // Close, High, and Low of the existing bar using the Latest Trade.
+                const price = t.p;
+                const newHigh = Math.max(lastBar.high, price);
+                const newLow = Math.min(lastBar.low, price);
+                
+                // Keep Volume same as last known (since we can't calculate hourly vol easily from a trade)
+                const currentVol = state.series.volume.data()[currentData.length - 1].value;
+                
+                updateChartBar(lastBar.time, lastBar.open, newHigh, newLow, price, currentVol);
+            }
+
         } catch (e) { }
+    }
+
+    // Helper to update both Candle and Volume series at once
+    function updateChartBar(time, o, h, l, c, v) {
+        state.series.candle.update({ time: time, open: o, high: h, low: l, close: c });
+        state.series.volume.update({ 
+            time: time, value: v, 
+            color: (c >= o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)')
+        });
     }
 
     // --- PARSERS ---
