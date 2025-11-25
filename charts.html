@@ -123,7 +123,6 @@
         div.innerText = `> ${msg}`;
         logger.appendChild(div);
         logger.scrollTop = logger.scrollHeight;
-        if(type==='error') console.error(msg);
     }
     function formatNum(num) {
         if (!num) return '0';
@@ -139,8 +138,6 @@
         refreshInterval: null, screenerInterval: null,
         masterData: [], earliestTime: null,
         isLoadingHistory: false, noMoreHistory: false, lastPrice: 0,
-        
-        // TAPE DATA STORE
         tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' }
     };
 
@@ -168,7 +165,7 @@
         await loadSavedState();
         await loadInitialData(); 
         
-        // Init Ticker Tape
+        // START TAPE
         refreshPortfolioTape();
         refreshScreenerTape();
         
@@ -197,7 +194,6 @@
                 const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
                 if(res.ok) {
                     const json = await res.json();
-                    // Correctly map over entries to get symbols
                     const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym));
                     state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", items);
                     renderTape();
@@ -206,73 +202,71 @@
                 state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>';
                 renderTape();
             }
-        } catch(e) { /* Silent fail */ }
+        } catch(e) { }
     }
 
-    // --- 2. SCREENER TAPE (With Debugging) ---
+    // --- 2. SCREENER TAPE (FIXED for Most Actives) ---
     async function refreshScreenerTape() {
         const keys = await getKeys();
         if(!keys) return;
         
-        log("Fetching Screeners...");
-
-        // Fetch independantly
+        // Gainers/Losers (Have Price Data)
         fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); });
         fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); });
-        fetchScreener(keys, 'most-actives?by=volume&top=10', 'most_actives', "MOST ACTIVE (VOL)").then(html => { state.tapeData.activeVol = html; renderTape(); });
-        fetchScreener(keys, 'most-actives?by=trades&top=10', 'most_actives', "MOST ACTIVE (TRDS)").then(html => { state.tapeData.activeTrd = html; renderTape(); });
         
-        // Fallback
-        if (!state.tapeData.activeVol && !state.tapeData.gainers) {
-             fetchFallbackIndices(keys);
-        }
+        // Most Actives (Need Extra Step to get Price)
+        fetchActives(keys, 'volume', 'activeVol', "MOST ACTIVE (VOL)");
+        fetchActives(keys, 'trades', 'activeTrd', "MOST ACTIVE (TRDS)");
     }
 
+    // For Gainers/Losers (Direct Data)
     async function fetchScreener(keys, endpoint, keyName, title) {
         try {
             const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            
-            if(!res.ok) {
-                log(`Screener Fail (${title}): ${res.status}`, 'error');
-                return '';
-            }
-            
+            if(!res.ok) return '';
             const json = await res.json();
-            const list = json[keyName] || [];
-            log(`${title}: Found ${list.length} items.`);
-            
-            const items = list.map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change }));
+            const items = (json[keyName] || []).map(item => ({ 
+                symbol: item.symbol, 
+                price: item.price, 
+                pct: item.percent_change 
+            }));
             return generateSectionHTML(title, items);
-        } catch(e) { 
-            log(`Screener Error: ${e.message}`, 'error');
-            return ''; 
-        }
+        } catch(e) { return ''; }
     }
 
-    async function fetchFallbackIndices(keys) {
+    // For Most Actives (Two-Step Fetch)
+    async function fetchActives(keys, by, stateKey, title) {
         try {
-            const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            if(res.ok) {
-                const json = await res.json();
-                const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym));
-                state.tapeData.fallback = generateSectionHTML("INDICES (FALLBACK)", items);
+            // Step 1: Get Symbols
+            const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=${by}&top=10`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if(!res.ok) return;
+            
+            const json = await res.json();
+            const list = json.most_actives || [];
+            const symbols = list.map(i => i.symbol);
+            
+            if (symbols.length === 0) return;
+
+            // Step 2: Get Prices for these symbols
+            const snapRes = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if(snapRes.ok) {
+                const snapJson = await snapRes.json();
+                const items = Object.entries(snapJson).map(([sym, d]) => parseSnapshot(d, sym));
+                state.tapeData[stateKey] = generateSectionHTML(title, items);
                 renderTape();
             }
-        } catch(e) {}
+        } catch(e) { log(`Active Fetch Error (${by}): ${e.message}`, 'error'); }
     }
 
     // --- RENDERER ---
     function renderTape() {
         const track = document.getElementById('tickerTrack');
-        
-        // Combine non-empty sections
         let fullHtml = [
             state.tapeData.portfolio,
             state.tapeData.gainers,
             state.tapeData.losers,
             state.tapeData.activeVol,
-            state.tapeData.activeTrd,
-            state.tapeData.fallback // Only shows if others failed
+            state.tapeData.activeTrd
         ].join('');
 
         if (fullHtml.trim().length === 0) fullHtml = '<span style="color:#666; font-size:11px;">Loading Data...</span>';
