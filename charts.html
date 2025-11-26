@@ -18,7 +18,6 @@
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
         .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; }
         .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
-        
         .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
         .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
         .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
@@ -51,19 +50,29 @@
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
         #history-loader { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); background: rgba(41, 98, 255, 0.9); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 30; display: none; }
 
-        /* TIME & SALES PANEL (Collapsible) */
+        /* TIME & SALES PANEL (Updated CSS) */
         .tape-panel {
-            width: 260px; background-color: #131722; border-left: 1px solid var(--border-color);
+            width: 260px; 
+            min-width: 260px; /* Ensure it doesn't get squashed */
+            background-color: #131722; 
+            border-left: 1px solid var(--border-color);
             display: flex; flex-direction: column; flex-shrink: 0;
-            transition: margin-right 0.2s ease-in-out; /* Smooth collapse */
+            transition: all 0.25s ease-in-out; /* Smooth width transition */
+            overflow: hidden; /* Hide content when width is 0 */
         }
-        .tape-panel.collapsed { margin-right: -260px; } /* Hide off screen */
+        
+        /* When Collapsed: Width becomes 0 */
+        .tape-panel.collapsed { 
+            width: 0 !important; 
+            min-width: 0 !important; 
+            border-left: none;
+        }
         
         .tape-header {
             height: 30px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
             display: flex; align-items: center; padding: 0 10px; gap: 10px;
+            white-space: nowrap; /* Prevent text wrap during transition */
         }
-        /* Independent Tape Input */
         .tape-input {
             background: #2a2e39; border: 1px solid #444; color: #d1d4dc; 
             font-size: 11px; padding: 2px 5px; width: 60px; text-transform: uppercase; font-weight: bold;
@@ -163,12 +172,9 @@
         return Math.floor(num).toString();
     }
 
-    // --- STATE ---
     const state = {
         ticker: 'AAPL', timeframe: '5Min', chart: null,
-        // Independent Tape Ticker
         tapeTicker: 'AAPL', isTapeOpen: true,
-        
         series: { candle: null, volume: null },
         refreshInterval: null, screenerInterval: null, tapeInterval: null,
         masterData: [], earliestTime: null,
@@ -178,7 +184,6 @@
         lastTradeId: 0
     };
 
-    // --- INIT ---
     async function init() {
         const el = document.getElementById('chart-container');
         state.chart = LightweightCharts.createChart(el, {
@@ -199,9 +204,7 @@
 
         log("Chart initialized.");
         await loadSavedState();
-        
-        // Sync tape ticker with chart ticker initially
-        state.tapeTicker = state.ticker;
+        state.tapeTicker = state.ticker; 
         document.getElementById('tapeInput').value = state.tapeTicker;
 
         await loadInitialData(); 
@@ -215,14 +218,18 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateTimeAndSales, 1000);
         
-        // Init Tape Toggle State
         updateTapeVisibility();
     }
 
-    // --- TIME & SALES (INDEPENDENT) ---
+    // --- TAPE UI LOGIC ---
     function toggleTape() {
         state.isTapeOpen = !state.isTapeOpen;
         updateTapeVisibility();
+        
+        // Restart polling immediately if opened
+        if(state.isTapeOpen) {
+            updateTimeAndSales();
+        }
     }
 
     function updateTapeVisibility() {
@@ -236,27 +243,22 @@
             panel.classList.add('collapsed');
             btn.classList.remove('active');
         }
-        // Force Chart Resize
+        // Force Chart Resize after transition
         setTimeout(() => {
             const container = document.getElementById('chart-container');
             state.chart.applyOptions({ width: container.clientWidth });
-        }, 250);
+        }, 300); // Wait for CSS transition (0.25s)
     }
 
     async function updateTimeAndSales() {
-        // 1. Stop if Tape is hidden
-        if (!state.isTapeOpen) return;
-        
+        if (!state.isTapeOpen) return; // Save bandwidth
         const keys = await getKeys(); if (!keys) return;
         
-        // Use state.tapeTicker, NOT state.ticker
         const url = `https://data.alpaca.markets/v2/stocks/${state.tapeTicker}/trades?limit=50&sort=desc&feed=sip`; 
-        
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             if(!res.ok) return;
             const json = await res.json();
-            
             if (json.trades && json.trades.length > 0) {
                 const list = document.getElementById('tapeList');
                 const rawTrades = json.trades; 
@@ -266,27 +268,15 @@
                     newTrades.push(t);
                 }
                 if (newTrades.length === 0) return; 
-                
-                // Update ID
                 state.lastTradeId = newTrades[0].i;
-
                 let htmlRows = '';
                 for (let t of newTrades) {
                     let colorClass = 't-neutral';
-                    // We need a local 'lastPrice' tracker for the Tape, separate from Chart
-                    // Approximation: Compare to previous trade in this batch or last known
-                    // Simple approach: Green if price > prev tick in batch
-                    
-                    // Note: Proper coloring requires storing previous price specifically for TapeTicker.
-                    // For simplicity, we use neutral or basic up/down logic relative to itself.
-                    
+                    if (t.p > state.lastPrice) colorClass = 't-up'; else if (t.p < state.lastPrice) colorClass = 't-down'; else colorClass = 'tape-time'; 
+                    state.lastPrice = t.p; 
                     let rowClass = 'tape-row'; if (t.s >= 100) rowClass += ' t-large';
                     const timeStr = new Date(t.t).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    
-                    // Color logic (simplified)
-                    const color = t.p >= state.lastPrice ? 't-up' : 't-down'; 
-
-                    htmlRows += `<div class="${rowClass}"><span class="tape-time">${timeStr}</span><span class="tape-price ${color}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
+                    htmlRows += `<div class="${rowClass}"><span class="tape-time">${timeStr}</span><span class="tape-price ${colorClass}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
                 }
                 list.insertAdjacentHTML('afterbegin', htmlRows);
                 while(list.children.length > 50) list.removeChild(list.lastChild);
@@ -294,10 +284,7 @@
         } catch(e) { }
     }
 
-    // --- OTHER LOGIC UNCHANGED ---
-    // ... (Ticker Tape, Chart Data, Infinite Scroll, Realtime - same as previous robust version) ...
-    // (For brevity, I assume you have the full functions from previous steps. I will output full block below to be safe)
-
+    // --- DATA & CHARTING ---
     async function refreshPortfolioTape() { const keys = await getKeys(); if(!keys) return; try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e=>r(e.target.result); req.onerror = j; }); const tx = db.transaction("Positions", "readonly"); const positions = await new Promise(r => { tx.objectStore("Positions").getAll().onsuccess = e => r(e.target.result); }); const tickers = positions.map(p => p.tickerSymbol); if (tickers.length > 0) { const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(res.ok) { const json = await res.json(); const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym)); state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", items); renderTape(); } } else { state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>'; renderTape(); } } catch(e) { } }
     async function refreshScreenerTape() { const keys = await getKeys(); if(!keys) return; fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); }); fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); }); fetchActives(keys, 'volume', 'activeVol', "MOST ACTIVE (VOL)"); fetchActives(keys, 'trades', 'activeTrd', "MOST ACTIVE (TRDS)"); if (!state.tapeData.activeVol && !state.tapeData.gainers) fetchFallbackIndices(keys); }
     async function fetchScreener(keys, endpoint, keyName, title) { try { const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(!res.ok) return ''; const json = await res.json(); const items = (json[keyName] || []).map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change })); return generateSectionHTML(title, items); } catch(e) { return ''; } }
@@ -309,11 +296,10 @@
     
     window.changeTicker = function(sym) { 
         document.getElementById('tickerInput').value = sym; 
-        state.ticker = sym;
-        state.tapeTicker = sym; // Also switch tape
+        state.ticker = sym; 
+        state.tapeTicker = sym; 
         document.getElementById('tapeInput').value = sym;
-        document.getElementById('tapeList').innerHTML = ''; 
-        state.lastTradeId = 0; 
+        document.getElementById('tapeList').innerHTML = ''; state.lastTradeId = 0;
         saveState(); loadInitialData(); 
     };
 
@@ -329,7 +315,6 @@
     async function saveState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readwrite"); tx.objectStore("Settings").put({ key: "lastChartTicker", value: state.ticker }); tx.objectStore("Settings").put({ key: "lastChartTimeframe", value: state.timeframe }); } catch(e) { } }
     async function loadSavedState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readonly"); const store = tx.objectStore("Settings"); const tReq = store.get("lastChartTicker"); const tfReq = store.get("lastChartTimeframe"); return new Promise((resolve) => { let loaded = 0; const check = () => { loaded++; if(loaded === 2) resolve(); }; tReq.onsuccess = () => { if(tReq.result) { state.ticker = tReq.result.value; document.getElementById('tickerInput').value = state.ticker; } check(); }; tfReq.onsuccess = () => { if(tfReq.result) { state.timeframe = tfReq.result.value; document.querySelectorAll('.interval-btn').forEach(b => { b.classList.remove('active'); if(b.dataset.tf === state.timeframe) b.classList.add('active'); }); } check(); }; tReq.onerror = check; tfReq.onerror = check; }); } catch(e) { } }
 
-    // --- EVENTS ---
     document.addEventListener('DOMContentLoaded', init);
     const input = document.getElementById('tickerInput');
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { state.ticker = input.value.toUpperCase(); saveState(); loadInitialData(); input.blur(); } });
@@ -340,13 +325,13 @@
     document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
     document.getElementById('tapeToggle').addEventListener('click', toggleTape);
     
-    // Tape Input Listener
     const tapeInput = document.getElementById('tapeInput');
     tapeInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             state.tapeTicker = tapeInput.value.toUpperCase();
             document.getElementById('tapeList').innerHTML = ''; 
             state.lastTradeId = 0; 
+            updateTimeAndSales();
             tapeInput.blur();
         }
     });
