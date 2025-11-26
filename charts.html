@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Market Scanner)</title>
+    <title>Pro Charting (Time & Sales)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -13,14 +13,14 @@
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         .app-container { display: flex; flex-direction: column; height: 100vh; }
         
-        /* Toolbar */
-        .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 15px; font-size: 13px; }
+        /* TOOLBAR */
+        .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
         .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; }
         .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
-        
         .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
         .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
+        .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
         .interval-btn.active { color: #fff; background-color: var(--accent-color); }
 
         /* SCROLLING TICKER */
@@ -29,34 +29,53 @@
             mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
             -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
-        .ticker-container:hover .ticker-track { animation-play-state: paused; }
-        
-        /* Speed: 90s for a longer list to be readable */
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
-        
-        .ticker-section { display: flex; gap: 20px; align-items: center; }
-        .section-label { color: #2962ff; font-weight: 900; font-size: 10px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
-        
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 14px; cursor: pointer; }
         .ticker-item:hover { opacity: 0.8; }
-        .t-sym { font-weight: bold; color: #d1d4dc; }
-        .t-price { color: #d1d4dc; }
-        .t-chg { font-weight: bold; }
-        
+        .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        
-        .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
+        .ticker-container:hover .ticker-track { animation-play-state: paused; }
+        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 3px 6px; border-radius: 4px; margin-right: 5px; }
+        .ticker-section { display: flex; gap: 20px; align-items: center; }
 
-        /* Quote Strip & Chart */
-        .quote-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px; }
+        /* QUOTE STRIP */
+        .quote-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px; flex-shrink: 0; }
         .q-item { display: flex; gap: 5px; } .q-label { color: #787b86; } .q-val { color: #d1d4dc; font-weight: bold; }
-        #chart-container { flex-grow: 1; position: relative; width: 100%; }
+
+        /* MAIN WORKSPACE (Chart + Tape) */
+        .workspace { display: flex; flex-grow: 1; overflow: hidden; }
+        
+        /* CHART */
+        #chart-container { flex-grow: 1; position: relative; height: 100%; }
         .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
         #history-loader { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); background: rgba(41, 98, 255, 0.9); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 30; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
-        /* Debug & Right Controls */
-        #screen-logger { position: absolute; right: 0; top: 70px; bottom: 0; width: 350px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
+        /* TIME AND SALES WIDGET */
+        .tape-panel {
+            width: 260px; background-color: #131722; border-left: 1px solid var(--border-color);
+            display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .tape-header {
+            height: 30px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 10px; font-size: 12px; font-weight: bold; color: #787b86;
+            justify-content: space-between;
+        }
+        .tape-list { flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; }
+        .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 10px; border-bottom: 1px solid #1e222d; cursor: default; }
+        .tape-row:hover { background-color: #1e222d; }
+        .tape-time { color: #787b86; }
+        .tape-price { font-weight: bold; text-align: right; }
+        .tape-size { text-align: right; color: #d1d4dc; }
+        
+        /* Tape Coloring */
+        .t-up { color: var(--up-color); }
+        .t-down { color: var(--down-color); }
+        .t-large { background-color: rgba(41, 98, 255, 0.15); } /* Highlight large trades */
+
+        /* UTILS */
+        .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
+        #screen-logger { position: absolute; right: 260px; top: 70px; bottom: 0; width: 350px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
         .right-controls { margin-left: auto; display: flex; gap: 10px; flex-shrink: 0; background: var(--panel-color); z-index: 2; padding-left: 10px; }
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; }
@@ -76,13 +95,9 @@
             <button class="interval-btn" data-tf="1H">1h</button>
             <button class="interval-btn" data-tf="1D">D</button>
         </div>
-
         <div class="ticker-container" id="tickerContainer">
-            <div class="ticker-track" id="tickerTrack">
-                <span style="font-size:11px; color:#666;">Loading Market Data...</span>
-            </div>
+            <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading...</span></div>
         </div>
-
         <div class="right-controls">
             <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
             <button class="icon-btn" id="debugToggle"><i class="fas fa-bug"></i></button>
@@ -97,12 +112,23 @@
         <div class="q-item" style="margin-left: auto;"><span class="q-label">VOL:</span><span class="q-val" id="q-vol">0</span></div>
     </div>
 
-    <div id="chart-container">
-        <div id="history-loader"><i class="fas fa-circle-notch fa-spin"></i> Loading older data...</div>
-        <div class="chart-legend">
-            <div id="lg-header" style="font-weight:bold; font-size:1.2em; color: #787b86;">LOADING...</div>
-            <div class="legend-row" id="lg-ohlc"></div>
-            <div class="legend-row" id="lg-vol"></div>
+    <div class="workspace">
+        <div id="chart-container">
+            <div id="history-loader"><i class="fas fa-circle-notch fa-spin"></i> Loading older data...</div>
+            <div class="chart-legend">
+                <div id="lg-header" style="font-weight:bold; font-size:1.2em; color: #787b86;">LOADING...</div>
+                <div class="legend-row" id="lg-ohlc"></div>
+                <div class="legend-row" id="lg-vol"></div>
+            </div>
+        </div>
+
+        <div class="tape-panel">
+            <div class="tape-header">
+                <span>TIME & SALES</span>
+                <span>SIZE</span>
+            </div>
+            <div class="tape-list" id="tapeList">
+                </div>
         </div>
     </div>
 
@@ -115,14 +141,10 @@
 <script src="shared.js"></script>
 
 <script>
-    // --- UTILS ---
     const logger = document.getElementById('screen-logger');
     function log(msg, type='info') {
-        const div = document.createElement('div');
-        div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
-        div.innerText = `> ${msg}`;
-        logger.appendChild(div);
-        logger.scrollTop = logger.scrollHeight;
+        const div = document.createElement('div'); div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
+        div.innerText = `> ${msg}`; logger.appendChild(div); logger.scrollTop = logger.scrollHeight;
     }
     function formatNum(num) {
         if (!num) return '0';
@@ -135,16 +157,20 @@
     const state = {
         ticker: 'AAPL', timeframe: '5Min', chart: null,
         series: { candle: null, volume: null },
-        refreshInterval: null, screenerInterval: null,
+        refreshInterval: null, screenerInterval: null, tapeInterval: null,
         masterData: [], earliestTime: null,
         isLoadingHistory: false, noMoreHistory: false, lastPrice: 0,
-        tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' }
+        portfolioTickers: [], screenerTickers: [],
+        tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
+        
+        // T&S State
+        lastTradeId: null,
+        lastTradePrice: 0
     };
 
     // --- INIT ---
     async function init() {
         const el = document.getElementById('chart-container');
-        
         state.chart = LightweightCharts.createChart(el, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
@@ -165,31 +191,95 @@
         await loadSavedState();
         await loadInitialData(); 
         
-        // START TAPE
-        refreshPortfolioTape();
-        refreshScreenerTape();
+        refreshPortfolioTape(); refreshScreenerTape();
         
+        // Clear Intervals
         if (state.refreshInterval) clearInterval(state.refreshInterval);
-        state.refreshInterval = setInterval(() => {
-            updateRealtime();
-            refreshPortfolioTape(); 
-        }, 3000);
-
         if (state.screenerInterval) clearInterval(state.screenerInterval);
+        if (state.tapeInterval) clearInterval(state.tapeInterval);
+
+        // Start Loops
+        state.refreshInterval = setInterval(() => { updateRealtime(); refreshPortfolioTape(); }, 3000);
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
+        state.tapeInterval = setInterval(updateTimeAndSales, 2000); // T&S poll every 2s
     }
 
-    // --- 1. PORTFOLIO TAPE ---
-    async function refreshPortfolioTape() {
-        const keys = await getKeys();
-        if(!keys) return;
+    // --- TIME & SALES LOGIC ---
+    async function updateTimeAndSales() {
+        const keys = await getKeys(); if (!keys) return;
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/trades?limit=50`; // Get last 50 trades
+        
+        try {
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if(!res.ok) return;
+            const json = await res.json();
+            
+            if (json.trades && json.trades.length > 0) {
+                const list = document.getElementById('tapeList');
+                
+                // Process newest trades first (Alpaca returns oldest first usually, but we want a list)
+                // Reverse to process New -> Old, but actually we want to prepend NEW items.
+                // Alpaca: [Oldest ... Newest]
+                // We want to take the Newest ones that are > state.lastTradeId
+                
+                const trades = json.trades.reverse(); // Now [Newest ... Oldest]
+                
+                let newRows = '';
+                let latestId = state.lastTradeId;
 
+                for (let t of trades) {
+                    // If we have a lastTradeId, stop if we hit it (deduplication)
+                    // Note: ID comparison string vs int
+                    if (state.lastTradeId && t.i <= state.lastTradeId) break;
+                    
+                    // Update max ID
+                    if (!latestId || t.i > latestId) latestId = t.i;
+
+                    // Determine Color
+                    let colorClass = 't-neutral';
+                    if (t.p > state.lastTradePrice) colorClass = 't-up';
+                    else if (t.p < state.lastTradePrice) colorClass = 't-down';
+                    else colorClass = 'tape-time'; // Gray for no change
+                    
+                    // Highlight Size
+                    let rowClass = 'tape-row';
+                    if (t.s >= 100) rowClass += ' t-large'; // Highlight block trades
+
+                    // Time Format
+                    const time = new Date(t.t).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                    newRows += `
+                        <div class="${rowClass}">
+                            <span class="tape-time">${time}</span>
+                            <span class="tape-price ${colorClass}">${t.p.toFixed(2)}</span>
+                            <span class="tape-size">${t.s}</span>
+                        </div>
+                    `;
+                    
+                    state.lastTradePrice = t.p;
+                }
+                
+                if (newRows) {
+                    state.lastTradeId = latestId;
+                    list.insertAdjacentHTML('afterbegin', newRows); // Add to TOP
+                    
+                    // Prune list to keep DOM light (max 100 rows)
+                    while(list.children.length > 100) {
+                        list.removeChild(list.lastChild);
+                    }
+                }
+            }
+        } catch(e) { }
+    }
+
+    // --- TICKER TAPE LOGIC ---
+    async function refreshPortfolioTape() {
+        const keys = await getKeys(); if(!keys) return;
         try {
             const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e=>r(e.target.result); req.onerror = j; });
             const tx = db.transaction("Positions", "readonly");
             const positions = await new Promise(r => { tx.objectStore("Positions").getAll().onsuccess = e => r(e.target.result); });
             const tickers = positions.map(p => p.tickerSymbol);
-            
             if (tickers.length > 0) {
                 const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
                 if(res.ok) {
@@ -198,56 +288,35 @@
                     state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", items);
                     renderTape();
                 }
-            } else {
-                state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>';
-                renderTape();
-            }
+            } else { state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>'; renderTape(); }
         } catch(e) { }
     }
 
-    // --- 2. SCREENER TAPE (FIXED for Most Actives) ---
     async function refreshScreenerTape() {
-        const keys = await getKeys();
-        if(!keys) return;
-        
-        // Gainers/Losers (Have Price Data)
+        const keys = await getKeys(); if(!keys) return;
         fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); });
         fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); });
-        
-        // Most Actives (Need Extra Step to get Price)
         fetchActives(keys, 'volume', 'activeVol', "MOST ACTIVE (VOL)");
         fetchActives(keys, 'trades', 'activeTrd', "MOST ACTIVE (TRDS)");
+        if (!state.tapeData.activeVol && !state.tapeData.gainers) fetchFallbackIndices(keys);
     }
 
-    // For Gainers/Losers (Direct Data)
     async function fetchScreener(keys, endpoint, keyName, title) {
         try {
             const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             if(!res.ok) return '';
             const json = await res.json();
-            const items = (json[keyName] || []).map(item => ({ 
-                symbol: item.symbol, 
-                price: item.price, 
-                pct: item.percent_change 
-            }));
+            const items = (json[keyName] || []).map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change }));
             return generateSectionHTML(title, items);
         } catch(e) { return ''; }
     }
 
-    // For Most Actives (Two-Step Fetch)
     async function fetchActives(keys, by, stateKey, title) {
         try {
-            // Step 1: Get Symbols
             const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=${by}&top=10`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             if(!res.ok) return;
-            
             const json = await res.json();
-            const list = json.most_actives || [];
-            const symbols = list.map(i => i.symbol);
-            
-            if (symbols.length === 0) return;
-
-            // Step 2: Get Prices for these symbols
+            const list = json.most_actives || []; const symbols = list.map(i => i.symbol); if (symbols.length === 0) return;
             const snapRes = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             if(snapRes.ok) {
                 const snapJson = await snapRes.json();
@@ -255,28 +324,31 @@
                 state.tapeData[stateKey] = generateSectionHTML(title, items);
                 renderTape();
             }
-        } catch(e) { log(`Active Fetch Error (${by}): ${e.message}`, 'error'); }
+        } catch(e) { }
     }
 
-    // --- RENDERER ---
+    async function fetchFallbackIndices(keys) {
+        try {
+            const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if(res.ok) {
+                const json = await res.json();
+                const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym));
+                state.tapeData.fallback = generateSectionHTML("INDICES (FALLBACK)", items);
+                renderTape();
+            }
+        } catch(e) {}
+    }
+
     function renderTape() {
         const track = document.getElementById('tickerTrack');
-        let fullHtml = [
-            state.tapeData.portfolio,
-            state.tapeData.gainers,
-            state.tapeData.losers,
-            state.tapeData.activeVol,
-            state.tapeData.activeTrd
-        ].join('');
-
+        let fullHtml = [ state.tapeData.portfolio, state.tapeData.gainers, state.tapeData.losers, state.tapeData.activeVol, state.tapeData.activeTrd, state.tapeData.fallback ].join('');
         if (fullHtml.trim().length === 0) fullHtml = '<span style="color:#666; font-size:11px;">Loading Data...</span>';
         track.innerHTML = fullHtml + fullHtml;
     }
 
     function parseSnapshot(data, symbol) {
         if(!data || !data.latestTrade) return null;
-        const price = data.latestTrade.p;
-        const prev = (data.prevDailyBar) ? data.prevDailyBar.c : price;
+        const price = data.latestTrade.p; const prev = (data.prevDailyBar) ? data.prevDailyBar.c : price;
         return { symbol: symbol, price: price, pct: ((price - prev) / prev) * 100 };
     }
 
@@ -285,38 +357,28 @@
         let html = `<div class="ticker-section"><span class="section-label">${title}</span>`;
         items.forEach(item => {
             if(!item) return;
-            const colorClass = item.pct >= 0 ? 'color-up' : 'color-down';
-            const icon = item.pct >= 0 ? '▲' : '▼';
-            html += `
-                <div class="ticker-item" onclick="changeTicker('${item.symbol}')">
-                    <span class="t-sym">${item.symbol}</span>
-                    <span class="t-price">${item.price.toFixed(2)}</span>
-                    <span class="t-chg ${colorClass}">${icon} ${Math.abs(item.pct).toFixed(2)}%</span>
-                </div>
-            `;
+            const colorClass = item.pct >= 0 ? 'color-up' : 'color-down'; const icon = item.pct >= 0 ? '▲' : '▼';
+            html += `<div class="ticker-item" onclick="changeTicker('${item.symbol}')"><span class="t-sym">${item.symbol}</span><span class="t-price">${item.price.toFixed(2)}</span><span class="t-chg ${colorClass}">${icon} ${Math.abs(item.pct).toFixed(2)}%</span></div>`;
         });
-        html += `</div>`;
-        return html;
+        return html + `</div>`;
     }
     
     window.changeTicker = function(sym) {
-        document.getElementById('tickerInput').value = sym;
-        state.ticker = sym;
+        document.getElementById('tickerInput').value = sym; state.ticker = sym;
+        // Clear T&S state on switch
+        document.getElementById('tapeList').innerHTML = ''; state.lastTradeId = null;
         saveState(); loadInitialData();
     };
 
     // --- CHART LOGIC ---
     function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
         if (!newVisibleLogicalRange) return;
-        if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) {
-            loadOlderData();
-        }
+        if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) loadOlderData();
     }
 
     async function loadOlderData() {
         if (!state.earliestTime) return;
-        state.isLoadingHistory = true;
-        document.getElementById('history-loader').style.display = 'block';
+        state.isLoadingHistory = true; document.getElementById('history-loader').style.display = 'block';
         const keys = await getKeys();
         const logicalRange = state.chart.timeScale().getVisibleLogicalRange();
         const visibleBars = logicalRange ? Math.ceil(logicalRange.to - logicalRange.from) : 100;
@@ -328,12 +390,10 @@
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
             if (json.bars && json.bars.length > 0) {
-                const reversedBars = json.bars.reverse();
-                const oldBars = parseBars(reversedBars);
+                const reversedBars = json.bars.reverse(); const oldBars = parseBars(reversedBars);
                 state.masterData = [...oldBars.ohlc, ...state.masterData];
                 const newVolData = [...oldBars.vol, ...state.series.volume.data()]; 
-                state.series.candle.setData(state.masterData);
-                state.series.volume.setData(newVolData); 
+                state.series.candle.setData(state.masterData); state.series.volume.setData(newVolData); 
                 state.earliestTime = oldBars.ohlc[0].time;
                 log(`Stitched ${json.bars.length} older bars.`);
             } else { state.noMoreHistory = true; }
@@ -343,6 +403,9 @@
 
     async function loadInitialData() {
         state.masterData = []; state.earliestTime = null; state.noMoreHistory = false;
+        // Reset T&S on chart reload
+        document.getElementById('tapeList').innerHTML = ''; state.lastTradeId = null;
+        
         const keys = await getKeys(); if (!keys) return;
         const end = new Date(); const start = new Date(); start.setDate(end.getDate() - 30); 
         const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000&adjustment=split`;
@@ -451,5 +514,3 @@
     document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
 
 </script>
-</body>
-</html>
