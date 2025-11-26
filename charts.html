@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Clean Layout)</title>
+    <title>Pro Charting (Multi-Link)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -13,11 +13,18 @@
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         .app-container { display: flex; flex-direction: column; height: 100vh; }
         
-        /* TOOLBAR - SIMPLIFIED */
-        .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 15px; font-size: 13px; flex-shrink: 0; }
-        .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 16px; }
+        /* TOOLBAR */
+        .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; }
+        .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
+        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; text-align: center; }
+        .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
         
-        /* SCROLLING TAPE (Now takes full width) */
+        .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
+        .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
+        .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
+        .interval-btn.active { color: #fff; background-color: var(--accent-color); }
+
+        /* SCROLLING TAPE */
         .ticker-container { flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 14px; cursor: pointer; }
@@ -35,18 +42,30 @@
         .chart-slot { flex: 1; position: relative; border-bottom: 1px solid var(--border-color); min-height: 0; display: flex; flex-direction: column; }
         .chart-slot:last-child { border-bottom: none; }
         
-        /* CHART CONTROLS & LINKING */
-        .chart-controls { position: absolute; top: 5px; right: 60px; z-index: 25; display: flex; gap: 5px; align-items: center; }
+        /* CHART CONTROLS (MOVED TO TOP LEFT) */
+        .chart-controls { 
+            position: absolute; top: 6px; left: 6px; right: auto; /* Moved Left */
+            z-index: 25; display: flex; gap: 5px; align-items: center; 
+        }
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 2px 5px; font-weight: bold; text-align: center; }
         .mini-select { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #d1d4dc; font-size: 11px; border-radius: 3px; padding: 2px; cursor: pointer; }
         
-        /* LINK BUTTON STYLES */
-        .link-btn { width: 18px; height: 18px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: #2a2e39; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; }
+        /* LINK BUTTON STYLES (Expanded) */
+        .link-btn { width: 18px; height: 18px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: #2a2e39; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; }
         .link-btn:hover { opacity: 0.8; }
+        
+        /* Link Colors */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
+        .link-green { background-color: #00c853; border-color: #00c853; color: white; }
+        .link-purple { background-color: #aa00ff; border-color: #aa00ff; color: white; }
+        .link-red { background-color: #d50000; border-color: #d50000; color: white; }
         
-        .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
+        /* LEGEND (Moved Down) */
+        .chart-legend { 
+            position: absolute; top: 35px; left: 10px; /* Pushed down below controls */
+            z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; 
+        }
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
 
         /* SIDEBAR */
@@ -84,11 +103,9 @@
 <div class="app-container">
     <div class="toolbar">
         <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
-        
         <div class="ticker-container" id="tickerContainer">
             <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading Market Data...</span></div>
         </div>
-        
         <div class="right-controls">
             <div class="dropdown" id="layoutDropdown">
                 <button class="icon-btn" title="Layouts"><i class="fas fa-columns"></i></button>
@@ -131,7 +148,6 @@
 <script src="shared.js"></script>
 
 <script>
-    // --- UTILS ---
     const logger = document.getElementById('screen-logger');
     function log(msg, type='info') {
         const div = document.createElement('div'); div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
@@ -139,7 +155,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    // --- APP STATE (Persisted) ---
+    // --- APP STATE ---
     const state = {
         isSidebarOpen: true,
         chartsConfig: [{ id: 0, ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
@@ -151,17 +167,14 @@
         lastQuotePrice: 0
     };
 
-    // --- INIT ---
     async function init() {
         log("Initializing Workspace...");
         await loadSavedState();
 
-        // Build Layouts
         renderChartLayout();
         renderSidebarLayout();
         updateSidebarVisibility();
 
-        // Start Background Jobs
         refreshPortfolioTape(); refreshScreenerTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
@@ -170,7 +183,6 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateAllWidgets, 1000);
         
-        // Listeners
         document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
         document.addEventListener('click', () => document.getElementById('layoutDropdown').classList.remove('open'));
     }
@@ -208,7 +220,7 @@
         
         container.innerHTML = `
             <div class="chart-controls">
-                <div class="link-btn ${linkClass}" onclick="cycleLink('chart', ${id})"><i class="fas fa-link"></i></div>
+                <div class="link-btn ${linkClass}" onclick="cycleLink('chart', ${id})" title="Group Link"><i class="fas fa-link"></i></div>
                 <input type="text" class="mini-input" value="${ticker}" onkeydown="updateChartTicker(${id}, this, event)">
                 <select class="mini-select" onchange="updateChartTimeframe(${id}, this.value)">
                     <option value="1Min" ${timeframe==='1Min'?'selected':''}>1m</option>
@@ -262,7 +274,6 @@
                 c.ticker = input.value.toUpperCase();
                 c.earliestTime = null; 
                 document.getElementById(`lg-header-${id}`).innerText = c.ticker;
-                // Sync Group
                 syncLinkedWidgets(c.linkGroup, c.ticker);
                 state.chartsConfig[id].ticker = c.ticker;
                 saveState();
@@ -332,28 +343,33 @@
         }
     }
 
+    // --- LINKING LOGIC (Expanded) ---
     function getLinkClass(group) {
         if(group === 'A') return 'link-blue';
         if(group === 'B') return 'link-orange';
+        if(group === 'C') return 'link-green';
+        if(group === 'D') return 'link-purple';
+        if(group === 'E') return 'link-red';
         return '';
     }
 
     window.cycleLink = function(type, id) {
+        // Cycle: null -> A -> B -> C -> D -> E -> null
+        const groups = [null, 'A', 'B', 'C', 'D', 'E'];
         let configArr = (type === 'chart') ? state.chartsConfig : state.widgetsConfig;
         let runtimeArr = (type === 'chart') ? state.charts : state.widgets;
         
         let item = configArr[id];
         let runItem = runtimeArr.find(x => x.id === id);
         
-        if(!item.linkGroup) item.linkGroup = 'A';
-        else if(item.linkGroup === 'A') item.linkGroup = 'B';
-        else item.linkGroup = null;
+        const currentIdx = groups.indexOf(item.linkGroup);
+        const nextGroup = groups[(currentIdx + 1) % groups.length];
         
-        if(runItem) runItem.linkGroup = item.linkGroup;
+        item.linkGroup = nextGroup;
+        if(runItem) runItem.linkGroup = nextGroup;
         
         saveState();
-        if(type === 'chart') renderChartLayout();
-        else renderSidebarLayout();
+        if(type === 'chart') renderChartLayout(); else renderSidebarLayout();
     }
 
     function syncLinkedWidgets(group, newTicker) {
@@ -379,6 +395,7 @@
         saveState();
     }
 
+    // --- DATA SYNC ---
     async function saveState() {
         try {
             const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
@@ -405,6 +422,9 @@
         } catch(e) { }
     }
 
+    // ... (Standard Loaders - loadChartData, loadOlderData, updateChartsRealtime, updateAllWidgets) ...
+    // Same as previous robust versions, ensuring they use 'c.ticker', 'c.timeframe', 'w.ticker' etc.
+    
     async function loadChartData(c) {
         const keys = await getKeys(); if(!keys) return;
         const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
@@ -492,7 +512,6 @@
         });
     }
 
-    // --- HELPERS ---
     function updateChartBar(c, time, o, h, l, cl, v) { c.candleSeries.update({ time, open: o, high: h, low: l, close: cl }); c.volSeries.update({ time, value: v, color: (cl>=o ? '#26a69a':'#ef5350') }); }
     function updateQuoteStrip(jsonOrChart) {
         if(jsonOrChart.ticker) return; 
@@ -509,28 +528,8 @@
     }
     document.getElementById('tapeToggle').addEventListener('click', () => { state.isSidebarOpen = !state.isSidebarOpen; updateSidebarVisibility(); saveState(); });
 
-    // --- GLOBAL TICKER TAPE & SCREENER CODE ---
-    // Copied from previous working version for completeness (Portfolio, Gainers, etc.)
-    async function refreshPortfolioTape(){const k=await getKeys();if(!k)return;try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol);if(t.length){const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",i);renderTape();}}}catch(e){}}
-    async function refreshScreenerTape(){const k=await getKeys();if(!k)return;fetchScreener(k,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();});fetchScreener(k,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();});fetchActives(k,'volume','activeVol',"ACTIVE (VOL)");fetchActives(k,'trades','activeTrd',"ACTIVE (TRD)");}
-    async function fetchScreener(k,e,n,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return'';const j=await r.json();const i=(j[n]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change}));return generateSectionHTML(t,i);}catch(e){return'';}}
-    async function fetchActives(k,b,sk,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=${b}&top=10`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return;const j=await r.json();const l=j.most_actives||[];const s=l.map(i=>i.symbol);if(!s.length)return;const sr=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${s.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(sr.ok){const sj=await sr.json();const i=Object.entries(sj).map(([sy,d])=>parseSnapshot(d,sy));state.tapeData[sk]=generateSectionHTML(t,i);renderTape();}}catch(e){}}
-    function renderTape(){document.getElementById('tickerTrack').innerHTML=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd].join('')+state.tapeData.portfolio;} // Simple loop
-    function parseSnapshot(d,s){if(!d||!d.latestTrade)return null;const p=d.latestTrade.p;const pr=d.prevDailyBar?d.prevDailyBar.c:p;return{symbol:s,price:p,pct:((p-pr)/pr)*100};}
-    function generateSectionHTML(t,i){if(!i||!i.length)return'';let h=`<div class="ticker-section"><span class="section-label">${t}</span>`;i.forEach(x=>{if(!x)return;const c=x.pct>=0?'color-up':'color-down';h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${Math.abs(x.pct).toFixed(2)}%</span></div>`;});return h+'</div>';}
-    window.changeTicker=function(s){const c=state.charts[0];if(c){c.ticker=s;state.chartsConfig[0].ticker=s;document.querySelector('#chart-slot-0 input').value=s;loadChartData(c);saveState();}};
-
     function snapTime(t,tf) { if(tf==='1Min') return Math.floor(t/60)*60; if(tf==='5Min') return Math.floor(t/300)*300; if(tf==='15Min') return Math.floor(t/900)*900; if(tf==='1H') return Math.floor(t/3600)*3600; return t; }
     function parseBars(bars) { const o=[], v=[]; bars.forEach(b=>{ const t=new Date(b.t).getTime()/1000; o.push({time:t,open:b.o,high:b.h,low:b.l,close:b.c}); v.push({time:t,value:b.v,color:(b.c>=b.o?'#26a69a':'#ef5350')}); }); return {ohlc:o,vol:v}; }
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
     
-    document.addEventListener('DOMContentLoaded', init);
-    document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
-    document.getElementById('refreshBtn').addEventListener('click', () => state.charts.forEach(c=>loadChartData(c)));
-    document.getElementById('settingsBtn').addEventListener('click', () => alert("Manage keys in Portfolio Settings"));
-    document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
-    document.getElementById('tapeToggle').addEventListener('click', () => { state.isSidebarOpen = !state.isSidebarOpen; updateSidebarVisibility(); saveState(); });
-
-</script>
-</body>
-</html>
+    async function refreshPortfolioTape() { const keys=await getKeys(); if(!keys)return; try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol);if(t.length){const r=await fetch(`
