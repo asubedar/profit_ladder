@@ -144,16 +144,12 @@
     // --- UTILS ---
     const logger = document.getElementById('screen-logger');
     function log(msg, type='info') {
-        // Prevent log spam: Only log distinct messages or errors
-        // For T&S debugging, we WANT to see the polling, so we allow it.
         const div = document.createElement('div');
         div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
         div.innerText = `> ${msg}`;
         logger.appendChild(div);
         logger.scrollTop = logger.scrollHeight;
-        if(type==='error') console.error(msg);
     }
-    
     function formatNum(num) {
         if (!num) return '0';
         if (num >= 1000000) return (num/1000000).toFixed(2) + 'M';
@@ -168,9 +164,8 @@
         refreshInterval: null, screenerInterval: null, tapeInterval: null,
         masterData: [], earliestTime: null,
         isLoadingHistory: false, noMoreHistory: false, lastPrice: 0,
+        portfolioTickers: [], screenerTickers: [],
         tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
-        
-        // T&S State
         lastTradeId: 0
     };
 
@@ -198,101 +193,212 @@
         await loadSavedState();
         await loadInitialData(); 
         
-        refreshPortfolioTape();
-        refreshScreenerTape();
+        refreshPortfolioTape(); refreshScreenerTape();
         
-        // Clear Intervals
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         if (state.screenerInterval) clearInterval(state.screenerInterval);
         if (state.tapeInterval) clearInterval(state.tapeInterval);
 
-        // Start Loops
         state.refreshInterval = setInterval(() => { updateRealtime(); refreshPortfolioTape(); }, 3000);
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
-        
-        // T&S Loop (1s)
-        log("Starting T&S Poller...");
-        updateTimeAndSales(); // Run once immediately
         state.tapeInterval = setInterval(updateTimeAndSales, 1000);
     }
 
-    // --- DEBUGGED TIME & SALES LOGIC ---
-    async function updateTimeAndSales() {
-        const keys = await getKeys(); 
-        if (!keys) {
-            log("T&S Error: No Keys found", 'error');
-            return;
-        }
+    // --- FIX 1: LOAD INITIAL DATA (BACKWARDS FROM NOW) ---
+    async function loadInitialData() {
+        state.masterData = []; state.earliestTime = null; state.noMoreHistory = false;
+        document.getElementById('tapeList').innerHTML = ''; state.lastTradeId = 0;
         
-        // sort=desc gives us [Newest, 2nd Newest...]
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/trades?limit=50&sort=desc&feed=sip`; 
+        const keys = await getKeys(); if (!keys) return;
+        
+        // STRATEGY: End = Now, Sort = Desc. This guarantees we get the LATEST data.
+        const end = new Date().toISOString(); 
+        const start = "2020-01-01T00:00:00Z"; 
+
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`;
+
+        try {
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            const json = await res.json();
+            
+            if (json.bars && json.bars.length > 0) {
+                // Reverse because we asked for DESC (New -> Old) but chart needs ASC (Old -> New)
+                const reversedBars = json.bars.reverse();
+                
+                const data = parseBars(reversedBars);
+                state.masterData = data.ohlc; 
+                state.earliestTime = state.masterData[0].time;
+                
+                state.series.candle.setData(data.ohlc); 
+                state.series.volume.setData(data.vol);
+                state.chart.timeScale().fitContent();
+                
+                document.getElementById('lg-header').innerText = `${state.ticker} · ${state.timeframe}`;
+                if (data.ohlc.length > 0) state.lastPrice = data.ohlc[data.ohlc.length-1].close;
+                
+                // Sync immediately
+                updateRealtime();
+            } else {
+                log("No data found for symbol.");
+            }
+        } catch (e) { log(e.message, 'error'); }
+    }
+
+    // --- FIX 2: REALTIME UPDATES (SNAP TO TIMEFRAME) ---
+    async function updateRealtime() {
+        const keys = await getKeys(); if (!keys) return;
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/snapshot`;
+        try {
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if (!res.ok) return;
+            const json = await res.json();
+            
+            const q = json.latestQuote; 
+            const t = json.latestTrade; 
+            const mb = json.minuteBar; 
+            const day = json.dailyBar;
+
+            // Update Quote Strip
+            if (q) { document.getElementById('q-bid').innerText = `${q.bp.toFixed(2)}x${q.bs}`; document.getElementById('q-ask').innerText = `${q.ap.toFixed(2)}x${q.as}`; }
+            if (t) { 
+                const el = document.getElementById('q-last'); el.innerText = t.p.toFixed(2); 
+                el.className = 'q-val ' + (t.p >= state.lastPrice ? 'color-up' : 'color-down'); state.lastPrice = t.p; 
+            }
+            if (day) document.getElementById('q-vol').innerText = formatNum(day.v);
+            
+            // Update Chart Bar
+            if (state.timeframe === '1D' && day) {
+                const time = snapTime(new Date(day.t).getTime() / 1000, '1D');
+                updateChartBar(time, day.o, day.h, day.l, day.c, day.v);
+            } 
+            else if (state.timeframe.includes('Min') && mb) {
+                 // CRITICAL: Snap the 1m update to the current timeframe (e.g. 15m)
+                 // This prevents tiny 1m bars from appearing on a 15m chart
+                 const rawTime = new Date(mb.t).getTime() / 1000;
+                 const snappedTime = snapTime(rawTime, state.timeframe);
+                 
+                 // We can only approximate the update using the minute bar.
+                 // Ideally, we update the existing last bar if the times match.
+                 const currentData = state.series.candle.data();
+                 const lastBar = currentData[currentData.length - 1];
+                 
+                 if (lastBar && snappedTime === lastBar.time) {
+                     // Merge logic: Update High/Low/Close/Vol of existing bar
+                     const newHigh = Math.max(lastBar.high, mb.h);
+                     const newLow = Math.min(lastBar.low, mb.l);
+                     const newVol = lastBar.value + (mb.v - (lastBar._lastMbV || 0)); // tricky vol logic omitted for safety
+                     
+                     // Simple Update: Just push the close price
+                     state.series.candle.update({ 
+                         time: snappedTime, open: lastBar.open, high: newHigh, low: newLow, close: mb.c 
+                     });
+                 } else {
+                     // New bar forming
+                     updateChartBar(snappedTime, mb.o, mb.h, mb.l, mb.c, mb.v);
+                 }
+            }
+            else if (state.timeframe === '1H' && t) {
+                // Manual hourly patch using last price
+                const currentData = state.series.candle.data();
+                if(currentData.length > 0) {
+                    const lastBar = currentData[currentData.length - 1];
+                    const newHigh = Math.max(lastBar.high, t.p);
+                    const newLow = Math.min(lastBar.low, t.p);
+                    // Don't touch volume on trade updates
+                    state.series.candle.update({ time: lastBar.time, open: lastBar.open, high: newHigh, low: newLow, close: t.p });
+                }
+            }
+        } catch (e) { }
+    }
+
+    // Helper: Snap seconds to timeframe grid
+    function snapTime(time, tf) {
+        if (tf === '1Min') return Math.floor(time / 60) * 60;
+        if (tf === '5Min') return Math.floor(time / 300) * 300;
+        if (tf === '15Min') return Math.floor(time / 900) * 900;
+        if (tf === '1H') return Math.floor(time / 3600) * 3600;
+        return time; // Daily is usually fine as-is
+    }
+
+    function updateChartBar(time, o, h, l, c, v) {
+        state.series.candle.update({ time: time, open: o, high: h, low: l, close: c });
+        state.series.volume.update({ time: time, value: v, color: (c >= o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)') });
+    }
+
+    // --- INFINITE SCROLL (Backwards Stitching) ---
+    async function loadOlderData() {
+        if (!state.earliestTime) return;
+        state.isLoadingHistory = true; document.getElementById('history-loader').style.display = 'block';
+        const keys = await getKeys();
+        
+        // Smart Limit
+        const logicalRange = state.chart.timeScale().getVisibleLogicalRange();
+        const visibleBars = logicalRange ? Math.ceil(logicalRange.to - logicalRange.from) : 100;
+        const dynamicLimit = Math.min(Math.max(visibleBars * 2, 500), 10000);
+        
+        const endStr = new Date((state.earliestTime - 1) * 1000).toISOString();
+        const startStr = "2015-01-01T00:00:00Z";
+
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&sort=desc&adjustment=split`;
         
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            if(!res.ok) {
-                log(`T&S API Error: ${res.status}`, 'error');
-                return;
-            }
-            
             const json = await res.json();
-            
+
+            if (json.bars && json.bars.length > 0) {
+                const reversedBars = json.bars.reverse();
+                const oldBars = parseBars(reversedBars);
+                state.masterData = [...oldBars.ohlc, ...state.masterData];
+                const newVolData = [...oldBars.vol, ...state.series.volume.data()]; 
+                
+                state.series.candle.setData(state.masterData);
+                state.series.volume.setData(newVolData); 
+                state.earliestTime = oldBars.ohlc[0].time;
+                log(`Stitched ${json.bars.length} older bars.`);
+            } else { state.noMoreHistory = true; }
+        } catch(e) { log(e.message, 'error'); } 
+        finally { state.isLoadingHistory = false; document.getElementById('history-loader').style.display = 'none'; }
+    }
+
+    function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
+        if (!newVisibleLogicalRange) return;
+        if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) loadOlderData();
+    }
+
+    // --- TIME & SALES (Last 50) ---
+    async function updateTimeAndSales() {
+        const keys = await getKeys(); if (!keys) return;
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/trades?limit=50&sort=desc&feed=sip`; 
+        try {
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+            if(!res.ok) return;
+            const json = await res.json();
             if (json.trades && json.trades.length > 0) {
                 const list = document.getElementById('tapeList');
-                const rawTrades = json.trades; // [Newest ... Oldest]
-
-                // DEBUG: Check IDs
-                // log(`T&S: Fetched ${rawTrades.length}. Newest ID: ${rawTrades[0].i} vs Stored: ${state.lastTradeId}`);
-
-                // Filter for New Trades
+                const rawTrades = json.trades; 
                 const newTrades = [];
                 for (let t of rawTrades) {
-                    // If current trade ID <= last seen ID, we have reached old data
                     if (state.lastTradeId && t.i <= state.lastTradeId) break;
                     newTrades.push(t);
                 }
-                
                 if (newTrades.length === 0) return; 
-
-                log(`T&S: Adding ${newTrades.length} new trades.`);
-
-                // Update Max ID to the newest one found
                 state.lastTradeId = newTrades[0].i;
-
                 let htmlRows = '';
                 for (let t of newTrades) {
                     let colorClass = 't-neutral';
-                    if (t.p > state.lastPrice) colorClass = 't-up';
-                    else if (t.p < state.lastPrice) colorClass = 't-down';
-                    else colorClass = 'tape-time'; 
-                    
+                    if (t.p > state.lastPrice) colorClass = 't-up'; else if (t.p < state.lastPrice) colorClass = 't-down'; else colorClass = 'tape-time'; 
                     state.lastPrice = t.p; 
-
-                    let rowClass = 'tape-row';
-                    if (t.s >= 100) rowClass += ' t-large';
-
+                    let rowClass = 'tape-row'; if (t.s >= 100) rowClass += ' t-large';
                     const timeStr = new Date(t.t).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-                    htmlRows += `
-                        <div class="${rowClass}">
-                            <span class="tape-time">${timeStr}</span>
-                            <span class="tape-price ${colorClass}">${t.p.toFixed(2)}</span>
-                            <span class="tape-size">${t.s}</span>
-                        </div>
-                    `;
+                    htmlRows += `<div class="${rowClass}"><span class="tape-time">${timeStr}</span><span class="tape-price ${colorClass}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
                 }
-                
                 list.insertAdjacentHTML('afterbegin', htmlRows);
-                
                 while(list.children.length > 50) list.removeChild(list.lastChild);
-            } else {
-                // log("T&S: No trades returned from API.");
             }
-        } catch(e) { 
-            log(`T&S Exception: ${e.message}`, 'error');
-        }
+        } catch(e) { }
     }
 
-    // --- TICKER TAPE LOGIC ---
+    // --- TICKER TAPE ---
     async function refreshPortfolioTape() {
         const keys = await getKeys(); if(!keys) return;
         try {
@@ -388,95 +494,6 @@
         document.getElementById('tapeList').innerHTML = ''; state.lastTradeId = 0;
         saveState(); loadInitialData();
     };
-
-    // --- CHART LOGIC ---
-    function onVisibleLogicalRangeChanged(newVisibleLogicalRange) {
-        if (!newVisibleLogicalRange) return;
-        if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) loadOlderData();
-    }
-
-    async function loadOlderData() {
-        if (!state.earliestTime) return;
-        state.isLoadingHistory = true; document.getElementById('history-loader').style.display = 'block';
-        const keys = await getKeys();
-        const logicalRange = state.chart.timeScale().getVisibleLogicalRange();
-        const visibleBars = logicalRange ? Math.ceil(logicalRange.to - logicalRange.from) : 100;
-        const dynamicLimit = Math.min(Math.max(visibleBars * 2, 500), 10000);
-        const endStr = new Date((state.earliestTime - 1) * 1000).toISOString();
-        const startStr = "2015-01-01T00:00:00Z";
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&sort=desc&adjustment=split`;
-        try {
-            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            const json = await res.json();
-            if (json.bars && json.bars.length > 0) {
-                const reversedBars = json.bars.reverse(); const oldBars = parseBars(reversedBars);
-                state.masterData = [...oldBars.ohlc, ...state.masterData];
-                const newVolData = [...oldBars.vol, ...state.series.volume.data()]; 
-                state.series.candle.setData(state.masterData); state.series.volume.setData(newVolData); 
-                state.earliestTime = oldBars.ohlc[0].time;
-                log(`Stitched ${json.bars.length} older bars.`);
-            } else { state.noMoreHistory = true; }
-        } catch(e) { log(e.message, 'error'); } 
-        finally { state.isLoadingHistory = false; document.getElementById('history-loader').style.display = 'none'; }
-    }
-
-    async function loadInitialData() {
-        state.masterData = []; state.earliestTime = null; state.noMoreHistory = false;
-        state.lastTradeId = 0; document.getElementById('tapeList').innerHTML = ''; // Reset T&S
-        
-        const keys = await getKeys(); if (!keys) return;
-        const end = new Date(); const start = new Date(); start.setDate(end.getDate() - 30); 
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start.toISOString()}&limit=10000&adjustment=split`;
-        try {
-            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            const json = await res.json();
-            if (json.bars) {
-                const data = parseBars(json.bars);
-                state.masterData = data.ohlc; state.earliestTime = state.masterData[0].time;
-                state.series.candle.setData(data.ohlc); state.series.volume.setData(data.vol);
-                state.chart.timeScale().fitContent();
-                document.getElementById('lg-header').innerText = `${state.ticker} · ${state.timeframe}`;
-                if (data.ohlc.length > 0) state.lastPrice = data.ohlc[data.ohlc.length-1].close;
-                updateRealtime();
-            }
-        } catch (e) { log(e.message, 'error'); }
-    }
-
-    async function updateRealtime() {
-        const keys = await getKeys(); if (!keys) return;
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/snapshot`;
-        try {
-            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            if (!res.ok) return;
-            const json = await res.json();
-            const q = json.latestQuote; const t = json.latestTrade; const mb = json.minuteBar; const day = json.dailyBar;
-            if (q) { document.getElementById('q-bid').innerText = `${q.bp.toFixed(2)}x${q.bs}`; document.getElementById('q-ask').innerText = `${q.ap.toFixed(2)}x${q.as}`; }
-            if (t) { 
-                const el = document.getElementById('q-last'); el.innerText = t.p.toFixed(2); 
-                el.className = 'q-val ' + (t.p >= state.lastPrice ? 'color-up' : 'color-down'); state.lastPrice = t.p; 
-            }
-            if (day) document.getElementById('q-vol').innerText = formatNum(day.v);
-            const currentData = state.series.candle.data(); if (currentData.length === 0) return;
-            const lastBar = currentData[currentData.length - 1];
-            if (state.timeframe === '1D' && day) {
-                const time = new Date(day.t).getTime() / 1000;
-                if (time >= lastBar.time) updateChartBar(time, day.o, day.h, day.l, day.c, day.v);
-            } else if (state.timeframe.includes('Min') && mb) {
-                 const time = new Date(mb.t).getTime() / 1000;
-                 updateChartBar(time, mb.o, mb.h, mb.l, mb.c, mb.v);
-            } else if (state.timeframe === '1H' && t) {
-                const price = t.p;
-                const newHigh = Math.max(lastBar.high, price); const newLow = Math.min(lastBar.low, price);
-                const currentVol = state.series.volume.data()[currentData.length - 1].value;
-                updateChartBar(lastBar.time, lastBar.open, newHigh, newLow, price, currentVol);
-            }
-        } catch (e) { }
-    }
-
-    function updateChartBar(time, o, h, l, c, v) {
-        state.series.candle.update({ time: time, open: o, high: h, low: l, close: c });
-        state.series.volume.update({ time: time, value: v, color: (c >= o ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)') });
-    }
 
     function parseBars(bars) {
         const ohlc = []; const vol = [];
