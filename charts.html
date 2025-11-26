@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Grid Layout)</title>
+    <title>Pro Charting (Grid System)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -16,7 +16,8 @@
         /* TOOLBAR */
         .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
-        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; }
+        
+        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; text-align: center; }
         .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
         
         .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
@@ -24,7 +25,7 @@
         .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
         .interval-btn.active { color: #fff; background-color: var(--accent-color); }
 
-        /* TICKER TAPE & QUOTE STRIP */
+        /* SCROLLING TAPE */
         .ticker-container { flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 14px; cursor: pointer; }
@@ -33,50 +34,44 @@
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 3px 6px; border-radius: 4px; margin-right: 5px; }
         .ticker-section { display: flex; gap: 20px; align-items: center; }
+
+        /* QUOTE STRIP */
         .quote-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px; flex-shrink: 0; }
         .q-item { display: flex; gap: 5px; } .q-label { color: #787b86; } .q-val { color: #d1d4dc; font-weight: bold; }
 
-        /* WORKSPACE LAYOUT */
+        /* WORKSPACE GRID */
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; }
         
-        /* MAIN CHART AREA */
-        #main-area { 
-            flex-grow: 1; display: flex; flex-direction: column; 
-            height: 100%; min-width: 0; position: relative;
-        }
-        
-        /* CHART SLOT (Can be single or stacked) */
+        #main-area { flex-grow: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; }
         .chart-slot { flex: 1; position: relative; border-bottom: 1px solid var(--border-color); min-height: 0; }
         .chart-slot:last-child { border-bottom: none; }
         
+        /* OVERLAYS */
         .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
-        .chart-input-overlay { position: absolute; top: 5px; right: 50px; z-index: 25; }
-        .mini-input { background: rgba(0,0,0,0.5); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 4px; padding: 2px 5px; }
-
-        /* SIDEBAR AREA */
-        #sidebar-area {
-            width: 280px; min-width: 280px; background-color: #131722; 
-            border-left: 1px solid var(--border-color);
-            display: flex; flex-direction: column; flex-shrink: 0;
-            transition: all 0.2s ease-out; overflow: hidden;
-        }
+        .chart-input-overlay { position: absolute; top: 5px; right: 50px; z-index: 25; display: none; } /* Hidden by default, shown on hover? Or just use main toolbar */
+        
+        /* SIDEBAR */
+        #sidebar-area { width: 280px; min-width: 280px; background-color: #131722; border-left: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; }
         #sidebar-area.collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* SIDEBAR WIDGETS */
+        /* WIDGETS */
         .widget-box { display: flex; flex-direction: column; flex: 1; border-bottom: 1px solid var(--border-color); min-height: 0; }
-        .widget-box:last-child { border-bottom: none; }
         .widget-header { height: 28px; background-color: var(--panel-color); display: flex; align-items: center; padding: 0 8px; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
         .widget-title { font-size: 11px; font-weight: bold; color: #787b86; }
         .widget-content { flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; }
+        .mini-input { background: #2a2e39; border: 1px solid #444; color: #d1d4dc; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 2px 5px; font-weight: bold; text-align: center; }
         
-        /* Tape Rows */
+        /* TAPE ROWS */
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
 
-        /* MENUS */
+        /* UTILS */
+        .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
+        
+        /* DROPDOWN MENU */
         .dropdown { position: relative; }
         .dropdown-menu { position: absolute; top: 100%; right: 0; background: var(--panel-color); border: 1px solid var(--border-color); z-index: 100; display: none; min-width: 160px; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
         .dropdown.open .dropdown-menu { display: block; }
@@ -84,7 +79,6 @@
         .dropdown-item:hover { background: #2a2e39; }
         .dropdown-header { padding: 4px 12px; font-size: 10px; color: #2962ff; font-weight: bold; background: #15181f; }
 
-        .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
         #screen-logger { position: absolute; right: 290px; top: 70px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
         .right-controls { margin-left: auto; display: flex; gap: 10px; flex-shrink: 0; background: var(--panel-color); z-index: 2; padding-left: 10px; }
@@ -107,22 +101,23 @@
             <button class="interval-btn" data-tf="1D">D</button>
         </div>
         <div class="ticker-container" id="tickerContainer">
-            <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading...</span></div>
+            <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading Market Data...</span></div>
         </div>
         <div class="right-controls">
             <div class="dropdown" id="layoutDropdown">
-                <button class="icon-btn"><i class="fas fa-columns"></i></button>
+                <button class="icon-btn" title="Layouts"><i class="fas fa-columns"></i></button>
                 <div class="dropdown-menu">
                     <div class="dropdown-header">CHART LAYOUT</div>
                     <div class="dropdown-item" onclick="setChartLayout(1)">Single Chart</div>
                     <div class="dropdown-item" onclick="setChartLayout(2)">Split Vertical (2)</div>
                     <div class="dropdown-header">SIDEBAR WIDGETS</div>
-                    <div class="dropdown-item" onclick="setSidebarLayout(1)">1 Widget</div>
-                    <div class="dropdown-item" onclick="setSidebarLayout(2)">2 Widgets</div>
-                    <div class="dropdown-item" onclick="setSidebarLayout(3)">3 Widgets</div>
+                    <div class="dropdown-item" onclick="setSidebarLayout(1)">1 Time & Sales</div>
+                    <div class="dropdown-item" onclick="setSidebarLayout(2)">2 Time & Sales</div>
+                    <div class="dropdown-item" onclick="setSidebarLayout(3)">3 Time & Sales</div>
                 </div>
             </div>
             <button class="icon-btn active" id="tapeToggle" title="Toggle Sidebar"><i class="fas fa-list-ol"></i></button>
+            <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
             <button class="icon-btn" id="debugToggle"><i class="fas fa-bug"></i></button>
             <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
         </div>
@@ -137,7 +132,6 @@
 
     <div class="workspace">
         <div id="main-area"></div>
-
         <div id="sidebar-area"></div>
     </div>
 
@@ -157,91 +151,58 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    // --- STATE ---
     const state = {
-        // Global Toolbar State
         globalTicker: 'AAPL', timeframe: '5Min',
-        
-        // Layout Configuration
-        chartCount: 1,
-        widgetCount: 1,
-        isSidebarOpen: true,
-
-        // Active Instances
-        charts: [], // Array of { id, ticker, chartObj, series... }
-        widgets: [], // Array of { id, type, ticker, lastTradeId }
-
-        // Background Data
+        chartCount: 1, widgetCount: 1, isSidebarOpen: true,
+        charts: [], widgets: [],
         refreshInterval: null, screenerInterval: null, tapeInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' }
     };
 
-    // --- INIT ---
     async function init() {
-        log("Initializing App...");
-        await loadSavedState(); // Load keys/last ticker
+        log("App Initializing...");
+        await loadSavedState();
         document.getElementById('tickerInput').value = state.globalTicker;
 
-        // Build Layouts
+        // Build UI
         renderChartLayout();
         renderSidebarLayout();
+        updateSidebarVisibility();
 
-        // Start Background Jobs
-        refreshPortfolioTape(); refreshScreenerTape();
-        
+        // Initial Data
+        refreshPortfolioTape();
+        refreshScreenerTape();
+
+        // Timers
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
-        
         state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateAllWidgets, 1000);
-        
-        // Init Sidebar State
-        updateSidebarVisibility();
-        
-        // Dropdown Logic
-        document.getElementById('layoutDropdown').addEventListener('click', e => {
-            e.currentTarget.classList.toggle('open'); e.stopPropagation();
-        });
+
+        // Event Listeners
+        document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
         document.addEventListener('click', () => document.getElementById('layoutDropdown').classList.remove('open'));
     }
 
-    // --- LAYOUT MANAGERS ---
-    
-    // 1. CHARTS
-    function setChartLayout(count) {
-        state.chartCount = count;
-        renderChartLayout();
-    }
-
+    // --- LAYOUTS ---
+    window.setChartLayout = function(count) { state.chartCount = count; renderChartLayout(); }
     function renderChartLayout() {
         const container = document.getElementById('main-area');
-        container.innerHTML = ''; // Clear
-        state.charts = []; // Reset instances
-
+        container.innerHTML = ''; state.charts = [];
         for(let i=0; i < state.chartCount; i++) {
-            const div = document.createElement('div');
-            div.className = 'chart-slot';
-            div.id = `chart-slot-${i}`;
-            container.appendChild(div);
-            
-            // Default 2nd chart to SPY if distinct
-            const initialTicker = (i === 0) ? state.globalTicker : (i===1 ? 'SPY' : 'QQQ');
+            const div = document.createElement('div'); div.className = 'chart-slot'; div.id = `chart-slot-${i}`; container.appendChild(div);
+            const initialTicker = (i===0) ? state.globalTicker : (i===1 ? 'SPY' : 'QQQ');
             createChartInstance(div, i, initialTicker);
         }
     }
 
     async function createChartInstance(container, id, ticker) {
-        // HTML Structure
         container.innerHTML = `
-            <div class="chart-input-overlay">
-                <input type="text" class="mini-input" value="${ticker}" onkeydown="updateChartTicker(${id}, this, event)">
-            </div>
             <div class="chart-legend" id="legend-${id}">
-                <div class="legend-row" id="lg-header-${id}" style="font-weight:bold; color:#787b86;">${ticker}</div>
+                <div class="legend-row"><span id="lg-header-${id}" style="font-weight:bold; color:#787b86; font-size:14px;">${ticker}</span></div>
                 <div class="legend-row" id="lg-ohlc-${id}"></div>
             </div>
         `;
-
         const chart = LightweightCharts.createChart(container, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
@@ -249,71 +210,40 @@
             crosshair: { mode: 0 },
             rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.25 } },
         });
-
         const volSeries = chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
-        // Resize handling
-        new ResizeObserver(e => { 
-            if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
-        }).observe(container);
+        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(container);
 
         const chartObj = { id, ticker, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null };
         state.charts.push(chartObj);
 
-        // Legend Listener
         chart.subscribeCrosshairMove(p => {
             const c = p.seriesData.get(candleSeries);
-            const v = p.seriesData.get(volSeries);
-            if (c) document.getElementById(`lg-ohlc-${id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:${c.close.toFixed(2)}`;
+            if (c) document.getElementById(`lg-ohlc-${id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span>`;
         });
 
-        // Initial Load
         await loadChartData(chartObj);
     }
 
-    window.updateChartTicker = function(id, input, e) {
-        if (e.key === 'Enter') {
-            const chartObj = state.charts.find(c => c.id === id);
-            if(chartObj) {
-                chartObj.ticker = input.value.toUpperCase();
-                document.getElementById(`lg-header-${id}`).innerText = chartObj.ticker;
-                loadChartData(chartObj);
-                input.blur();
-            }
-        }
-    };
-
-    // 2. SIDEBAR WIDGETS
-    function setSidebarLayout(count) {
-        state.widgetCount = count;
-        renderSidebarLayout();
-    }
-
+    window.setSidebarLayout = function(count) { state.widgetCount = count; renderSidebarLayout(); }
     function renderSidebarLayout() {
         const container = document.getElementById('sidebar-area');
-        container.innerHTML = '';
-        state.widgets = [];
-
+        container.innerHTML = ''; state.widgets = [];
         for(let i=0; i < state.widgetCount; i++) {
-            const div = document.createElement('div');
-            div.className = 'widget-box';
-            
+            const div = document.createElement('div'); div.className = 'widget-box';
+            // First widget syncs to global ticker, others default to popular
             const initialTicker = (i===0) ? state.globalTicker : (i===1 ? 'NVDA' : 'TSLA');
-            
             div.innerHTML = `
                 <div class="widget-header">
                     <span class="widget-title">T&S</span>
                     <input type="text" class="mini-input" value="${initialTicker}" onkeydown="updateWidgetTicker(${i}, this, event)">
                 </div>
-                <div class="widget-header" style="background:#131722; font-size:10px; color:#666;">
-                    <span>TIME</span> <span>PRICE</span> <span>SIZE</span>
-                </div>
+                <div class="widget-header" style="background:#131722; font-size:10px; color:#666;"><span>TIME</span><span>PRICE</span><span>SIZE</span></div>
                 <div class="widget-content" id="widget-list-${i}"></div>
             `;
             container.appendChild(div);
-            
             state.widgets.push({ id: i, ticker: initialTicker, lastTradeId: 0 });
         }
     }
@@ -321,20 +251,14 @@
     window.updateWidgetTicker = function(id, input, e) {
         if(e.key === 'Enter') {
             const w = state.widgets.find(w => w.id === id);
-            if(w) {
-                w.ticker = input.value.toUpperCase();
-                w.lastTradeId = 0;
-                document.getElementById(`widget-list-${id}`).innerHTML = '';
-                input.blur();
-            }
+            if(w) { w.ticker = input.value.toUpperCase(); w.lastTradeId = 0; document.getElementById(`widget-list-${id}`).innerHTML = ''; input.blur(); }
         }
     }
 
-    // --- DATA LOADING (Multi-Chart) ---
+    // --- DATA SYNC ---
     async function loadChartData(c) {
         const keys = await getKeys(); if(!keys) return;
-        const end = new Date().toISOString(); 
-        const start = "2020-01-01T00:00:00Z";
+        const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
         const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${state.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`;
         
         try {
@@ -346,15 +270,20 @@
                 c.volSeries.setData(data.vol);
                 c.chart.timeScale().fitContent();
                 c.lastPrice = data.ohlc[data.ohlc.length-1].close;
+                
+                // Sync UI Label if this is Chart 0
+                if(c.id === 0) {
+                    document.getElementById('lg-header-0').innerText = c.ticker;
+                    // If widget 0 exists, sync it too
+                    const w0 = state.widgets.find(w => w.id === 0);
+                    if(w0) { w0.ticker = c.ticker; w0.lastTradeId = 0; document.getElementById('widget-list-0').innerHTML = ''; document.querySelector('#sidebar-area .mini-input').value = c.ticker; }
+                }
             }
-        } catch(e) { log("Load Error: " + e.message, 'error'); }
+        } catch(e) { log(e.message, 'error'); }
     }
 
-    // --- REALTIME POLLING (Multi-Chart) ---
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
-        
-        // Loop through all active charts
         state.charts.forEach(async (c) => {
             const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/snapshot`;
             try {
@@ -362,8 +291,7 @@
                 if(!res.ok) return;
                 const json = await res.json();
                 
-                // Only update Toolbar Quote for Chart 0 (Primary)
-                if (c.id === 0) updateQuoteStrip(json);
+                if (c.id === 0) updateQuoteStrip(json); // Quote strip only follows Chart 0
 
                 const mb = json.minuteBar;
                 if(mb && state.timeframe.includes('Min')) {
@@ -375,11 +303,9 @@
         });
     }
 
-    // --- WIDGET POLLING (Multi-Widget) ---
     async function updateAllWidgets() {
         if(!state.isSidebarOpen) return;
         const keys = await getKeys(); if(!keys) return;
-
         state.widgets.forEach(async (w) => {
             const url = `https://data.alpaca.markets/v2/stocks/${w.ticker}/trades?limit=50&sort=desc&feed=sip`;
             try {
@@ -390,11 +316,11 @@
                     const list = document.getElementById(`widget-list-${w.id}`);
                     const newTrades = json.trades.filter(t => t.i > w.lastTradeId);
                     if(newTrades.length === 0) return;
-                    
                     w.lastTradeId = newTrades[0].i;
+                    
                     let html = '';
                     for(let t of newTrades) {
-                        const color = t.p >= w.lastPrice ? 't-up' : 't-down';
+                        const color = t.p > w.lastPrice ? 't-up' : (t.p < w.lastPrice ? 't-down' : 'tape-time');
                         w.lastPrice = t.p;
                         const bg = t.s >= 100 ? 't-large' : '';
                         const time = new Date(t.t).toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -419,10 +345,10 @@
     }
 
     function updateSidebarVisibility() {
-        const p = document.getElementById('sidebar-area');
-        const b = document.getElementById('tapeToggle');
-        if(state.isSidebarOpen) { p.classList.remove('collapsed'); b.classList.add('active'); }
+        const p = document.getElementById('sidebar-area'); const b = document.getElementById('tapeToggle');
+        if(state.isSidebarOpen) { p.classList.remove('collapsed'); b.classList.add('active'); } 
         else { p.classList.add('collapsed'); b.classList.remove('active'); }
+        setTimeout(() => { state.charts.forEach(c => c.chart.applyOptions({ width: document.getElementById('main-area').clientWidth })); }, 300);
     }
 
     document.getElementById('tapeToggle').addEventListener('click', () => {
@@ -430,17 +356,23 @@
         updateSidebarVisibility();
     });
 
-    // --- BOILERPLATE (Parse, Keys, Ticker Tape - same as before) ---
-    // (Included compact version for completeness)
+    // --- STANDARD FUNCTIONS (Copy of working logic) ---
     function snapTime(t,tf) { if(tf==='1Min') return Math.floor(t/60)*60; if(tf==='5Min') return Math.floor(t/300)*300; if(tf==='15Min') return Math.floor(t/900)*900; if(tf==='1H') return Math.floor(t/3600)*3600; return t; }
     function parseBars(bars) { const o=[], v=[]; bars.forEach(b=>{ const t=new Date(b.t).getTime()/1000; o.push({time:t,open:b.o,high:b.h,low:b.l,close:b.c}); v.push({time:t,value:b.v,color:(b.c>=b.o?'#26a69a':'#ef5350')}); }); return {ohlc:o,vol:v}; }
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
-    async function saveState() { /* ... */ } // (Use DB logic from previous steps)
-    async function loadSavedState() { /* ... */ } // (Use DB logic from previous steps)
+    async function saveState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readwrite"); tx.objectStore("Settings").put({ key: "lastChartTicker", value: state.globalTicker }); tx.objectStore("Settings").put({ key: "lastChartTimeframe", value: state.timeframe }); } catch(e) { } }
+    async function loadSavedState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readonly"); const store = tx.objectStore("Settings"); const tReq = store.get("lastChartTicker"); const tfReq = store.get("lastChartTimeframe"); return new Promise((resolve) => { let loaded = 0; const check = () => { loaded++; if(loaded === 2) resolve(); }; tReq.onsuccess = () => { if(tReq.result) { state.globalTicker = tReq.result.value; } check(); }; tfReq.onsuccess = () => { if(tfReq.result) { state.timeframe = tfReq.result.value; document.querySelectorAll('.interval-btn').forEach(b => { b.classList.remove('active'); if(b.dataset.tf === state.timeframe) b.classList.add('active'); }); } check(); }; tReq.onerror = check; tfReq.onerror = check; }); } catch(e) { } }
     
-    // Ticker Tape & Screeners (Re-use logic from previous step)
-    // For brevity, assuming shared.js handles DB or pasting logic from previous steps for tape/screener.
-    // Call refreshPortfolioTape() and refreshScreenerTape() in init() as shown above.
+    // Tape Functions (Same as before)
+    async function refreshPortfolioTape() { const keys = await getKeys(); if(!keys) return; try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e=>r(e.target.result); req.onerror = j; }); const tx = db.transaction("Positions", "readonly"); const positions = await new Promise(r => { tx.objectStore("Positions").getAll().onsuccess = e => r(e.target.result); }); const tickers = positions.map(p => p.tickerSymbol); if (tickers.length > 0) { const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(res.ok) { const json = await res.json(); const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym)); state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", items); renderTape(); } } else { state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>'; renderTape(); } } catch(e) { } }
+    async function refreshScreenerTape() { const keys = await getKeys(); if(!keys) return; fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); }); fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); }); fetchActives(keys, 'volume', 'activeVol', "MOST ACTIVE (VOL)"); fetchActives(keys, 'trades', 'activeTrd', "MOST ACTIVE (TRDS)"); if (!state.tapeData.activeVol && !state.tapeData.gainers) fetchFallbackIndices(keys); }
+    async function fetchScreener(keys, endpoint, keyName, title) { try { const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(!res.ok) return ''; const json = await res.json(); const items = (json[keyName] || []).map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change })); return generateSectionHTML(title, items); } catch(e) { return ''; } }
+    async function fetchActives(keys, by, stateKey, title) { try { const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=${by}&top=10`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(!res.ok) return; const json = await res.json(); const list = json.most_actives || []; const symbols = list.map(i => i.symbol); if (symbols.length === 0) return; const snapRes = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(snapRes.ok) { const snapJson = await snapRes.json(); const items = Object.entries(snapJson).map(([sym, d]) => parseSnapshot(d, sym)); state.tapeData[stateKey] = generateSectionHTML(title, items); renderTape(); } } catch(e) { } }
+    async function fetchFallbackIndices(keys) { try { const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(res.ok) { const json = await res.json(); const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym)); state.tapeData.fallback = generateSectionHTML("INDICES (FALLBACK)", items); renderTape(); } } catch(e) {} }
+    function renderTape() { const track = document.getElementById('tickerTrack'); let fullHtml = [ state.tapeData.portfolio, state.tapeData.gainers, state.tapeData.losers, state.tapeData.activeVol, state.tapeData.activeTrd, state.tapeData.fallback ].join(''); if (fullHtml.trim().length === 0) fullHtml = '<span style="color:#666; font-size:11px;">Loading Data...</span>'; track.innerHTML = fullHtml + fullHtml; }
+    function parseSnapshot(data, symbol) { if(!data || !data.latestTrade) return null; const price = data.latestTrade.p; const prev = (data.prevDailyBar) ? data.prevDailyBar.c : price; return { symbol: symbol, price: price, pct: ((price - prev) / prev) * 100 }; }
+    function generateSectionHTML(title, items) { if (!items || items.length === 0) return ''; let html = `<div class="ticker-section"><span class="section-label">${title}</span>`; items.forEach(item => { if(!item) return; const colorClass = item.pct >= 0 ? 'color-up' : 'color-down'; const icon = item.pct >= 0 ? '▲' : '▼'; html += `<div class="ticker-item" onclick="changeTicker('${item.symbol}')"><span class="t-sym">${item.symbol}</span><span class="t-price">${item.price.toFixed(2)}</span><span class="t-chg ${colorClass}">${icon} ${Math.abs(item.pct).toFixed(2)}%</span></div>`; }); return html + `</div>`; }
+    window.changeTicker = function(sym) { document.getElementById('tickerInput').value = sym; state.globalTicker = sym; saveState(); if(state.charts[0]) { state.charts[0].ticker = sym; loadChartData(state.charts[0]); } };
 
     // --- EVENTS ---
     document.addEventListener('DOMContentLoaded', init);
@@ -448,22 +380,22 @@
     input.addEventListener('keydown', (e) => { 
         if (e.key === 'Enter') { 
             state.globalTicker = input.value.toUpperCase(); 
-            // Update Chart 0
-            const c0 = state.charts[0];
-            if(c0) {
-                c0.ticker = state.globalTicker;
-                document.querySelector('.chart-input-overlay input').value = c0.ticker;
-                loadChartData(c0);
-            }
+            saveState(); 
+            // Force update Chart 0 & Widget 0
+            if(state.charts[0]) { state.charts[0].ticker = state.globalTicker; loadChartData(state.charts[0]); }
             input.blur(); 
         } 
     });
-    document.querySelectorAll('.interval-btn').forEach(b => b.addEventListener('click', () => {
-        document.querySelectorAll('.interval-btn').forEach(btn => btn.classList.remove('active'));
-        b.classList.add('active'); state.timeframe = b.dataset.tf;
-        // Reload all charts
-        state.charts.forEach(c => loadChartData(c));
+    document.querySelectorAll('.interval-btn').forEach(b => b.addEventListener('click', () => { 
+        document.querySelectorAll('.interval-btn').forEach(btn => btn.classList.remove('active')); 
+        b.classList.add('active'); state.timeframe = b.dataset.tf; saveState(); 
+        state.charts.forEach(c => loadChartData(c)); // Refresh ALL active charts
     }));
+    document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
+    document.getElementById('refreshBtn').addEventListener('click', () => state.charts.forEach(c => loadChartData(c)));
+    document.getElementById('settingsBtn').addEventListener('click', () => alert("Manage keys in Portfolio Settings"));
+    document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
+
 </script>
 </body>
 </html>
