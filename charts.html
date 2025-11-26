@@ -422,8 +422,8 @@
         const keys = await getKeys(); if(!keys) return;
         fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); });
         fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); });
-        fetchActives(keys, 'volume', 'activeVol', "MOST ACTIVE (VOL)");
-        fetchActives(keys, 'trades', 'activeTrd', "MOST ACTIVE (TRDS)");
+        fetchActives(keys, 'volume', 'activeVol', "ACTIVE (VOL)");
+        fetchActives(keys, 'trades', 'activeTrd', "ACTIVE (TRADES)");
         if (!state.tapeData.activeVol && !state.tapeData.gainers) fetchFallbackIndices(keys);
     }
 
