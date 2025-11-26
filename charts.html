@@ -207,7 +207,10 @@
     // --- TIME & SALES LOGIC ---
     async function updateTimeAndSales() {
         const keys = await getKeys(); if (!keys) return;
-        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/trades?limit=50`; // Get last 50 trades
+        
+        // THE FIX: sort=desc gets the absolute latest trades immediately.
+        // limit=50 is enough for a fast scrolling tape.
+        const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/trades?limit=50&sort=desc&feed=sip`; 
         
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
@@ -217,57 +220,61 @@
             if (json.trades && json.trades.length > 0) {
                 const list = document.getElementById('tapeList');
                 
-                // Process newest trades first (Alpaca returns oldest first usually, but we want a list)
-                // Reverse to process New -> Old, but actually we want to prepend NEW items.
-                // Alpaca: [Oldest ... Newest]
-                // We want to take the Newest ones that are > state.lastTradeId
-                
-                const trades = json.trades.reverse(); // Now [Newest ... Oldest]
-                
-                let newRows = '';
-                let latestId = state.lastTradeId;
+                // Alpaca with sort=desc returns: [Newest, 2nd Newest, ... Oldest]
+                const rawTrades = json.trades;
 
-                for (let t of trades) {
-                    // If we have a lastTradeId, stop if we hit it (deduplication)
-                    // Note: ID comparison string vs int
-                    if (state.lastTradeId && t.i <= state.lastTradeId) break;
-                    
-                    // Update max ID
-                    if (!latestId || t.i > latestId) latestId = t.i;
+                // 1. Filter for trades newer than what we have seen
+                // (Since array is Newest->Oldest, we filter until we hit a known ID)
+                const newTrades = [];
+                for (let t of rawTrades) {
+                    if (state.lastTradeId && t.i <= state.lastTradeId) break; // Stop if we hit known history
+                    newTrades.push(t);
+                }
+                
+                if (newTrades.length === 0) return; 
 
-                    // Determine Color
+                // 2. Update Max ID (The first item is the newest)
+                state.lastTradeId = newTrades[0].i;
+
+                // 3. Process & Render
+                // We want to add them to the top. 
+                // Since 'newTrades' is [Newest ... Oldest], iterating normally works perfectly for prepending.
+                let htmlRows = '';
+                
+                // We iterate backwards (Oldest -> Newest) if we want to stack them bottom-up?
+                // No, for a tape, we usually want the absolute newest trade at the very top.
+                // So we iterate the 'newTrades' array (which is New->Old) and insert adjacent HTML.
+                
+                for (let t of newTrades) {
+                    // Color Logic
                     let colorClass = 't-neutral';
-                    if (t.p > state.lastTradePrice) colorClass = 't-up';
-                    else if (t.p < state.lastTradePrice) colorClass = 't-down';
-                    else colorClass = 'tape-time'; // Gray for no change
+                    if (t.p > state.lastPrice) colorClass = 't-up';
+                    else if (t.p < state.lastPrice) colorClass = 't-down';
+                    else colorClass = 'tape-time'; 
                     
-                    // Highlight Size
+                    state.lastPrice = t.p; // Update tracker
+
+                    // Size Logic
                     let rowClass = 'tape-row';
-                    if (t.s >= 100) rowClass += ' t-large'; // Highlight block trades
+                    if (t.s >= 100) rowClass += ' t-large';
 
-                    // Time Format
-                    const time = new Date(t.t).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    // Time
+                    const timeStr = new Date(t.t).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                    newRows += `
+                    htmlRows += `
                         <div class="${rowClass}">
-                            <span class="tape-time">${time}</span>
+                            <span class="tape-time">${timeStr}</span>
                             <span class="tape-price ${colorClass}">${t.p.toFixed(2)}</span>
                             <span class="tape-size">${t.s}</span>
                         </div>
                     `;
-                    
-                    state.lastTradePrice = t.p;
                 }
                 
-                if (newRows) {
-                    state.lastTradeId = latestId;
-                    list.insertAdjacentHTML('afterbegin', newRows); // Add to TOP
-                    
-                    // Prune list to keep DOM light (max 100 rows)
-                    while(list.children.length > 100) {
-                        list.removeChild(list.lastChild);
-                    }
-                }
+                // Add to top of list
+                list.insertAdjacentHTML('afterbegin', htmlRows);
+                
+                // Cleanup DOM
+                while(list.children.length > 100) list.removeChild(list.lastChild);
             }
         } catch(e) { }
     }
