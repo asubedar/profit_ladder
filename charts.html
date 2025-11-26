@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Split View)</title>
+    <title>Pro Charting (Linked Workspace)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -16,8 +16,15 @@
         /* TOOLBAR */
         .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
+        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; text-align: center; }
+        .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
         
-        /* SCROLLING TICKER & QUOTE STRIP */
+        .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
+        .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
+        .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
+        .interval-btn.active { color: #fff; background-color: var(--accent-color); }
+
+        /* SCROLLING TAPE */
         .ticker-container { flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 14px; cursor: pointer; }
@@ -35,10 +42,17 @@
         .chart-slot { flex: 1; position: relative; border-bottom: 1px solid var(--border-color); min-height: 0; display: flex; flex-direction: column; }
         .chart-slot:last-child { border-bottom: none; }
         
-        /* CHART OVERLAYS (CONTROLS) */
-        .chart-controls { position: absolute; top: 5px; right: 60px; z-index: 25; display: flex; gap: 5px; }
-        .mini-input { background: rgba(42, 46, 57, 0.8); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 2px 5px; font-weight: bold; text-align: center; }
-        .mini-select { background: rgba(42, 46, 57, 0.8); border: 1px solid #444; color: #d1d4dc; font-size: 11px; border-radius: 3px; padding: 2px; cursor: pointer; }
+        /* CHART CONTROLS & LINKING */
+        .chart-controls { position: absolute; top: 5px; right: 60px; z-index: 25; display: flex; gap: 5px; align-items: center; }
+        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 2px 5px; font-weight: bold; text-align: center; }
+        .mini-select { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #d1d4dc; font-size: 11px; border-radius: 3px; padding: 2px; cursor: pointer; }
+        
+        /* LINK BUTTON STYLES */
+        .link-btn { width: 18px; height: 18px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: #2a2e39; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; }
+        .link-btn:hover { opacity: 0.8; }
+        .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
+        .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
+        
         .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
 
@@ -47,10 +61,9 @@
         #sidebar-area.collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
         .widget-box { display: flex; flex-direction: column; flex: 1; border-bottom: 1px solid var(--border-color); min-height: 0; }
         .widget-header { height: 28px; background-color: var(--panel-color); display: flex; align-items: center; padding: 0 8px; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
-        .widget-title { font-size: 11px; font-weight: bold; color: #787b86; }
+        .widget-title { font-size: 11px; font-weight: bold; color: #787b86; display: flex; align-items: center; gap: 8px; }
         .widget-content { flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; }
         
-        /* TAPE ROWS */
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
@@ -78,6 +91,9 @@
 <div class="app-container">
     <div class="toolbar">
         <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
+        <div class="symbol-search"><input type="text" id="tickerInput" value="AAPL"></div>
+        <div class="intervals">
+            <button class="interval-btn active">5m</button> </div>
         <div class="ticker-container" id="tickerContainer">
             <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading Market Data...</span></div>
         </div>
@@ -88,9 +104,11 @@
                     <div class="dropdown-header">CHART LAYOUT</div>
                     <div class="dropdown-item" onclick="setChartLayout(1)">Single Chart</div>
                     <div class="dropdown-item" onclick="setChartLayout(2)">Split Vertical (2)</div>
+                    <div class="dropdown-item" onclick="setChartLayout(3)">Stack Vertical (3)</div>
                     <div class="dropdown-header">SIDEBAR WIDGETS</div>
                     <div class="dropdown-item" onclick="setSidebarLayout(1)">1 Time & Sales</div>
                     <div class="dropdown-item" onclick="setSidebarLayout(2)">2 Time & Sales</div>
+                    <div class="dropdown-item" onclick="setSidebarLayout(3)">3 Time & Sales</div>
                 </div>
             </div>
             <button class="icon-btn active" id="tapeToggle" title="Toggle Sidebar"><i class="fas fa-list-ol"></i></button>
@@ -128,23 +146,28 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    // --- APP STATE ---
+    // --- APP STATE (Persisted) ---
+    // Defines the exact configuration of every window
     const state = {
-        chartCount: 1, widgetCount: 1, isSidebarOpen: true,
-        charts: [], widgets: [],
+        isSidebarOpen: true,
+        chartsConfig: [{ id: 0, ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
+        widgetsConfig: [{ id: 0, type: 'tape', ticker: 'AAPL', linkGroup: 'A' }],
         
-        // Background Data
+        // Runtime Objects (Not saved)
+        charts: [], widgets: [], 
         refreshInterval: null, screenerInterval: null, tapeInterval: null,
-        portfolioTickers: [], 
-        tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
-        lastQuotePrice: 0 // For global strip
+        portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
+        lastQuotePrice: 0
     };
 
-    // --- INITIALIZATION ---
+    // --- INIT ---
     async function init() {
-        log("App Initializing...");
+        log("Initializing Workspace...");
+        await loadSavedState(); // Overwrites state with DB values
         
-        // Default Layout
+        document.getElementById('tickerInput').value = state.chartsConfig[0].ticker;
+
+        // Build Layouts from Config
         renderChartLayout();
         renderSidebarLayout();
         updateSidebarVisibility();
@@ -158,41 +181,53 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateAllWidgets, 1000);
         
-        // Dropdown Listeners
+        // UI Listeners
         document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
         document.addEventListener('click', () => document.getElementById('layoutDropdown').classList.remove('open'));
     }
 
-    // --- CHART LAYOUT ENGINE ---
-    window.setChartLayout = function(count) { state.chartCount = count; renderChartLayout(); }
-    
+    // --- LAYOUT MANAGERS ---
+    window.setChartLayout = function(count) {
+        // Resize array to match count
+        const current = state.chartsConfig;
+        if(count > current.length) {
+            for(let i=current.length; i<count; i++) {
+                current.push({ id: i, ticker: current[0].ticker, timeframe: '5Min', linkGroup: null });
+            }
+        } else {
+            state.chartsConfig = current.slice(0, count);
+        }
+        saveState();
+        renderChartLayout();
+    }
+
     function renderChartLayout() {
         const container = document.getElementById('main-area');
         container.innerHTML = ''; state.charts = [];
         
-        for(let i=0; i < state.chartCount; i++) {
+        state.chartsConfig.forEach(cfg => {
             const div = document.createElement('div');
             div.className = 'chart-slot';
-            div.id = `chart-slot-${i}`;
+            div.id = `chart-slot-${cfg.id}`;
             container.appendChild(div);
-            
-            const ticker = (i===0) ? 'AAPL' : (i===1 ? 'SPY' : 'QQQ');
-            createChartInstance(div, i, ticker);
-        }
+            createChartInstance(div, cfg);
+        });
     }
 
-    async function createChartInstance(container, id, ticker) {
-        // ** INDEPENDENT CONTROLS PER CHART **
-        // Includes Symbol Input AND Timeframe Select
+    async function createChartInstance(container, cfg) {
+        const { id, ticker, timeframe, linkGroup } = cfg;
+        const linkClass = getLinkClass(linkGroup);
+        
         container.innerHTML = `
             <div class="chart-controls">
+                <div class="link-btn ${linkClass}" onclick="cycleLink('chart', ${id})"><i class="fas fa-link"></i></div>
                 <input type="text" class="mini-input" value="${ticker}" onkeydown="updateChartTicker(${id}, this, event)">
                 <select class="mini-select" onchange="updateChartTimeframe(${id}, this.value)">
-                    <option value="1Min">1m</option>
-                    <option value="5Min" selected>5m</option>
-                    <option value="15Min">15m</option>
-                    <option value="1H">1H</option>
-                    <option value="1D">D</option>
+                    <option value="1Min" ${timeframe==='1Min'?'selected':''}>1m</option>
+                    <option value="5Min" ${timeframe==='5Min'?'selected':''}>5m</option>
+                    <option value="15Min" ${timeframe==='15Min'?'selected':''}>15m</option>
+                    <option value="1H" ${timeframe==='1H'?'selected':''}>1H</option>
+                    <option value="1D" ${timeframe==='1D'?'selected':''}>D</option>
                 </select>
             </div>
             <div class="chart-legend" id="legend-${id}">
@@ -218,22 +253,16 @@
 
         new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(chartEl);
 
-        // ** CHART OBJECT WITH INDEPENDENT STATE **
-        const chartObj = { id, ticker, timeframe: '5Min', chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null };
+        const chartObj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.charts.push(chartObj);
 
-        // Legend
         chart.subscribeCrosshairMove(p => {
-            const c = p.seriesData.get(candleSeries);
-            const v = p.seriesData.get(volSeries);
+            const c = p.seriesData.get(candleSeries); const v = p.seriesData.get(volSeries);
             if (c) document.getElementById(`lg-ohlc-${id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span>`;
             if (v && c) { const dVol = v.value*c.close; document.getElementById(`lg-vol-${id}`).innerHTML = `V:${formatNum(v.value)} $V:$${formatNum(dVol)}`; }
         });
 
-        // Infinite Scroll
-        chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-            if(range && range.from < 10 && !chartObj.isLoading) loadOlderData(chartObj);
-        });
+        chart.timeScale().subscribeVisibleLogicalRangeChange(range => { if(range && range.from < 10 && !chartObj.isLoading) loadOlderData(chartObj); });
 
         await loadChartData(chartObj);
     }
@@ -243,8 +272,14 @@
             const c = state.charts.find(x => x.id === id);
             if(c) {
                 c.ticker = input.value.toUpperCase();
-                c.earliestTime = null; // Reset history
+                c.earliestTime = null; 
                 document.getElementById(`lg-header-${id}`).innerText = c.ticker;
+                // SYNC OTHERS IN GROUP
+                syncLinkedWidgets(c.linkGroup, c.ticker);
+                
+                // Update Config
+                state.chartsConfig[id].ticker = c.ticker;
+                saveState();
                 loadChartData(c);
                 input.blur();
             }
@@ -254,60 +289,181 @@
     window.updateChartTimeframe = function(id, val) {
         const c = state.charts.find(x => x.id === id);
         if(c) {
-            c.timeframe = val;
-            c.earliestTime = null; // Reset history
-            loadChartData(c);
+            c.timeframe = val; c.earliestTime = null; 
+            state.chartsConfig[id].timeframe = val;
+            saveState(); loadChartData(c);
         }
     };
 
     // --- SIDEBAR LAYOUT ---
-    window.setSidebarLayout = function(count) { state.widgetCount = count; renderSidebarLayout(); }
+    window.setSidebarLayout = function(count) {
+        const current = state.widgetsConfig;
+        if(count > current.length) {
+            for(let i=current.length; i<count; i++) {
+                current.push({ id: i, type: 'tape', ticker: current[0].ticker, linkGroup: null, lastTradeId: 0 });
+            }
+        } else {
+            state.widgetsConfig = current.slice(0, count);
+        }
+        saveState();
+        renderSidebarLayout();
+    }
+
     function renderSidebarLayout() {
         const container = document.getElementById('sidebar-area');
         container.innerHTML = ''; state.widgets = [];
-        for(let i=0; i < state.widgetCount; i++) {
+        
+        state.widgetsConfig.forEach(cfg => {
             const div = document.createElement('div'); div.className = 'widget-box';
-            const initialTicker = (i===0) ? 'AAPL' : (i===1 ? 'NVDA' : 'TSLA');
+            const linkClass = getLinkClass(cfg.linkGroup);
+            
             div.innerHTML = `
                 <div class="widget-header">
-                    <span class="widget-title">T&S</span>
-                    <input type="text" class="mini-input" value="${initialTicker}" onkeydown="updateWidgetTicker(${i}, this, event)">
+                    <div class="widget-title">
+                        <div class="link-btn ${linkClass}" onclick="cycleLink('widget', ${cfg.id})"><i class="fas fa-link"></i></div>
+                        <span>T&S</span>
+                    </div>
+                    <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker(${cfg.id}, this, event)">
                 </div>
                 <div class="widget-header" style="background:#131722; font-size:10px; color:#666;"><span>TIME</span><span>PRICE</span><span>SIZE</span></div>
-                <div class="widget-content" id="widget-list-${i}"></div>
+                <div class="widget-content" id="widget-list-${cfg.id}"></div>
             `;
             container.appendChild(div);
-            state.widgets.push({ id: i, ticker: initialTicker, lastTradeId: 0 });
-        }
+            state.widgets.push({ ...cfg, lastTradeId: 0, lastPrice: 0 });
+        });
     }
+
     window.updateWidgetTicker = function(id, input, e) {
         if(e.key === 'Enter') {
             const w = state.widgets.find(x => x.id === id);
-            if(w) { w.ticker = input.value.toUpperCase(); w.lastTradeId = 0; document.getElementById(`widget-list-${id}`).innerHTML = ''; input.blur(); }
+            if(w) { 
+                w.ticker = input.value.toUpperCase(); w.lastTradeId = 0; 
+                document.getElementById(`widget-list-${id}`).innerHTML = '';
+                
+                syncLinkedWidgets(w.linkGroup, w.ticker);
+                
+                state.widgetsConfig[id].ticker = w.ticker;
+                saveState();
+                input.blur();
+            }
         }
     }
 
-    // --- DATA LOADERS ---
+    // --- LINKING MECHANISM ---
+    function getLinkClass(group) {
+        if(group === 'A') return 'link-blue';
+        if(group === 'B') return 'link-orange';
+        return '';
+    }
+
+    window.cycleLink = function(type, id) {
+        // Cycle: null -> A -> B -> null
+        let configArr = (type === 'chart') ? state.chartsConfig : state.widgetsConfig;
+        let runtimeArr = (type === 'chart') ? state.charts : state.widgets;
+        
+        let item = configArr[id];
+        let runItem = runtimeArr.find(x => x.id === id);
+        
+        if(!item.linkGroup) item.linkGroup = 'A';
+        else if(item.linkGroup === 'A') item.linkGroup = 'B';
+        else item.linkGroup = null;
+        
+        // Sync runtime object
+        if(runItem) runItem.linkGroup = item.linkGroup;
+        
+        saveState();
+        
+        // Re-render to show color change (Full re-render is easiest safe way)
+        if(type === 'chart') renderChartLayout();
+        else renderSidebarLayout();
+    }
+
+    function syncLinkedWidgets(group, newTicker) {
+        if(!group) return;
+        
+        // Sync Charts
+        state.charts.forEach(c => {
+            if(c.linkGroup === group && c.ticker !== newTicker) {
+                c.ticker = newTicker; c.earliestTime = null;
+                state.chartsConfig[c.id].ticker = newTicker;
+                // Update UI
+                document.querySelector(`#chart-slot-${c.id} input`).value = newTicker;
+                document.getElementById(`lg-header-${c.id}`).innerText = newTicker;
+                loadChartData(c);
+            }
+        });
+
+        // Sync Widgets
+        state.widgets.forEach(w => {
+            if(w.linkGroup === group && w.ticker !== newTicker) {
+                w.ticker = newTicker; w.lastTradeId = 0;
+                state.widgetsConfig[w.id].ticker = newTicker;
+                document.getElementById(`widget-list-${w.id}`).innerHTML = '';
+                // Input UI in widget header is tricky to grab by selector without ID on input
+                // Re-rendering sidebar is safest, or traversing DOM
+                const inputs = document.querySelectorAll('#sidebar-area .mini-input');
+                if(inputs[w.id]) inputs[w.id].value = newTicker;
+            }
+        });
+        
+        // Update Global Toolbar if chart 0 changed
+        if(state.chartsConfig[0].linkGroup === group) {
+            document.getElementById('tickerInput').value = newTicker;
+        }
+        
+        saveState();
+    }
+
+    // --- DATA & STATE ---
+    async function saveState() {
+        try {
+            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
+            const tx = db.transaction("Settings", "readwrite"); 
+            const store = tx.objectStore("Settings");
+            
+            // Save complex config objects
+            store.put({ key: "chartsConfig", value: JSON.stringify(state.chartsConfig) });
+            store.put({ key: "widgetsConfig", value: JSON.stringify(state.widgetsConfig) });
+            store.put({ key: "isSidebarOpen", value: state.isSidebarOpen });
+        } catch(e) { }
+    }
+
+    async function loadSavedState() {
+        try {
+            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
+            const tx = db.transaction("Settings", "readonly"); const store = tx.objectStore("Settings");
+            
+            const cReq = store.get("chartsConfig");
+            const wReq = store.get("widgetsConfig");
+            const sReq = store.get("isSidebarOpen");
+            
+            await new Promise(resolve => {
+                let count = 0; const check = () => { count++; if(count===3) resolve(); };
+                cReq.onsuccess = () => { if(cReq.result) state.chartsConfig = JSON.parse(cReq.result.value); check(); };
+                wReq.onsuccess = () => { if(wReq.result) state.widgetsConfig = JSON.parse(wReq.result.value); check(); };
+                sReq.onsuccess = () => { if(sReq.result) state.isSidebarOpen = sReq.result.value; check(); };
+                cReq.onerror = check; wReq.onerror = check; sReq.onerror = check;
+            });
+        } catch(e) { }
+    }
+
+    // --- DATA LOADING (Refactored for multi-instance) ---
     async function loadChartData(c) {
         const keys = await getKeys(); if(!keys) return;
         const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
-        // Use c.ticker and c.timeframe (Independent)
         const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`;
-        
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
-            if(json.bars && json.bars.length > 0) {
+            if(json.bars) {
                 const data = parseBars(json.bars.reverse());
                 c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol);
                 c.chart.timeScale().fitContent();
-                c.earliestTime = data.ohlc[0].time;
                 c.lastPrice = data.ohlc[data.ohlc.length-1].close;
-                
-                // If this is Chart 0, sync the Global Quote Strip
-                if(c.id === 0) updateRealtimeQuotes(c);
+                c.earliestTime = data.ohlc[0].time;
+                if(c.id===0) updateQuoteStrip(c); 
             }
-        } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); }
+        } catch(e) {}
     }
 
     async function loadOlderData(c) {
@@ -318,26 +474,18 @@
         const limit = Math.min(Math.max(visibleBars*2, 500), 10000);
         const endStr = new Date((c.earliestTime - 1) * 1000).toISOString();
         const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`;
-        
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
-            if(json.bars && json.bars.length > 0) {
+            if(json.bars) {
                 const data = parseBars(json.bars.reverse());
-                // Prepend logic handled by library? No, manual array merge needed for lightweight charts
-                // Actually Lightweight Charts supports multiple setData calls? No.
-                // We need to maintain master data array per chart if we want smooth infinite scroll.
-                // For simplicity in this grid demo, I'll just prepend to current series data:
-                const currentOhlc = c.candleSeries.data();
-                const currentVol = c.volSeries.data();
-                c.candleSeries.setData([...data.ohlc, ...currentOhlc]);
-                c.volSeries.setData([...data.vol, ...currentVol]);
+                c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]);
+                c.volSeries.setData([...data.vol, ...c.volSeries.data()]);
                 c.earliestTime = data.ohlc[0].time;
             }
         } catch(e) {} finally { c.isLoading = false; }
     }
 
-    // --- REALTIME UPDATERS ---
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
         state.charts.forEach(async (c) => {
@@ -346,26 +494,18 @@
                 const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
                 if(!res.ok) return;
                 const json = await res.json();
-                
-                if(c.id === 0) updateQuoteStrip(json); // Sync strip to Chart 0
-
-                const mb = json.minuteBar; const day = json.dailyBar; const t = json.latestTrade;
-                
-                // Logic for specific timeframe updates
+                if(c.id === 0) updateQuoteStrip(json); // Global strip follows Chart 0
+                const mb = json.minuteBar; const t = json.latestTrade; const day = json.dailyBar;
                 if(c.timeframe === '1D' && day) {
-                    const time = snapTime(new Date(day.t).getTime()/1000, '1D');
-                    updateChartBar(c, time, day.o, day.h, day.l, day.c, day.v);
+                    const tm = snapTime(new Date(day.t).getTime()/1000, '1D');
+                    updateChartBar(c, tm, day.o, day.h, day.l, day.c, day.v);
                 } else if(c.timeframe.includes('Min') && mb) {
-                    const time = snapTime(new Date(mb.t).getTime()/1000, c.timeframe);
-                    updateChartBar(c, time, mb.o, mb.h, mb.l, mb.c, mb.v);
+                    const tm = snapTime(new Date(mb.t).getTime()/1000, c.timeframe);
+                    updateChartBar(c, tm, mb.o, mb.h, mb.l, mb.c, mb.v);
                 } else if(c.timeframe === '1H' && t) {
-                    // Hourly manual patch
-                    const currentData = c.candleSeries.data();
-                    if(currentData.length > 0) {
-                        const lastBar = currentData[currentData.length - 1];
-                        const newHigh = Math.max(lastBar.high, t.p);
-                        const newLow = Math.min(lastBar.low, t.p);
-                        c.candleSeries.update({ time: lastBar.time, open: lastBar.open, high: newHigh, low: newLow, close: t.p });
+                    const d = c.candleSeries.data(); if(d.length){ 
+                        const l = d[d.length-1]; 
+                        c.candleSeries.update({time:l.time, open:l.open, high:Math.max(l.high,t.p), low:Math.min(l.low,t.p), close:t.p});
                     }
                 }
             } catch(e) {}
@@ -387,7 +527,7 @@
                     w.lastTradeId = newTrades[0].i;
                     let html = '';
                     for(let t of newTrades) {
-                        const color = t.p >= w.lastPrice ? 't-up' : 't-down';
+                        const color = t.p > w.lastPrice ? 't-up' : (t.p < w.lastPrice ? 't-down' : 'tape-time');
                         w.lastPrice = t.p;
                         const bg = t.s >= 100 ? 't-large' : '';
                         const time = new Date(t.t).toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -400,38 +540,30 @@
         });
     }
 
-    // --- HELPERS ---
-    function updateChartBar(c, time, o, h, l, cl, v) {
-        c.candleSeries.update({ time, open: o, high: h, low: l, close: cl });
-        c.volSeries.update({ time, value: v, color: (cl>=o ? '#26a69a':'#ef5350') });
-    }
-    
-    function updateQuoteStrip(json) {
-        const q = json.latestQuote; const t = json.latestTrade; const d = json.dailyBar;
+    // --- BOILERPLATE HELPERS ---
+    function updateChartBar(c, time, o, h, l, cl, v) { c.candleSeries.update({ time, open: o, high: h, low: l, close: cl }); c.volSeries.update({ time, value: v, color: (cl>=o ? '#26a69a':'#ef5350') }); }
+    function updateQuoteStrip(jsonOrChart) {
+        // If passed from loadChart, fetch snapshot first
+        if(jsonOrChart.ticker) return; 
+        const q = jsonOrChart.latestQuote; const t = jsonOrChart.latestTrade; const d = jsonOrChart.dailyBar;
         if(q) { document.getElementById('q-bid').innerText = `${q.bp}x${q.bs}`; document.getElementById('q-ask').innerText = `${q.ap}x${q.as}`; }
-        if(t) { 
-            const el = document.getElementById('q-last'); el.innerText = t.p; 
-            el.className = 'q-val ' + (t.p >= state.lastQuotePrice ? 'color-up' : 'color-down'); 
-            state.lastQuotePrice = t.p;
-        }
+        if(t) { const el = document.getElementById('q-last'); el.innerText = t.p; el.className = 'q-val ' + (t.p >= state.lastPrice ? 'color-up' : 'color-down'); state.lastPrice = t.p; }
         if(d) document.getElementById('q-vol').innerText = formatNum(d.v);
     }
-
     function updateSidebarVisibility() {
         const p = document.getElementById('sidebar-area'); const b = document.getElementById('tapeToggle');
-        if(state.isSidebarOpen) { p.classList.remove('collapsed'); b.classList.add('active'); } 
-        else { p.classList.add('collapsed'); b.classList.remove('active'); }
+        if(state.isSidebarOpen) { p.classList.remove('collapsed'); b.classList.add('active'); } else { p.classList.add('collapsed'); b.classList.remove('active'); }
         setTimeout(() => { state.charts.forEach(c => c.chart.applyOptions({ width: document.getElementById(`chart-slot-${c.id}`).clientWidth })); }, 300);
     }
-    document.getElementById('tapeToggle').addEventListener('click', () => { state.isSidebarOpen = !state.isSidebarOpen; updateSidebarVisibility(); });
+    document.getElementById('tapeToggle').addEventListener('click', () => { state.isSidebarOpen = !state.isSidebarOpen; updateSidebarVisibility(); saveState(); });
 
-    // --- STANDARD FUNCTIONS ---
+    // Standard Utils (Keys, Parse, Snap, Tape) - same as before
     function snapTime(t,tf) { if(tf==='1Min') return Math.floor(t/60)*60; if(tf==='5Min') return Math.floor(t/300)*300; if(tf==='15Min') return Math.floor(t/900)*900; if(tf==='1H') return Math.floor(t/3600)*3600; return t; }
     function parseBars(bars) { const o=[], v=[]; bars.forEach(b=>{ const t=new Date(b.t).getTime()/1000; o.push({time:t,open:b.o,high:b.h,low:b.l,close:b.c}); v.push({time:t,value:b.v,color:(b.c>=b.o?'#26a69a':'#ef5350')}); }); return {ohlc:o,vol:v}; }
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
     
-    // --- TAPE & SCREENER REUSE ---
-    // (Reuse logic from previous: refreshPortfolioTape, refreshScreenerTape, etc.)
+    // Reuse Ticker Tape logic from previous step (refreshPortfolioTape, refreshScreenerTape, etc.)
+    // Assuming shared.js or copy-paste of tape functions.
     async function refreshPortfolioTape() { const keys=await getKeys(); if(!keys)return; try{ const db=await new Promise((r,j)=>{const req=indexedDB.open("ProfitLadderDB",3);req.onsuccess=e=>r(e.target.result);req.onerror=j;}); const tx=db.transaction("Positions","readonly"); const pos=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);}); const tickers=pos.map(p=>p.tickerSymbol); if(tickers.length>0){ const res=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`,{headers:{"APCA-API-KEY-ID":keys.k,"APCA-API-SECRET-KEY":keys.s}}); if(res.ok){ const json=await res.json(); const items=Object.entries(json).map(([s,d])=>parseSnapshot(d,s)); state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",items); renderTape(); } } }catch(e){} }
     async function refreshScreenerTape() { const keys=await getKeys(); if(!keys)return; fetchScreener(keys,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();}); fetchScreener(keys,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();}); fetchActives(keys,'volume','activeVol',"ACTIVE (VOL)"); fetchActives(keys,'trades','activeTrd',"ACTIVE (TRD)"); if(!state.tapeData.activeVol) fetchFallbackIndices(keys); }
     async function fetchScreener(k,e,kn,t){ try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}}); if(!r.ok)return ''; const j=await r.json(); const i=(j[kn]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change})); return generateSectionHTML(t,i); }catch(e){return '';} }
@@ -440,9 +572,15 @@
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=(d.prevDailyBar)?d.prevDailyBar.c:p; return {symbol:s,price:p,pct:((p-pr)/pr)*100}; }
     function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
-    window.changeTicker = function(sym) { if(state.charts[0]){ state.charts[0].ticker=sym; document.querySelector('#chart-slot-0 .mini-input').value=sym; loadChartData(state.charts[0]); } };
+    // Global Ticker Change (updates Chart 0)
+    window.changeTicker = function(sym) { 
+        document.getElementById('tickerInput').value = sym; 
+        const c0 = state.charts[0]; if(c0) { c0.ticker = sym; state.chartsConfig[0].ticker = sym; document.querySelector('#chart-slot-0 input').value=sym; loadChartData(c0); saveState(); }
+    };
 
+    // Events
     document.addEventListener('DOMContentLoaded', init);
+    document.getElementById('tickerInput').addEventListener('keydown', e => { if(e.key==='Enter'){ changeTicker(e.target.value.toUpperCase()); e.target.blur(); } });
     document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
     document.getElementById('refreshBtn').addEventListener('click', () => state.charts.forEach(c=>loadChartData(c)));
     document.getElementById('settingsBtn').addEventListener('click', () => alert("Manage keys in Portfolio Settings"));
