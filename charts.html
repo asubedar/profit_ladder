@@ -20,15 +20,10 @@
         .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
         .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
         .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
-        .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
         .interval-btn.active { color: #fff; background-color: var(--accent-color); }
 
         /* TICKER TAPE */
-        .ticker-container {
-            flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center;
-            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-        }
+        .ticker-container { flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 14px; cursor: pointer; }
         .ticker-item:hover { opacity: 0.8; }
@@ -41,51 +36,38 @@
         .quote-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px; flex-shrink: 0; }
         .q-item { display: flex; gap: 5px; } .q-label { color: #787b86; } .q-val { color: #d1d4dc; font-weight: bold; }
 
-        /* WORKSPACE */
+        /* WORKSPACE & CHART */
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; }
         
-        /* CHART */
-        #chart-container { flex-grow: 1; position: relative; height: 100%; transition: width 0.2s; }
+        /* CRITICAL FIX: min-width: 0 allows flex item to shrink below content size */
+        #chart-container { flex-grow: 1; position: relative; height: 100%; min-width: 0; }
+        
         .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
         #history-loader { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); background: rgba(41, 98, 255, 0.9); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 30; display: none; }
 
-        /* TIME & SALES PANEL (Updated CSS) */
+        /* TIME & SALES PANEL */
         .tape-panel {
-            width: 260px; 
-            min-width: 260px; /* Ensure it doesn't get squashed */
-            background-color: #131722; 
+            width: 260px; min-width: 260px; background-color: #131722; 
             border-left: 1px solid var(--border-color);
             display: flex; flex-direction: column; flex-shrink: 0;
-            transition: all 0.25s ease-in-out; /* Smooth width transition */
-            overflow: hidden; /* Hide content when width is 0 */
+            transition: all 0.2s ease-out; /* Smooth snap */
+            overflow: hidden;
         }
         
-        /* When Collapsed: Width becomes 0 */
+        /* FIX: Remove border and padding when collapsed to effectively disappear */
         .tape-panel.collapsed { 
-            width: 0 !important; 
-            min-width: 0 !important; 
-            border-left: none;
+            width: 0 !important; min-width: 0 !important; 
+            border: none !important; padding: 0 !important;
         }
         
-        .tape-header {
-            height: 30px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
-            display: flex; align-items: center; padding: 0 10px; gap: 10px;
-            white-space: nowrap; /* Prevent text wrap during transition */
-        }
-        .tape-input {
-            background: #2a2e39; border: 1px solid #444; color: #d1d4dc; 
-            font-size: 11px; padding: 2px 5px; width: 60px; text-transform: uppercase; font-weight: bold;
-            border-radius: 3px;
-        }
+        .tape-header { height: 30px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; white-space: nowrap; }
+        .tape-input { background: #2a2e39; border: 1px solid #444; color: #d1d4dc; font-size: 11px; padding: 2px 5px; width: 60px; text-transform: uppercase; font-weight: bold; border-radius: 3px; }
         .tape-input:focus { border-color: var(--accent-color); outline: none; }
-
         .tape-list { flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 10px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
-        .tape-time { color: #787b86; }
-        .tape-price { font-weight: bold; text-align: right; }
-        .tape-size { text-align: right; color: #d1d4dc; }
+        .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
 
         /* UTILS */
@@ -198,17 +180,19 @@
         state.chart.priceScale('volume_scale').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         state.series.candle = state.chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
-        new ResizeObserver(e => { if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(el);
+        // Resize Observer handles Chart resizing automatically
+        new ResizeObserver(e => { 
+            if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
+        }).observe(el);
+
         state.chart.subscribeCrosshairMove(updateLegend);
         state.chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
 
         log("Chart initialized.");
         await loadSavedState();
-        state.tapeTicker = state.ticker; 
-        document.getElementById('tapeInput').value = state.tapeTicker;
+        state.tapeTicker = state.ticker; document.getElementById('tapeInput').value = state.tapeTicker;
 
-        await loadInitialData(); 
-        refreshPortfolioTape(); refreshScreenerTape();
+        await loadInitialData(); refreshPortfolioTape(); refreshScreenerTape();
         
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         if (state.screenerInterval) clearInterval(state.screenerInterval);
@@ -218,24 +202,20 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateTimeAndSales, 1000);
         
+        // Init Toggle
         updateTapeVisibility();
     }
 
-    // --- TAPE UI LOGIC ---
+    // --- TAPE TOGGLE ---
     function toggleTape() {
         state.isTapeOpen = !state.isTapeOpen;
         updateTapeVisibility();
-        
-        // Restart polling immediately if opened
-        if(state.isTapeOpen) {
-            updateTimeAndSales();
-        }
+        if(state.isTapeOpen) updateTimeAndSales();
     }
 
     function updateTapeVisibility() {
         const panel = document.getElementById('tapePanel');
         const btn = document.getElementById('tapeToggle');
-        
         if (state.isTapeOpen) {
             panel.classList.remove('collapsed');
             btn.classList.add('active');
@@ -243,17 +223,12 @@
             panel.classList.add('collapsed');
             btn.classList.remove('active');
         }
-        // Force Chart Resize after transition
-        setTimeout(() => {
-            const container = document.getElementById('chart-container');
-            state.chart.applyOptions({ width: container.clientWidth });
-        }, 300); // Wait for CSS transition (0.25s)
+        // No manual resize needed - ResizeObserver on #chart-container handles it
     }
 
     async function updateTimeAndSales() {
-        if (!state.isTapeOpen) return; // Save bandwidth
+        if (!state.isTapeOpen) return; 
         const keys = await getKeys(); if (!keys) return;
-        
         const url = `https://data.alpaca.markets/v2/stocks/${state.tapeTicker}/trades?limit=50&sort=desc&feed=sip`; 
         try {
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
@@ -284,7 +259,7 @@
         } catch(e) { }
     }
 
-    // --- DATA & CHARTING ---
+    // ... (Rest of logic identical to previous working version) ...
     async function refreshPortfolioTape() { const keys = await getKeys(); if(!keys) return; try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e=>r(e.target.result); req.onerror = j; }); const tx = db.transaction("Positions", "readonly"); const positions = await new Promise(r => { tx.objectStore("Positions").getAll().onsuccess = e => r(e.target.result); }); const tickers = positions.map(p => p.tickerSymbol); if (tickers.length > 0) { const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(res.ok) { const json = await res.json(); const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym)); state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", items); renderTape(); } } else { state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>'; renderTape(); } } catch(e) { } }
     async function refreshScreenerTape() { const keys = await getKeys(); if(!keys) return; fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); }); fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); }); fetchActives(keys, 'volume', 'activeVol', "MOST ACTIVE (VOL)"); fetchActives(keys, 'trades', 'activeTrd', "MOST ACTIVE (TRDS)"); if (!state.tapeData.activeVol && !state.tapeData.gainers) fetchFallbackIndices(keys); }
     async function fetchScreener(keys, endpoint, keyName, title) { try { const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(!res.ok) return ''; const json = await res.json(); const items = (json[keyName] || []).map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change })); return generateSectionHTML(title, items); } catch(e) { return ''; } }
@@ -293,16 +268,7 @@
     function renderTape() { const track = document.getElementById('tickerTrack'); let fullHtml = [ state.tapeData.portfolio, state.tapeData.gainers, state.tapeData.losers, state.tapeData.activeVol, state.tapeData.activeTrd, state.tapeData.fallback ].join(''); if (fullHtml.trim().length === 0) fullHtml = '<span style="color:#666; font-size:11px;">Loading Data...</span>'; track.innerHTML = fullHtml + fullHtml; }
     function parseSnapshot(data, symbol) { if(!data || !data.latestTrade) return null; const price = data.latestTrade.p; const prev = (data.prevDailyBar) ? data.prevDailyBar.c : price; return { symbol: symbol, price: price, pct: ((price - prev) / prev) * 100 }; }
     function generateSectionHTML(title, items) { if (!items || items.length === 0) return ''; let html = `<div class="ticker-section"><span class="section-label">${title}</span>`; items.forEach(item => { if(!item) return; const colorClass = item.pct >= 0 ? 'color-up' : 'color-down'; const icon = item.pct >= 0 ? '▲' : '▼'; html += `<div class="ticker-item" onclick="changeTicker('${item.symbol}')"><span class="t-sym">${item.symbol}</span><span class="t-price">${item.price.toFixed(2)}</span><span class="t-chg ${colorClass}">${icon} ${Math.abs(item.pct).toFixed(2)}%</span></div>`; }); return html + `</div>`; }
-    
-    window.changeTicker = function(sym) { 
-        document.getElementById('tickerInput').value = sym; 
-        state.ticker = sym; 
-        state.tapeTicker = sym; 
-        document.getElementById('tapeInput').value = sym;
-        document.getElementById('tapeList').innerHTML = ''; state.lastTradeId = 0;
-        saveState(); loadInitialData(); 
-    };
-
+    window.changeTicker = function(sym) { document.getElementById('tickerInput').value = sym; state.ticker = sym; state.tapeTicker = sym; document.getElementById('tapeInput').value = sym; document.getElementById('tapeList').innerHTML = ''; state.lastTradeId = 0; saveState(); loadInitialData(); };
     function onVisibleLogicalRangeChanged(newVisibleLogicalRange) { if (!newVisibleLogicalRange) return; if (newVisibleLogicalRange.from < 10 && !state.isLoadingHistory && !state.noMoreHistory) loadOlderData(); }
     async function loadOlderData() { if (!state.earliestTime) return; state.isLoadingHistory = true; document.getElementById('history-loader').style.display = 'block'; const keys = await getKeys(); const logicalRange = state.chart.timeScale().getVisibleLogicalRange(); const visibleBars = logicalRange ? Math.ceil(logicalRange.to - logicalRange.from) : 100; const dynamicLimit = Math.min(Math.max(visibleBars * 2, 500), 10000); const endStr = new Date((state.earliestTime - 1) * 1000).toISOString(); const startStr = "2015-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${startStr}&end=${endStr}&limit=${dynamicLimit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if (json.bars && json.bars.length > 0) { const reversedBars = json.bars.reverse(); const oldBars = parseBars(reversedBars); state.masterData = [...oldBars.ohlc, ...state.masterData]; const newVolData = [...oldBars.vol, ...state.series.volume.data()]; state.series.candle.setData(state.masterData); state.series.volume.setData(newVolData); state.earliestTime = oldBars.ohlc[0].time; log(`Stitched ${json.bars.length} older bars.`); } else { state.noMoreHistory = true; } } catch(e) { log(e.message, 'error'); } finally { state.isLoadingHistory = false; document.getElementById('history-loader').style.display = 'none'; } }
     async function loadInitialData() { state.masterData = []; state.earliestTime = null; state.noMoreHistory = false; const keys = await getKeys(); if (!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${state.ticker}/bars?timeframe=${state.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if (json.bars && json.bars.length > 0) { const reversedBars = json.bars.reverse(); const data = parseBars(reversedBars); state.masterData = data.ohlc; state.earliestTime = state.masterData[0].time; state.series.candle.setData(data.ohlc); state.series.volume.setData(data.vol); state.chart.timeScale().fitContent(); document.getElementById('lg-header').innerText = `${state.ticker} · ${state.timeframe}`; if (data.ohlc.length > 0) state.lastPrice = data.ohlc[data.ohlc.length-1].close; updateRealtime(); } } catch (e) { log(e.message, 'error'); } }
