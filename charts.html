@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Collapsible Tape)</title>
+    <title>Pro Charting (Compact)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -16,10 +16,19 @@
         /* TOOLBAR */
         .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
-        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; }
+        
+        /* COMPACT INPUTS */
+        .symbol-search input { 
+            background-color: #2a2e39; border: 1px solid #2a2e39; color: white; 
+            padding: 4px 6px; border-radius: 4px; text-transform: uppercase; 
+            font-weight: bold; width: 55px; /* NARROWER */
+            transition: 0.2s; text-align: center;
+        }
         .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
+        
         .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
         .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
+        .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
         .interval-btn.active { color: #fff; background-color: var(--accent-color); }
 
         /* TICKER TAPE */
@@ -36,12 +45,9 @@
         .quote-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 15px; gap: 20px; font-family: 'Monaco', monospace; font-size: 12px; flex-shrink: 0; }
         .q-item { display: flex; gap: 5px; } .q-label { color: #787b86; } .q-val { color: #d1d4dc; font-weight: bold; }
 
-        /* WORKSPACE & CHART */
+        /* WORKSPACE */
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; }
-        
-        /* CRITICAL FIX: min-width: 0 allows flex item to shrink below content size */
         #chart-container { flex-grow: 1; position: relative; height: 100%; min-width: 0; }
-        
         .chart-legend { position: absolute; top: 10px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
         #history-loader { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); background: rgba(41, 98, 255, 0.9); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 30; display: none; }
@@ -51,26 +57,26 @@
             width: 260px; min-width: 260px; background-color: #131722; 
             border-left: 1px solid var(--border-color);
             display: flex; flex-direction: column; flex-shrink: 0;
-            transition: all 0.2s ease-out; /* Smooth snap */
-            overflow: hidden;
+            transition: all 0.2s ease-out; overflow: hidden;
         }
-        
-        /* FIX: Remove border and padding when collapsed to effectively disappear */
-        .tape-panel.collapsed { 
-            width: 0 !important; min-width: 0 !important; 
-            border: none !important; padding: 0 !important;
-        }
+        .tape-panel.collapsed { width: 0 !important; min-width: 0 !important; border: none !important; padding: 0 !important; }
         
         .tape-header { height: 30px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; white-space: nowrap; }
-        .tape-input { background: #2a2e39; border: 1px solid #444; color: #d1d4dc; font-size: 11px; padding: 2px 5px; width: 60px; text-transform: uppercase; font-weight: bold; border-radius: 3px; }
+        
+        /* COMPACT TAPE INPUT */
+        .tape-input { 
+            background: #2a2e39; border: 1px solid #444; color: #d1d4dc; 
+            font-size: 11px; padding: 2px 5px; width: 55px; /* NARROWER */
+            text-transform: uppercase; font-weight: bold; border-radius: 3px; text-align: center;
+        }
         .tape-input:focus { border-color: var(--accent-color); outline: none; }
+
         .tape-list { flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 10px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
 
-        /* UTILS */
         .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
         #screen-logger { position: absolute; right: 270px; top: 70px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
@@ -123,7 +129,6 @@
 
         <div class="tape-panel" id="tapePanel">
             <div class="tape-header">
-                <span style="font-weight:bold; color:#d1d4dc;">TAPE</span>
                 <input type="text" id="tapeInput" class="tape-input" value="AAPL">
             </div>
             <div class="tape-header" style="background: #131722; font-size:10px;">
@@ -180,11 +185,7 @@
         state.chart.priceScale('volume_scale').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         state.series.candle = state.chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
-        // Resize Observer handles Chart resizing automatically
-        new ResizeObserver(e => { 
-            if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
-        }).observe(el);
-
+        new ResizeObserver(e => { if (e.length && e[0].contentRect) state.chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(el);
         state.chart.subscribeCrosshairMove(updateLegend);
         state.chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
 
@@ -202,11 +203,9 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateTimeAndSales, 1000);
         
-        // Init Toggle
         updateTapeVisibility();
     }
 
-    // --- TAPE TOGGLE ---
     function toggleTape() {
         state.isTapeOpen = !state.isTapeOpen;
         updateTapeVisibility();
@@ -223,7 +222,10 @@
             panel.classList.add('collapsed');
             btn.classList.remove('active');
         }
-        // No manual resize needed - ResizeObserver on #chart-container handles it
+        setTimeout(() => {
+            const container = document.getElementById('chart-container');
+            state.chart.applyOptions({ width: container.clientWidth });
+        }, 300); 
     }
 
     async function updateTimeAndSales() {
@@ -259,7 +261,6 @@
         } catch(e) { }
     }
 
-    // ... (Rest of logic identical to previous working version) ...
     async function refreshPortfolioTape() { const keys = await getKeys(); if(!keys) return; try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e=>r(e.target.result); req.onerror = j; }); const tx = db.transaction("Positions", "readonly"); const positions = await new Promise(r => { tx.objectStore("Positions").getAll().onsuccess = e => r(e.target.result); }); const tickers = positions.map(p => p.tickerSymbol); if (tickers.length > 0) { const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers.join(',')}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(res.ok) { const json = await res.json(); const items = Object.entries(json).map(([sym, d]) => parseSnapshot(d, sym)); state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", items); renderTape(); } } else { state.tapeData.portfolio = '<span class="section-label" style="border-color:#444; color:#666;">PORTFOLIO EMPTY</span>'; renderTape(); } } catch(e) { } }
     async function refreshScreenerTape() { const keys = await getKeys(); if(!keys) return; fetchScreener(keys, 'movers?top=10', 'gainers', "TOP GAINERS").then(html => { state.tapeData.gainers = html; renderTape(); }); fetchScreener(keys, 'movers?top=10', 'losers', "TOP LOSERS").then(html => { state.tapeData.losers = html; renderTape(); }); fetchActives(keys, 'volume', 'activeVol', "MOST ACTIVE (VOL)"); fetchActives(keys, 'trades', 'activeTrd', "MOST ACTIVE (TRDS)"); if (!state.tapeData.activeVol && !state.tapeData.gainers) fetchFallbackIndices(keys); }
     async function fetchScreener(keys, endpoint, keyName, title) { try { const res = await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${endpoint}`, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); if(!res.ok) return ''; const json = await res.json(); const items = (json[keyName] || []).map(item => ({ symbol: item.symbol, price: item.price, pct: item.percent_change })); return generateSectionHTML(title, items); } catch(e) { return ''; } }
