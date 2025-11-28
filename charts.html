@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Independent Headers)</title>
+    <title>Pro Charting (L1 Layout)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #131722; --panel-color: #1e222d; --border-color: #2a2e39;
@@ -16,7 +17,13 @@
         /* TOOLBAR */
         .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
-        
+        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; text-align: center; }
+        .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
+        .intervals { display: flex; background: #131722; border-radius: 4px; padding: 2px; gap: 1px; flex-shrink: 0; }
+        .interval-btn { background: none; border: none; color: #787b86; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
+        .interval-btn:hover { color: var(--text-color); background-color: #2a2e39; }
+        .interval-btn.active { color: #fff; background-color: var(--accent-color); }
+
         /* SCROLLING TAPE */
         .ticker-container { flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
@@ -35,35 +42,54 @@
         
         /* CHART CONTROLS (Top Left) */
         .chart-controls { position: absolute; top: 6px; left: 6px; z-index: 25; display: flex; gap: 5px; align-items: center; }
-        .mini-input { background: rgba(30, 34, 45, 0.9); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 4px 5px; font-weight: bold; text-align: center; }
+        .mini-input { background: rgba(30, 34, 45, 0.9); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 4px 5px; font-weight: bold; text-align: center; height: 26px; box-sizing: border-box; }
         
-        /* CHART QUOTES (Top Right - NEW) */
-        .chart-quotes { 
-            position: absolute; top: 6px; right: 60px; z-index: 25; 
-            display: flex; gap: 12px; align-items: center; 
-            font-family: 'Monaco', monospace; font-size: 11px;
-            background: rgba(30, 34, 45, 0.6); padding: 2px 8px; border-radius: 4px;
+        /* NEW: LEVEL 1 QUOTE BOX (Top Right) */
+        .l1-container {
+            position: absolute; top: 5px; right: 60px; z-index: 25;
+            display: flex; align-items: center; gap: 4px;
+            font-family: 'Roboto', sans-serif;
         }
-        .q-label { color: #787b86; margin-right: 3px; }
-        .q-val { color: #d1d4dc; font-weight: bold; }
+
+        /* The Red/Blue Buttons */
+        .l1-btn {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 65px; height: 28px; border-radius: 4px; color: white; cursor: default;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .l1-bid { background: #ef5350; border: 1px solid #b71c1c; } /* Red */
+        .l1-ask { background: #2962ff; border: 1px solid #0d47a1; } /* Blue */
+        
+        /* The Center Price */
+        .l1-center {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-width: 70px; height: 28px;
+        }
+        
+        /* Text Styles inside L1 */
+        .l1-price { font-size: 12px; font-weight: bold; line-height: 1; }
+        .l1-size { font-size: 9px; font-weight: normal; opacity: 0.9; line-height: 1; margin-top: 1px; }
+        
+        .last-price { font-size: 15px; font-weight: bold; color: #d1d4dc; line-height: 1; }
+        .day-vol { font-size: 9px; color: #787b86; margin-top: 2px; font-family: 'Monaco', monospace; }
 
         /* LEGEND (Below Controls) */
-        .chart-legend { position: absolute; top: 35px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
+        .chart-legend { position: absolute; top: 38px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 15px; margin-bottom: 2px; }
 
         /* TIMEFRAME MORPH BUTTON */
-        .tf-morph-container { display: flex; align-items: center; background: rgba(30, 34, 45, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; }
-        .tf-single { padding: 0 8px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 22px; min-width: 30px; text-align: center; display: block; }
+        .tf-morph-container { display: flex; align-items: center; background: rgba(30, 34, 45, 0.9); border: 1px solid #444; border-radius: 3px; height: 26px; overflow: hidden; transition: all 0.2s ease-out; }
+        .tf-single { padding: 0 8px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 24px; min-width: 30px; text-align: center; display: block; }
         .tf-options-row { display: none; flex-direction: row; }
         .tf-morph-container.expanded .tf-single { display: none; }
         .tf-morph-container.expanded .tf-options-row { display: flex; }
-        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; }
+        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 24px; font-weight: bold; }
         .tf-btn:last-child { border-right: none; }
         .tf-btn:hover { background: #2962ff; color: white; }
         .tf-btn.active { background: #2962ff; color: white; }
 
         /* LINK BUTTONS */
-        .link-btn { width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(30, 34, 45, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
+        .link-btn { width: 26px; height: 26px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
         .link-btn:hover { opacity: 0.8; }
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
@@ -128,15 +154,12 @@
 <div class="app-container">
     <div class="toolbar">
         <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
-        
         <div class="left-controls">
             <button class="icon-btn" id="leftToggle" title="Left Sidebar"><span class="ui-icon ui-icon-left"></span></button>
         </div>
-        
         <div class="ticker-container" id="tickerContainer">
             <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading Market Data...</span></div>
         </div>
-        
         <div class="right-controls">
             <button class="icon-btn active" id="rightToggle" title="Right Sidebar"><span class="ui-icon ui-icon-right"></span></button>
             <div class="dropdown" id="layoutDropdown">
@@ -166,9 +189,7 @@
 
     <div class="workspace">
         <div id="left-sidebar-area" class="collapsed"></div>
-        
         <div id="main-area"></div>
-        
         <div id="sidebar-area"></div>
     </div>
 
@@ -202,25 +223,18 @@
         chartsConfig: [{ id: 0, ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
         leftWidgetsConfig: [], 
         rightWidgetsConfig: [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }],
-        
         charts: [], widgets: [], 
         refreshInterval: null, screenerInterval: null, tapeInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
-        lastQuotePrice: 0
     };
 
     async function init() {
-        log("Initializing Workspace...");
+        log("Initializing...");
         await loadSavedState();
-
-        renderChartLayout();
-        renderSidebars();
-        updateSidebarVisibility();
-
+        renderChartLayout(); renderSidebars(); updateSidebarVisibility();
         refreshPortfolioTape(); refreshScreenerTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
-        
         state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateAllWidgets, 1000);
@@ -232,45 +246,13 @@
         });
     }
 
-    // --- SMART TOGGLES ---
-    function toggleSidebar(side) {
-        if(side === 'left') {
-            if(!state.isLeftOpen && state.leftWidgetsConfig.length === 0) setLeftSidebarLayout(1);
-            else state.isLeftOpen = !state.isLeftOpen;
-        } else {
-            if(!state.isRightOpen && state.rightWidgetsConfig.length === 0) setRightSidebarLayout(1);
-            else state.isRightOpen = !state.isRightOpen;
-        }
-        updateSidebarVisibility();
-        saveState();
-    }
-
-    function updateSidebarVisibility() {
-        const left = document.getElementById('left-sidebar-area');
-        const right = document.getElementById('sidebar-area');
-        const btnL = document.getElementById('leftToggle');
-        const btnR = document.getElementById('rightToggle');
-
-        if(state.isLeftOpen) { left.classList.remove('collapsed'); btnL.classList.add('active'); } 
-        else { left.classList.add('collapsed'); btnL.classList.remove('active'); }
-
-        if(state.isRightOpen) { right.classList.remove('collapsed'); btnR.classList.add('active'); } 
-        else { right.classList.add('collapsed'); btnR.classList.remove('active'); }
-
-        setTimeout(() => { state.charts.forEach(c => c.chart.applyOptions({ width: document.getElementById(`chart-slot-${c.id}`).clientWidth })); }, 300);
-    }
-    
-    document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
-    document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
-
-    // --- CHART LAYOUT ENGINE ---
+    // --- CHARTS ---
     window.setChartLayout = function(count) {
         const current = state.chartsConfig;
         if(count > current.length) { for(let i=current.length; i<count; i++) current.push({ id: i, ticker: current[0].ticker, timeframe: '5Min', linkGroup: null }); }
         else { state.chartsConfig = current.slice(0, count); }
         saveState(); renderChartLayout();
     }
-
     function renderChartLayout() {
         const container = document.getElementById('main-area'); container.innerHTML = ''; state.charts = [];
         state.chartsConfig.forEach(cfg => {
@@ -279,12 +261,12 @@
             createChartInstance(div, cfg);
         });
     }
-
     async function createChartInstance(container, cfg) {
         const { id, ticker, timeframe, linkGroup } = cfg;
         const linkClass = getLinkClass(linkGroup);
         const mapTF = { '1Min':'1m', '5Min':'5m', '15Min':'15m', '1H':'1H', '1D':'D' };
         
+        // --- NEW HEADER (L1 BUTTONS) ---
         container.innerHTML = `
             <div class="chart-controls">
                 <div class="link-btn ${linkClass}" onclick="cycleLink('chart', ${id})" title="Group Link"><i class="fas fa-link"></i></div>
@@ -301,12 +283,22 @@
                     </div>
                 </div>
             </div>
-            <div class="chart-quotes" id="quotes-${id}">
-                <span class="q-val" id="q-last-${id}">0.00</span>
-                <span class="q-label">B:</span><span class="q-val" id="q-bid-${id}">0.00</span>
-                <span class="q-label">A:</span><span class="q-val" id="q-ask-${id}">0.00</span>
-                <span class="q-label">V:</span><span class="q-val" id="q-vol-${id}">0</span>
+
+            <div class="l1-container" id="l1-${id}">
+                <div class="l1-btn l1-bid">
+                    <span class="l1-price" id="q-bid-price-${id}">0.00</span>
+                    <span class="l1-size" id="q-bid-size-${id}">0</span>
+                </div>
+                <div class="l1-center">
+                    <span class="last-price" id="q-last-${id}">0.00</span>
+                    <span class="day-vol" id="q-vol-${id}">0</span>
+                </div>
+                <div class="l1-btn l1-ask">
+                    <span class="l1-price" id="q-ask-price-${id}">0.00</span>
+                    <span class="l1-size" id="q-ask-size-${id}">0</span>
+                </div>
             </div>
+
             <div class="chart-legend" id="legend-${id}">
                 <div class="legend-row" id="lg-ohlc-${id}"></div>
                 <div class="legend-row" id="lg-vol-${id}"></div>
@@ -343,7 +335,7 @@
         await loadChartData(chartObj);
     }
 
-    // --- TIMEFRAME MORPH ---
+    // --- TIMEFRAME & TICKER ---
     window.toggleTfMorph = function(id, e) {
         e.stopPropagation();
         document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded'));
@@ -354,13 +346,10 @@
         e.stopPropagation();
         const c = state.charts.find(x => x.id === id);
         if(c) {
-            c.timeframe = val; c.earliestTime = null; 
-            state.chartsConfig[id].timeframe = val; saveState();
+            c.timeframe = val; c.earliestTime = null; state.chartsConfig[id].timeframe = val; saveState();
             const mapTF = { '1Min':'1m', '5Min':'5m', '15Min':'15m', '1H':'1H', '1D':'D' };
             document.querySelector(`#tf-morph-${id} .tf-single`).innerText = mapTF[val];
             document.getElementById(`tf-morph-${id}`).classList.remove('expanded');
-            const btns = document.querySelectorAll(`#tf-morph-${id} .tf-btn`);
-            btns.forEach(b => { b.classList.remove('active'); if(b.innerText === mapTF[val]) b.classList.add('active'); });
             loadChartData(c);
         }
     };
@@ -376,33 +365,25 @@
         }
     };
 
-    // --- SIDEBAR LAYOUTS ---
+    // --- SIDEBARS & LINKING ---
     window.setLeftSidebarLayout = function(count) { updateSidebarConfig('left', count); }
     window.setRightSidebarLayout = function(count) { updateSidebarConfig('right', count); }
-
     function updateSidebarConfig(side, count) {
         let configArr = (side === 'left') ? state.leftWidgetsConfig : state.rightWidgetsConfig;
-        if (count === 0) {
-            configArr = [];
-            if(side==='left') state.isLeftOpen = false; else state.isRightOpen = false;
-        } else {
-            if(count > configArr.length) {
-                for(let i=configArr.length; i<count; i++) {
-                    configArr.push({ id: `w-${side}-${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null });
-                }
-            } else { configArr = configArr.slice(0, count); }
+        if (count === 0) { configArr = []; if(side==='left') state.isLeftOpen = false; else state.isRightOpen = false; } 
+        else {
+            if(count > configArr.length) { for(let i=configArr.length; i<count; i++) configArr.push({ id: `w-${side}-${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); }
+            else { configArr = configArr.slice(0, count); }
             if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true;
         }
         if(side==='left') state.leftWidgetsConfig = configArr; else state.rightWidgetsConfig = configArr;
         saveState(); renderSidebars(); updateSidebarVisibility();
     }
-
     function renderSidebars() {
         state.widgets = []; 
         renderSidebarContainer('left-sidebar-area', state.leftWidgetsConfig);
         renderSidebarContainer('sidebar-area', state.rightWidgetsConfig);
     }
-
     function renderSidebarContainer(domId, configArr) {
         const container = document.getElementById(domId); container.innerHTML = '';
         configArr.forEach(cfg => {
@@ -423,7 +404,6 @@
             state.widgets.push({ ...cfg, lastTradeId: 0, lastPrice: 0 });
         });
     }
-
     window.updateWidgetTicker = function(id, input, e) {
         if(e.key === 'Enter') {
             const w = state.widgets.find(x => x.id === id);
@@ -437,104 +417,23 @@
             }
         }
     }
-
-    // --- LINKING ---
-    function getLinkClass(group) {
-        if(group === 'A') return 'link-blue'; if(group === 'B') return 'link-orange'; if(group === 'C') return 'link-green'; if(group === 'D') return 'link-purple'; if(group === 'E') return 'link-red'; return '';
-    }
+    function getLinkClass(group) { if(group === 'A') return 'link-blue'; if(group === 'B') return 'link-orange'; if(group === 'C') return 'link-green'; if(group === 'D') return 'link-purple'; if(group === 'E') return 'link-red'; return ''; }
     window.cycleLink = function(type, id) {
         const groups = [null, 'A', 'B', 'C', 'D', 'E'];
         let configArr, item, runItem;
-        if (type === 'chart') {
-            configArr = state.chartsConfig; item = configArr[id]; runItem = state.charts.find(x => x.id === id);
-        } else {
-            item = state.leftWidgetsConfig.find(x => x.id === id) || state.rightWidgetsConfig.find(x => x.id === id);
-            runItem = state.widgets.find(x => x.id === id);
-        }
-        const currentIdx = groups.indexOf(item.linkGroup); const nextGroup = groups[(currentIdx + 1) % groups.length];
-        item.linkGroup = nextGroup; if(runItem) runItem.linkGroup = nextGroup;
+        if (type === 'chart') { configArr = state.chartsConfig; item = configArr[id]; runItem = state.charts.find(x => x.id === id); } 
+        else { item = state.leftWidgetsConfig.find(x => x.id === id) || state.rightWidgetsConfig.find(x => x.id === id); runItem = state.widgets.find(x => x.id === id); }
+        const currentIdx = groups.indexOf(item.linkGroup); item.linkGroup = groups[(currentIdx + 1) % groups.length]; if(runItem) runItem.linkGroup = item.linkGroup;
         saveState(); if(type === 'chart') renderChartLayout(); else renderSidebars();
     }
     function syncLinkedWidgets(group, newTicker) {
         if(!group) return;
-        state.charts.forEach(c => {
-            if(c.linkGroup === group && c.ticker !== newTicker) {
-                c.ticker = newTicker; c.earliestTime = null; state.chartsConfig[c.id].ticker = newTicker;
-                document.querySelector(`#chart-slot-${c.id} input`).value = newTicker; loadChartData(c);
-            }
-        });
-        state.widgets.forEach(w => {
-            if(w.linkGroup === group && w.ticker !== newTicker) {
-                w.ticker = newTicker; w.lastTradeId = 0;
-                let cfg = state.leftWidgetsConfig.find(x => x.id === w.id) || state.rightWidgetsConfig.find(x => x.id === w.id);
-                if(cfg) cfg.ticker = newTicker;
-                document.getElementById(`widget-list-${w.id}`).innerHTML = '';
-                const box = document.getElementById(`widget-list-${w.id}`).parentElement;
-                const inp = box.querySelector('input'); if(inp) inp.value = newTicker;
-            }
-        });
+        state.charts.forEach(c => { if(c.linkGroup === group && c.ticker !== newTicker) { c.ticker = newTicker; c.earliestTime = null; state.chartsConfig[c.id].ticker = newTicker; document.querySelector(`#chart-slot-${c.id} input`).value = newTicker; loadChartData(c); } });
+        state.widgets.forEach(w => { if(w.linkGroup === group && w.ticker !== newTicker) { w.ticker = newTicker; w.lastTradeId = 0; let cfg = state.leftWidgetsConfig.find(x => x.id === w.id) || state.rightWidgetsConfig.find(x => x.id === w.id); if(cfg) cfg.ticker = newTicker; document.getElementById(`widget-list-${w.id}`).innerHTML = ''; renderSidebars(); } });
         saveState();
     }
 
-    // --- STATE ---
-    async function saveState() {
-        try {
-            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
-            const tx = db.transaction("Settings", "readwrite"); const store = tx.objectStore("Settings");
-            store.put({ key: "chartsConfig", value: JSON.stringify(state.chartsConfig) });
-            store.put({ key: "leftWidgetsConfig", value: JSON.stringify(state.leftWidgetsConfig) });
-            store.put({ key: "rightWidgetsConfig", value: JSON.stringify(state.rightWidgetsConfig) });
-            store.put({ key: "isLeftOpen", value: state.isLeftOpen });
-            store.put({ key: "isRightOpen", value: state.isRightOpen });
-        } catch(e) { }
-    }
-    async function loadSavedState() {
-        try {
-            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
-            const tx = db.transaction("Settings", "readonly"); const store = tx.objectStore("Settings");
-            const get = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : null); });
-            const [cc, lwc, rwc, ilo, iro] = await Promise.all([get("chartsConfig"), get("leftWidgetsConfig"), get("rightWidgetsConfig"), get("isLeftOpen"), get("isRightOpen")]);
-            if(cc) state.chartsConfig = JSON.parse(cc);
-            if(lwc) state.leftWidgetsConfig = JSON.parse(lwc);
-            if(rwc) state.rightWidgetsConfig = JSON.parse(rwc);
-            if(ilo !== null) state.isLeftOpen = ilo;
-            if(iro !== null) state.isRightOpen = iro;
-        } catch(e) { }
-    }
-
-    // --- DATA ---
-    async function loadChartData(c) {
-        const keys = await getKeys(); if(!keys) return;
-        const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
-        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`;
-        try {
-            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            const json = await res.json();
-            if(json.bars) {
-                const data = parseBars(json.bars.reverse());
-                c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol);
-                c.chart.timeScale().fitContent();
-                c.lastPrice = data.ohlc[data.ohlc.length-1].close; c.earliestTime = data.ohlc[0].time;
-            }
-        } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); }
-    }
-    async function loadOlderData(c) {
-        if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys();
-        const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from);
-        const limit = Math.min(Math.max(visibleBars*2, 500), 10000);
-        const endStr = new Date((c.earliestTime - 1) * 1000).toISOString();
-        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`;
-        try {
-            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-            const json = await res.json();
-            if(json.bars) {
-                const data = parseBars(json.bars.reverse());
-                c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]);
-                c.volSeries.setData([...data.vol, ...c.volSeries.data()]);
-                c.earliestTime = data.ohlc[0].time;
-            }
-        } catch(e) {} finally { c.isLoading = false; }
-    }
+    // --- REALTIME UPDATES (Fixed for L1) ---
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
         state.charts.forEach(async (c) => {
@@ -544,65 +443,60 @@
                 if(!res.ok) return;
                 const json = await res.json();
                 
-                // UPDATE INDEPENDENT CHART HEADER QUOTES
-                const q = json.latestQuote; const t = json.latestTrade; const day = json.dailyBar; const mb = json.minuteBar;
-                if(t) document.getElementById(`q-last-${c.id}`).innerText = t.p.toFixed(2);
-                if(q) { document.getElementById(`q-bid-${c.id}`).innerText = `${q.bp}x${q.bs}`; document.getElementById(`q-ask-${c.id}`).innerText = `${q.ap}x${q.as}`; }
+                // UPDATE L1 BUTTONS FOR THIS CHART
+                const q = json.latestQuote; const t = json.latestTrade; const day = json.dailyBar;
+                if(q) {
+                    document.getElementById(`q-bid-price-${c.id}`).innerText = q.bp.toFixed(2);
+                    document.getElementById(`q-bid-size-${c.id}`).innerText = q.bs;
+                    document.getElementById(`q-ask-price-${c.id}`).innerText = q.ap.toFixed(2);
+                    document.getElementById(`q-ask-size-${c.id}`).innerText = q.as;
+                }
+                if(t) {
+                    const el = document.getElementById(`q-last-${c.id}`);
+                    el.innerText = t.p.toFixed(2);
+                    el.style.color = (t.p >= c.lastPrice) ? '#26a69a' : '#ef5350';
+                }
                 if(day) document.getElementById(`q-vol-${c.id}`).innerText = formatNum(day.v);
 
-                if(c.timeframe === '1D' && day) {
-                    const tm = snapTime(new Date(day.t).getTime()/1000, '1D'); updateChartBar(c, tm, day.o, day.h, day.l, day.c, day.v);
-                } else if(c.timeframe.includes('Min') && mb) {
-                    const tm = snapTime(new Date(mb.t).getTime()/1000, c.timeframe); updateChartBar(c, tm, mb.o, mb.h, mb.l, mb.c, mb.v);
-                } else if(c.timeframe === '1H' && t) {
+                const mb = json.minuteBar;
+                if(c.timeframe === '1D' && day) { updateChartBar(c, snapTime(new Date(day.t).getTime()/1000, '1D'), day.o, day.h, day.l, day.c, day.v); } 
+                else if(c.timeframe.includes('Min') && mb) { updateChartBar(c, snapTime(new Date(mb.t).getTime()/1000, c.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v); } 
+                else if(c.timeframe === '1H' && t) {
                     const d = c.candleSeries.data(); if(d.length){ const l = d[d.length-1]; c.candleSeries.update({time:l.time, open:l.open, high:Math.max(l.high,t.p), low:Math.min(l.low,t.p), close:t.p}); }
                 }
             } catch(e) {}
         });
     }
-    async function updateAllWidgets() {
-        if(!state.isLeftOpen && !state.isRightOpen) return; const keys = await getKeys(); if(!keys) return;
-        state.widgets.forEach(async (w) => {
-            const url = `https://data.alpaca.markets/v2/stocks/${w.ticker}/trades?limit=50&sort=desc&feed=sip`;
-            try {
-                const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-                const json = await res.json();
-                if(json.trades) {
-                    const list = document.getElementById(`widget-list-${w.id}`);
-                    if(!list) return;
-                    const newTrades = json.trades.filter(t => t.i > w.lastTradeId);
-                    if(newTrades.length === 0) return;
-                    w.lastTradeId = newTrades[0].i;
-                    let html = '';
-                    for(let t of newTrades) {
-                        const color = t.p >= w.lastPrice ? 't-up' : 't-down'; w.lastPrice = t.p;
-                        const bg = t.s >= 100 ? 't-large' : '';
-                        const time = new Date(t.t).toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
-                        html += `<div class="tape-row ${bg}"><span class="tape-time">${time}</span><span class="tape-price ${color}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
-                    }
-                    list.insertAdjacentHTML('afterbegin', html);
-                    while(list.children.length > 50) list.removeChild(list.lastChild);
-                }
-            } catch(e) {}
-        });
-    }
 
-    // --- UTILS ---
-    function updateChartBar(c, time, o, h, l, cl, v) { c.candleSeries.update({ time, open: o, high: h, low: l, close: cl }); c.volSeries.update({ time, value: v, color: (cl>=o ? '#26a69a':'#ef5350') }); }
-    function snapTime(t,tf) { if(tf==='1Min') return Math.floor(t/60)*60; if(tf==='5Min') return Math.floor(t/300)*300; if(tf==='15Min') return Math.floor(t/900)*900; if(tf==='1H') return Math.floor(t/3600)*3600; return t; }
-    function parseBars(bars) { const o=[], v=[]; bars.forEach(b=>{ const t=new Date(b.t).getTime()/1000; o.push({time:t,open:b.o,high:b.h,low:b.l,close:b.c}); v.push({time:t,value:b.v,color:(b.c>=b.o?'#26a69a':'#ef5350')}); }); return {ohlc:o,vol:v}; }
-    async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
-    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
-    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;}); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
+    // --- STANDARD HELPERS ---
+    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'); const r=document.getElementById('sidebar-area'); if(state.isLeftOpen) l.classList.remove('collapsed'); else l.classList.add('collapsed'); if(state.isRightOpen) r.classList.remove('collapsed'); else r.classList.add('collapsed'); setTimeout(() => { state.charts.forEach(c => c.chart.applyOptions({ width: document.getElementById(`chart-slot-${c.id}`).clientWidth })); }, 300); }
+    document.getElementById('leftToggle').addEventListener('click', () => { state.isLeftOpen = !state.isLeftOpen; updateSidebarVisibility(); saveState(); });
+    document.getElementById('rightToggle').addEventListener('click', () => { state.isRightOpen = !state.isRightOpen; updateSidebarVisibility(); saveState(); });
     
+    async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[data.ohlc.length-1].close; c.earliestTime = data.ohlc[0].time; } } catch(e) { } }
+    async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
+    
+    async function updateAllWidgets() { if(!state.isLeftOpen && !state.isRightOpen) return; const keys = await getKeys(); if(!keys) return; state.widgets.forEach(async (w) => { const url = `https://data.alpaca.markets/v2/stocks/${w.ticker}/trades?limit=50&sort=desc&feed=sip`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.trades) { const list = document.getElementById(`widget-list-${w.id}`); if(!list) return; const newTrades = json.trades.filter(t => t.i > w.lastTradeId); if(newTrades.length === 0) return; w.lastTradeId = newTrades[0].i; let html = ''; for(let t of newTrades) { const color = t.p >= w.lastPrice ? 't-up' : 't-down'; w.lastPrice = t.p; const bg = t.s >= 100 ? 't-large' : ''; const time = new Date(t.t).toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'}); html += `<div class="tape-row ${bg}"><span class="tape-time">${time}</span><span class="tape-price ${color}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`; } list.insertAdjacentHTML('afterbegin', html); while(list.children.length > 50) list.removeChild(list.lastChild); } } catch(e) {} }); }
+    
+    // Tape & Screener logic same as before
     async function refreshPortfolioTape(){const k=await getKeys();if(!k)return;try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol);if(t.length){const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",i);renderTape();}}}catch(e){}}
     async function refreshScreenerTape(){const k=await getKeys();if(!k)return;fetchScreener(k,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();});fetchScreener(k,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();});fetchActives(k,'volume','activeVol',"ACTIVE (VOL)");fetchActives(k,'trades','activeTrd',"ACTIVE (TRD)");if(!state.tapeData.activeVol)fetchFallbackIndices(k);}
-    async function fetchScreener(k,e,kn,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return'';const j=await r.json();const i=(j[kn]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change}));return generateSectionHTML(t,i);}catch(e){return'';}}
+    async function fetchScreener(k,e,n,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return'';const j=await r.json();const i=(j[n]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change}));return generateSectionHTML(t,i);}catch(e){return'';}}
     async function fetchActives(k,b,sk,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=${b}&top=10`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return;const j=await r.json();const l=j.most_actives||[];const s=l.map(i=>i.symbol);if(!s.length)return;const sr=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${s.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(sr.ok){const sj=await sr.json();const i=Object.entries(sj).map(([sy,d])=>parseSnapshot(d,sy));state.tapeData[sk]=generateSectionHTML(t,i);renderTape();}}catch(e){}}
     async function fetchFallbackIndices(k){try{const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.fallback=generateSectionHTML("INDICES",i);renderTape();}}catch(e){} }
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
-    function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
+    function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
+    window.changeTicker=function(s){ const c=state.charts[0]; if(c){ c.ticker=s; state.chartsConfig[0].ticker=s; document.querySelector('#chart-slot-0 input').value=s; syncLinkedWidgets(c.linkGroup, s); loadChartData(c); saveState(); } };
+    
+    // Boilerplate
+    function updateChartBar(c, time, o, h, l, cl, v) { c.candleSeries.update({ time, open: o, high: h, low: l, close: cl }); c.volSeries.update({ time, value: v, color: (cl>=o ? '#26a69a':'#ef5350') }); }
+    function snapTime(t,tf) { if(tf==='1Min') return Math.floor(t/60)*60; if(tf==='5Min') return Math.floor(t/300)*300; if(tf==='15Min') return Math.floor(t/900)*900; if(tf==='1H') return Math.floor(t/3600)*3600; return t; }
+    async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
+    async function saveState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readwrite"); tx.objectStore("Settings").put({ key: "chartsConfig", value: JSON.stringify(state.chartsConfig) }); tx.objectStore("Settings").put({ key: "leftWidgetsConfig", value: JSON.stringify(state.leftWidgetsConfig) }); tx.objectStore("Settings").put({ key: "rightWidgetsConfig", value: JSON.stringify(state.rightWidgetsConfig) }); tx.objectStore("Settings").put({ key: "isLeftOpen", value: state.isLeftOpen }); tx.objectStore("Settings").put({ key: "isRightOpen", value: state.isRightOpen }); } catch(e) { } }
+    async function loadSavedState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readonly"); const store = tx.objectStore("Settings"); const get = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : null); }); const [cc, lwc, rwc, ilo, iro] = await Promise.all([get("chartsConfig"), get("leftWidgetsConfig"), get("rightWidgetsConfig"), get("isLeftOpen"), get("isRightOpen")]); if(cc) state.chartsConfig = JSON.parse(cc); if(lwc) state.leftWidgetsConfig = JSON.parse(lwc); if(rwc) state.rightWidgetsConfig = JSON.parse(rwc); if(ilo !== null) state.isLeftOpen = ilo; if(iro !== null) state.isRightOpen = iro; } catch(e) { } }
+    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
+    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;}); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
 
     document.addEventListener('DOMContentLoaded', init);
     document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
