@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Touch Optimized)</title>
+    <title>Pro Charting (Smart Layouts)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -32,69 +32,24 @@
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; }
         #main-area { flex-grow: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; }
         .chart-slot { flex: 1; position: relative; border-bottom: 1px solid var(--border-color); min-height: 0; display: flex; flex-direction: column; }
-        .chart-slot:last-child { border-bottom: none; }
         
         /* CHART CONTROLS */
-        .chart-controls { 
-            position: absolute; top: 6px; left: 6px; z-index: 25; 
-            display: flex; gap: 5px; align-items: center; 
-        }
-        .mini-input { 
-            background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; 
-            width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; 
-            padding: 4px 5px; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box;
-        }
+        .chart-controls { position: absolute; top: 6px; left: 6px; z-index: 25; display: flex; gap: 5px; align-items: center; }
+        .mini-input { background: rgba(30, 34, 45, 0.9); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 4px 5px; font-weight: bold; text-align: center; }
         
-        /* TIMEFRAME MORPHING BUTTON */
-        .tf-morph-container {
-            display: flex;
-            align-items: center;
-            background: rgba(42, 46, 57, 0.9);
-            border: 1px solid #444;
-            border-radius: 3px;
-            height: 24px;
-            overflow: hidden;
-            transition: all 0.2s ease-out;
-        }
-        
-        /* State 1: Single Button */
-        .tf-single {
-            padding: 0 8px;
-            font-size: 11px;
-            font-weight: bold;
-            color: #d1d4dc;
-            cursor: pointer;
-            line-height: 22px;
-            min-width: 30px;
-            text-align: center;
-            display: block;
-        }
-        
-        /* State 2: Expanded Options */
-        .tf-options-row {
-            display: none;
-            flex-direction: row;
-        }
-        
-        /* When Active class is added */
+        /* TIMEFRAME MORPH BUTTON */
+        .tf-morph-container { display: flex; align-items: center; background: rgba(30, 34, 45, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; }
+        .tf-single { padding: 0 8px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 22px; min-width: 30px; text-align: center; display: block; }
+        .tf-options-row { display: none; flex-direction: row; }
         .tf-morph-container.expanded .tf-single { display: none; }
         .tf-morph-container.expanded .tf-options-row { display: flex; }
-        
-        .tf-btn {
-            border-right: 1px solid #444;
-            padding: 0 8px;
-            cursor: pointer;
-            color: #d1d4dc;
-            font-size: 11px;
-            line-height: 22px;
-            font-weight: bold;
-        }
+        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; }
         .tf-btn:last-child { border-right: none; }
         .tf-btn:hover { background: #2962ff; color: white; }
         .tf-btn.active { background: #2962ff; color: white; }
 
         /* LINK BUTTONS */
-        .link-btn { width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
+        .link-btn { width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(30, 34, 45, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
         .link-btn:hover { opacity: 0.8; }
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
@@ -135,35 +90,15 @@
         
         .left-controls { display: flex; gap: 10px; align-items: center; margin-right: 15px; }
         .right-controls { margin-left: auto; display: flex; gap: 10px; flex-shrink: 0; background: var(--panel-color); z-index: 2; padding-left: 10px; }
-        
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
 
-        /* CUSTOM SIDEBAR ICONS (Box Style) */
-        .ui-icon {
-            width: 14px; height: 10px;
-            border: 2px solid #787b86;
-            border-radius: 1px;
-            display: block;
-            position: relative;
-            box-sizing: border-box;
-        }
-        /* Left Sidebar Icon: Solid bar on left */
-        .ui-icon-left::after {
-            content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
-            background: #787b86;
-        }
-        /* Right Sidebar Icon: Solid bar on right */
-        .ui-icon-right::after {
-            content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px;
-            background: #787b86;
-        }
-        
-        /* Active State Colors */
+        .ui-icon { width: 14px; height: 10px; border: 2px solid #787b86; border-radius: 1px; display: block; position: relative; box-sizing: border-box; }
+        .ui-icon-left::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: #787b86; }
+        .ui-icon-right::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: #787b86; }
         .icon-btn:hover .ui-icon { border-color: #d1d4dc; }
         .icon-btn:hover .ui-icon::after { background: #d1d4dc; }
-        
         .icon-btn.active .ui-icon { border-color: #2962ff; }
         .icon-btn.active .ui-icon::after { background: #2962ff; }
 
@@ -182,22 +117,14 @@
 <div class="app-container">
     <div class="toolbar">
         <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
-        
         <div class="left-controls">
-            <button class="icon-btn" id="leftToggle" title="Left Sidebar">
-                <span class="ui-icon ui-icon-left"></span>
-            </button>
+            <button class="icon-btn" id="leftToggle" title="Left Sidebar"><span class="ui-icon ui-icon-left"></span></button>
         </div>
-
         <div class="ticker-container" id="tickerContainer">
             <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading Market Data...</span></div>
         </div>
-        
         <div class="right-controls">
-            <button class="icon-btn active" id="rightToggle" title="Right Sidebar">
-                <span class="ui-icon ui-icon-right"></span>
-            </button>
-            
+            <button class="icon-btn active" id="rightToggle" title="Right Sidebar"><span class="ui-icon ui-icon-right"></span></button>
             <div class="dropdown" id="layoutDropdown">
                 <button class="icon-btn" title="Layouts"><i class="fas fa-th-large"></i></button>
                 <div class="dropdown-menu">
@@ -205,13 +132,11 @@
                     <div class="dropdown-item" onclick="setChartLayout(1)">Single Chart</div>
                     <div class="dropdown-item" onclick="setChartLayout(2)">Split Vertical (2)</div>
                     <div class="dropdown-item" onclick="setChartLayout(3)">Stack Vertical (3)</div>
-                    
                     <div class="dropdown-header">LEFT SIDEBAR</div>
                     <div class="dropdown-item" onclick="setLeftSidebarLayout(0)">Hidden</div>
                     <div class="dropdown-item" onclick="setLeftSidebarLayout(1)">1 Widget</div>
                     <div class="dropdown-item" onclick="setLeftSidebarLayout(2)">2 Widgets</div>
                     <div class="dropdown-item" onclick="setLeftSidebarLayout(3)">3 Widgets</div>
-                    
                     <div class="dropdown-header">RIGHT SIDEBAR</div>
                     <div class="dropdown-item" onclick="setRightSidebarLayout(0)">Hidden</div>
                     <div class="dropdown-item" onclick="setRightSidebarLayout(1)">1 Widget</div>
@@ -219,7 +144,6 @@
                     <div class="dropdown-item" onclick="setRightSidebarLayout(3)">3 Widgets</div>
                 </div>
             </div>
-            
             <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
             <button class="icon-btn" id="debugToggle"><i class="fas fa-bug"></i></button>
             <button class="icon-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
@@ -235,9 +159,7 @@
 
     <div class="workspace">
         <div id="left-sidebar-area" class="collapsed"></div>
-        
         <div id="main-area"></div>
-        
         <div id="sidebar-area"></div>
     </div>
 
@@ -271,7 +193,6 @@
         chartsConfig: [{ id: 0, ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
         leftWidgetsConfig: [], 
         rightWidgetsConfig: [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }],
-        
         charts: [], widgets: [], 
         refreshInterval: null, screenerInterval: null, tapeInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
@@ -279,26 +200,57 @@
     };
 
     async function init() {
-        log("Initializing Workspace...");
+        log("Initializing...");
         await loadSavedState();
-
         renderChartLayout();
         renderSidebars();
         updateSidebarVisibility();
-
         refreshPortfolioTape(); refreshScreenerTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
-        
         state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateAllWidgets, 1000);
         
         document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
-        document.addEventListener('click', () => document.getElementById('layoutDropdown').classList.remove('open'));
+        document.addEventListener('click', () => {
+            document.getElementById('layoutDropdown').classList.remove('open');
+            document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded'));
+        });
     }
 
-    // --- CHART LAYOUT ENGINE ---
+    // --- SMART TOGGLES ---
+    function toggleSidebar(side) {
+        if(side === 'left') {
+            if(!state.isLeftOpen && state.leftWidgetsConfig.length === 0) setLeftSidebarLayout(1); // Auto-open with 1
+            else state.isLeftOpen = !state.isLeftOpen;
+        } else {
+            if(!state.isRightOpen && state.rightWidgetsConfig.length === 0) setRightSidebarLayout(1); // Auto-open with 1
+            else state.isRightOpen = !state.isRightOpen;
+        }
+        updateSidebarVisibility();
+        saveState();
+    }
+
+    function updateSidebarVisibility() {
+        const left = document.getElementById('left-sidebar-area');
+        const right = document.getElementById('sidebar-area');
+        const btnL = document.getElementById('leftToggle');
+        const btnR = document.getElementById('rightToggle');
+
+        if(state.isLeftOpen) { left.classList.remove('collapsed'); btnL.classList.add('active'); } 
+        else { left.classList.add('collapsed'); btnL.classList.remove('active'); }
+
+        if(state.isRightOpen) { right.classList.remove('collapsed'); btnR.classList.add('active'); } 
+        else { right.classList.add('collapsed'); btnR.classList.remove('active'); }
+
+        setTimeout(() => { state.charts.forEach(c => c.chart.applyOptions({ width: document.getElementById(`chart-slot-${c.id}`).clientWidth })); }, 300);
+    }
+
+    document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
+    document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
+
+    // --- CHART LAYOUT ---
     window.setChartLayout = function(count) {
         const current = state.chartsConfig;
         if(count > current.length) { for(let i=current.length; i<count; i++) current.push({ id: i, ticker: current[0].ticker, timeframe: '5Min', linkGroup: null }); }
@@ -372,10 +324,9 @@
         await loadChartData(chartObj);
     }
 
-    // --- TIMEFRAME INTERACTION ---
+    // --- TIMEFRAME MORPH ---
     window.toggleTfMorph = function(id, e) {
         e.stopPropagation();
-        // Close others
         document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded'));
         const box = document.getElementById(`tf-morph-${id}`);
         if(box) box.classList.add('expanded');
@@ -386,31 +337,20 @@
         const c = state.charts.find(x => x.id === id);
         if(c) {
             c.timeframe = val; c.earliestTime = null; 
-            state.chartsConfig[id].timeframe = val;
-            saveState();
+            state.chartsConfig[id].timeframe = val; saveState();
             
-            // Close menu
-            document.getElementById(`tf-morph-${id}`).classList.remove('expanded');
-            
-            // Update Label text
+            // Update UI immediately
             const mapTF = { '1Min':'1m', '5Min':'5m', '15Min':'15m', '1H':'1H', '1D':'D' };
             document.querySelector(`#tf-morph-${id} .tf-single`).innerText = mapTF[val];
+            document.getElementById(`tf-morph-${id}`).classList.remove('expanded');
             
-            // Update Buttons State
+            // Highlight selected
             const btns = document.querySelectorAll(`#tf-morph-${id} .tf-btn`);
-            btns.forEach(b => {
-                b.classList.remove('active');
-                if(b.innerText === mapTF[val]) b.classList.add('active');
-            });
+            btns.forEach(b => { b.classList.remove('active'); if(b.innerText === mapTF[val]) b.classList.add('active'); });
 
             loadChartData(c);
         }
     };
-    
-    // Global click closes TF menus
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded'));
-    });
 
     window.updateChartTicker = function(id, input, e) {
         if (e.key === 'Enter') {
@@ -424,7 +364,7 @@
         }
     };
 
-    // --- SIDEBAR LAYOUTS ---
+    // --- SIDEBAR MANAGERS ---
     window.setLeftSidebarLayout = function(count) { updateSidebarConfig('left', count); }
     window.setRightSidebarLayout = function(count) { updateSidebarConfig('right', count); }
 
@@ -508,8 +448,7 @@
         
         if (type === 'chart') {
             configArr = state.chartsConfig;
-            item = configArr[id]; 
-            runItem = state.charts.find(x => x.id === id);
+            item = configArr[id]; runItem = state.charts.find(x => x.id === id);
         } else {
             item = state.leftWidgetsConfig.find(x => x.id === id) || state.rightWidgetsConfig.find(x => x.id === id);
             runItem = state.widgets.find(x => x.id === id);
@@ -537,36 +476,15 @@
                 if(cfg) cfg.ticker = newTicker;
 
                 document.getElementById(`widget-list-${w.id}`).innerHTML = '';
-                // Since we re-render sidebars for linking colors, we might just re-render to update inputs
-                // But full re-render clears the list. Let's just find input:
-                // Traversing DOM to find input for specific widget ID is hard without re-render.
-                // Re-rendering is safe and fast here.
-                renderSidebars();
+                const box = document.getElementById(`widget-list-${w.id}`).parentElement;
+                const inp = box.querySelector('input');
+                if(inp) inp.value = newTicker;
             }
         });
         saveState();
     }
 
-    // --- VISIBILITY ---
-    document.getElementById('leftToggle').addEventListener('click', () => { state.isLeftOpen = !state.isLeftOpen; updateSidebarVisibility(); saveState(); });
-    document.getElementById('rightToggle').addEventListener('click', () => { state.isRightOpen = !state.isRightOpen; updateSidebarVisibility(); saveState(); });
-
-    function updateSidebarVisibility() {
-        const left = document.getElementById('left-sidebar-area');
-        const right = document.getElementById('sidebar-area');
-        const btnL = document.getElementById('leftToggle');
-        const btnR = document.getElementById('rightToggle');
-
-        if(state.isLeftOpen) { left.classList.remove('collapsed'); btnL.classList.add('active'); } 
-        else { left.classList.add('collapsed'); btnL.classList.remove('active'); }
-
-        if(state.isRightOpen) { right.classList.remove('collapsed'); btnR.classList.add('active'); } 
-        else { right.classList.add('collapsed'); btnR.classList.remove('active'); }
-
-        setTimeout(() => { state.charts.forEach(c => c.chart.applyOptions({ width: document.getElementById(`chart-slot-${c.id}`).clientWidth })); }, 300);
-    }
-
-    // --- STATE ---
+    // --- DATA & STATE ---
     async function saveState() {
         try {
             const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
@@ -592,7 +510,6 @@
         } catch(e) { }
     }
 
-    // --- DATA ---
     async function loadChartData(c) {
         const keys = await getKeys(); if(!keys) return;
         const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
@@ -609,6 +526,7 @@
             }
         } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); }
     }
+
     async function loadOlderData(c) {
         if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys();
         const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from);
@@ -626,6 +544,7 @@
             }
         } catch(e) {} finally { c.isLoading = false; }
     }
+
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
         state.charts.forEach(async (c) => {
@@ -646,6 +565,7 @@
             } catch(e) {}
         });
     }
+
     async function updateAllWidgets() {
         if(!state.isLeftOpen && !state.isRightOpen) return; const keys = await getKeys(); if(!keys) return;
         state.widgets.forEach(async (w) => {
@@ -655,7 +575,7 @@
                 const json = await res.json();
                 if(json.trades) {
                     const list = document.getElementById(`widget-list-${w.id}`);
-                    if(!list) return; // Might be hidden
+                    if(!list) return; 
                     const newTrades = json.trades.filter(t => t.i > w.lastTradeId);
                     if(newTrades.length === 0) return;
                     w.lastTradeId = newTrades[0].i;
@@ -673,26 +593,25 @@
         });
     }
 
-    // --- TAPE & SCREENER ---
+    // --- STANDARD UTILS ---
+    function updateChartBar(c, time, o, h, l, cl, v) { c.candleSeries.update({ time, open: o, high: h, low: l, close: cl }); c.volSeries.update({ time, value: v, color: (cl>=o ? '#26a69a':'#ef5350') }); }
+    function updateQuoteStrip(jsonOrChart) { if(jsonOrChart.ticker) return; const q = jsonOrChart.latestQuote; const t = jsonOrChart.latestTrade; const d = jsonOrChart.dailyBar; if(q) { document.getElementById('q-bid').innerText = `${q.bp}x${q.bs}`; document.getElementById('q-ask').innerText = `${q.ap}x${q.as}`; } if(t) { const el = document.getElementById('q-last'); el.innerText = t.p; el.className = 'q-val ' + (t.p >= state.lastQuotePrice ? 'color-up' : 'color-down'); state.lastQuotePrice = t.p; } if(d) document.getElementById('q-vol').innerText = formatNum(d.v); }
+    function snapTime(t,tf) { if(tf==='1Min') return Math.floor(t/60)*60; if(tf==='5Min') return Math.floor(t/300)*300; if(tf==='15Min') return Math.floor(t/900)*900; if(tf==='1H') return Math.floor(t/3600)*3600; return t; }
+    function parseBars(bars) { const o=[], v=[]; bars.forEach(b=>{ const t=new Date(b.t).getTime()/1000; o.push({time:t,open:b.o,high:b.h,low:b.l,close:b.c}); v.push({time:t,value:b.v,color:(b.c>=b.o?'#26a69a':'#ef5350')}); }); return {ohlc:o,vol:v}; }
+    async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
+    
+    // TAPE & SCREENER (Same as before)
     async function refreshPortfolioTape(){const k=await getKeys();if(!k)return;try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol);if(t.length){const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",i);renderTape();}}}catch(e){}}
     async function refreshScreenerTape(){const k=await getKeys();if(!k)return;fetchScreener(k,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();});fetchScreener(k,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();});fetchActives(k,'volume','activeVol',"ACTIVE (VOL)");fetchActives(k,'trades','activeTrd',"ACTIVE (TRD)");if(!state.tapeData.activeVol)fetchFallbackIndices(k);}
-    async function fetchScreener(k,e,n,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return'';const j=await r.json();const i=(j[n]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change}));return generateSectionHTML(t,i);}catch(e){return'';}}
+    async function fetchScreener(k,e,kn,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return'';const j=await r.json();const i=(j[kn]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change}));return generateSectionHTML(t,i);}catch(e){return'';}}
     async function fetchActives(k,b,sk,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=${b}&top=10`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return;const j=await r.json();const l=j.most_actives||[];const s=l.map(i=>i.symbol);if(!s.length)return;const sr=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${s.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(sr.ok){const sj=await sr.json();const i=Object.entries(sj).map(([sy,d])=>parseSnapshot(d,sy));state.tapeData[sk]=generateSectionHTML(t,i);renderTape();}}catch(e){}}
-    async function fetchFallbackIndices(k) { try { const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}}); if(r.ok){ const j=await r.json(); const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s)); state.tapeData.fallback=generateSectionHTML("INDICES",i); renderTape(); } }catch(e){} }
+    async function fetchFallbackIndices(k){try{const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.fallback=generateSectionHTML("INDICES",i);renderTape();}}catch(e){} }
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
     function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
     window.changeTicker=function(s){ const c=state.charts[0]; if(c){ c.ticker=s; state.chartsConfig[0].ticker=s; document.querySelector('#chart-slot-0 input').value=s; syncLinkedWidgets(c.linkGroup, s); loadChartData(c); saveState(); } };
 
-    // --- STANDARD UTILS ---
-    function updateChartBar(c, time, o, h, l, cl, v) { c.candleSeries.update({ time, open: o, high: h, low: l, close: cl }); c.volSeries.update({ time, value: v, color: (cl>=o ? '#26a69a':'#ef5350') }); }
-    function updateQuoteStrip(jsonOrChart) { if(jsonOrChart.ticker) return; const q = jsonOrChart.latestQuote; const t = jsonOrChart.latestTrade; const d = jsonOrChart.dailyBar; if(q) { document.getElementById('q-bid').innerText = `${q.bp}x${q.bs}`; document.getElementById('q-ask').innerText = `${q.ap}x${q.as}`; } if(t) { const el = document.getElementById('q-last'); el.innerText = t.p; el.className = 'q-val ' + (t.p >= state.lastQuotePrice ? 'color-up' : 'color-down'); state.lastQuotePrice = t.p; } if(d) document.getElementById('q-vol').innerText = formatNum(d.v); }
-    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'); const r=document.getElementById('sidebar-area'); if(state.isLeftOpen) l.classList.remove('collapsed'); else l.classList.add('collapsed'); if(state.isRightOpen) r.classList.remove('collapsed'); else r.classList.add('collapsed'); setTimeout(() => { state.charts.forEach(c => c.chart.applyOptions({ width: document.getElementById(`chart-slot-${c.id}`).clientWidth })); }, 300); }
-    document.getElementById('leftToggle').addEventListener('click', () => { state.isLeftOpen = !state.isLeftOpen; updateSidebarVisibility(); saveState(); });
-    document.getElementById('rightToggle').addEventListener('click', () => { state.isRightOpen = !state.isRightOpen; updateSidebarVisibility(); saveState(); });
-    function snapTime(t,tf) { if(tf==='1Min') return Math.floor(t/60)*60; if(tf==='5Min') return Math.floor(t/300)*300; if(tf==='15Min') return Math.floor(t/900)*900; if(tf==='1H') return Math.floor(t/3600)*3600; return t; }
-    function parseBars(bars) { const o=[], v=[]; bars.forEach(b=>{ const t=new Date(b.t).getTime()/1000; o.push({time:t,open:b.o,high:b.h,low:b.l,close:b.c}); v.push({time:t,value:b.v,color:(b.c>=b.o?'#26a69a':'#ef5350')}); }); return {ohlc:o,vol:v}; }
-    async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
+    // Settings
     function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
     async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;}); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
 
