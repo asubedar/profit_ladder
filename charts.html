@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (T&S Debug)</title>
+    <title>Pro Charting (T&S Fix)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -73,7 +73,7 @@
         .tf-btn.active { background: #2962ff; color: white; }
 
         /* LINK BUTTONS */
-        .link-btn { width: 26px; height: 26px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
+        .link-btn { width: 26px; height: 26px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(30, 34, 45, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
         .link-btn:hover { opacity: 0.8; }
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
@@ -183,7 +183,8 @@
     <div class="workspace">
         <div id="left-sidebar-area" class="sidebar collapsed"></div>
         <div id="main-area"></div>
-        <div id="sidebar-area"></div> </div>
+        <div id="sidebar-area"></div>
+    </div>
 
     <div id="screen-logger">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>System Logs</strong><button id="clearLogs">Clear</button></div>
@@ -240,7 +241,7 @@
         document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
     }
 
-    // --- CHARTS ---
+    // --- MAIN CHARTS ---
     window.setChartLayout = function(m){state.layoutMode=m;const[r,c]=m.split('x').map(Number);const t=r*c;if(t>state.chartsConfig.length){for(let i=state.chartsConfig.length;i<t;i++)state.chartsConfig.push({id:i,ticker:'AAPL',timeframe:'5Min',linkGroup:null});}else{state.chartsConfig=state.chartsConfig.slice(0,t);}saveState();renderChartLayout();};
     function renderChartLayout(){const c=document.getElementById('main-area');c.innerHTML='';state.charts=[];const[r,k]=state.layoutMode.split('x');c.style.gridTemplateRows=`repeat(${r},1fr)`;c.style.gridTemplateColumns=`repeat(${k},1fr)`;state.chartsConfig.forEach(g=>{const d=document.createElement('div');d.className='chart-slot';d.id=`chart-slot-${g.id}`;c.appendChild(d);createChartInstance(d,g);});}
     async function createChartInstance(div, cfg) {
@@ -314,6 +315,54 @@
         }); 
     }
 
+    // --- T&S UPDATE WITH DEBUG LOGGING ---
+    async function updateAllWidgets(){
+        if(!state.isLeftOpen && !state.isRightOpen) return;
+        const k=await getKeys(); if(!k) return;
+        
+        // 1. Force Lookback to cover weekend (3 days)
+        const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
+
+        state.widgets.forEach(async w=>{
+            const list = document.getElementById(`widget-list-${w.id}`);
+            if(!list) return;
+            
+            // 2. Request: Sort DESC (Newest First) + Limit 50 + SIP + Start Time
+            const u=`https://data.alpaca.markets/v2/stocks/${w.ticker}/trades?limit=50&sort=desc&feed=sip&start=${start}`;
+            
+            try{
+                const r=await fetch(u,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});
+                const j=await r.json();
+                
+                if(j.trades){
+                    // Filter: Trades newer than what we have
+                    const n=j.trades.filter(t=>t.i>w.lastTradeId);
+                    if(!n.length) return;
+                    
+                    // Update max ID
+                    w.lastTradeId=n[0].i;
+                    
+                    let h='';
+                    for(let t of n){
+                        const c=t.p>=w.lastPrice?'t-up':(t.p<w.lastPrice?'t-down':'tape-time');
+                        w.lastPrice=t.p;
+                        const b=t.s>=100?'t-large':'';
+                        const tm=new Date(t.t).toLocaleTimeString([],{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+                        h+=`<div class="tape-row ${b}"><span class="tape-time">${tm}</span><span class="tape-price ${c}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
+                    }
+                    list.insertAdjacentHTML('afterbegin',h);
+                    while(list.children.length>50)l.removeChild(l.lastChild);
+                } else {
+                    // LOG EMPTY (Only once to avoid spam)
+                    if(!w.hasLoggedEmpty) {
+                        log(`T&S ${w.ticker}: API returned 0 trades (Market Closed?)`);
+                        w.hasLoggedEmpty = true;
+                    }
+                }
+            } catch(e){ log(`T&S Err ${w.ticker}: ${e.message}`); }
+        });
+    }
+
     // --- HELPERS ---
     window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); document.getElementById(`tf-morph-${id}`).classList.add('expanded'); };
     window.setChartTf = function(id, val, e) { e.stopPropagation(); const c = state.charts.find(x => x.id === id); if(c) { c.timeframe = val; c.earliestTime = null; state.chartsConfig[id].timeframe = val; saveState(); const m={'1Min':'1m','5Min':'5m','15Min':'15m','1H':'1H','1D':'D'}; document.querySelector(`#tf-morph-${id} .tf-single`).innerText=m[val]; document.getElementById(`tf-morph-${id}`).classList.remove('expanded'); const btns = document.querySelectorAll(`#tf-morph-${id} .tf-btn`); btns.forEach(b => { b.classList.remove('active'); if(b.innerText === m[val]) b.classList.add('active'); }); loadChartData(c); } };
@@ -327,54 +376,9 @@
     function syncLinkedWidgets(g,t){if(!g)return;state.charts.forEach(c=>{if(c.linkGroup===g&&c.ticker!==t){c.ticker=t;c.earliestTime=null;state.chartsConfig[c.id].ticker=t;document.querySelector(`#chart-slot-${c.id} input`).value=t;loadChartData(c);}});state.widgets.forEach(w=>{if(w.linkGroup===g&&w.ticker!==t){w.ticker=t;w.lastTradeId=0;let c=state.leftWidgetsConfig.find(x=>x.id===w.id)||state.rightWidgetsConfig.find(x=>x.id===w.id);if(c)c.ticker=t;document.getElementById(`widget-list-${w.id}`).innerHTML='';const b=document.getElementById(`widget-list-${w.id}`).parentElement;const i=b.querySelector('input');if(i)i.value=t;}});saveState();}
     async function saveState(){try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Settings","readwrite");const s=tx.objectStore("Settings");s.put({key:"chartsConfig",value:JSON.stringify(state.chartsConfig)});s.put({key:"leftWidgetsConfig",value:JSON.stringify(state.leftWidgetsConfig)});s.put({key:"rightWidgetsConfig",value:JSON.stringify(state.rightWidgetsConfig)});s.put({key:"isLeftOpen",value:state.isLeftOpen});s.put({key:"isRightOpen",value:state.isRightOpen});s.put({key:"layoutMode",value:state.layoutMode});}catch(e){}}
     async function loadSavedState(){try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Settings","readonly");const s=tx.objectStore("Settings");const g=k=>new Promise(r=>{const q=s.get(k);q.onsuccess=()=>r(q.result?q.result.value:null);});const[c,l,r,il,ir,lm]=await Promise.all([g("chartsConfig"),g("leftWidgetsConfig"),g("rightWidgetsConfig"),g("isLeftOpen"),g("isRightOpen"),g("layoutMode")]);if(c)state.chartsConfig=JSON.parse(c);if(l)state.leftWidgetsConfig=JSON.parse(l);if(r)state.rightWidgetsConfig=JSON.parse(r);if(il!==null)state.isLeftOpen=il;if(ir!==null)state.isRightOpen=ir;if(lm)state.layoutMode=lm;}catch(e){}}
-    
-    // DATA & WIDGET LOOP (Debug Added)
     async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; updateChartsRealtime(); } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
     async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
     async function updateChartsRealtime(){const k=await getKeys();if(!k)return;state.charts.forEach(async c=>{const u=`https://data.alpaca.markets/v2/stocks/${c.ticker}/snapshot`;try{const r=await fetch(u,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return;const j=await r.json();const q=j.latestQuote,t=j.latestTrade,d=j.dailyBar,mb=j.minuteBar;if(q){document.getElementById(`qb-p-${c.id}`).innerText=q.bp.toFixed(2);document.getElementById(`qb-s-${c.id}`).innerText=q.bs;document.getElementById(`qa-p-${c.id}`).innerText=q.ap.toFixed(2);document.getElementById(`qa-s-${c.id}`).innerText=q.as;}if(t){const el=document.getElementById(`ql-${c.id}`);el.innerText=t.p.toFixed(2);el.style.color=(t.p>=c.lastPrice)?'#26a69a':'#ef5350';}if(d)document.getElementById(`qv-${c.id}`).innerText=formatNum(d.v);if(c.timeframe==='1D'&&d){const tm=snapTime(new Date(d.t).getTime()/1000,'1D');updateChartBar(c,tm,d.o,d.h,d.l,d.c,d.v);}else if(c.timeframe.includes('Min')&&mb){const tm=snapTime(new Date(mb.t).getTime()/1000,c.timeframe);updateChartBar(c,tm,mb.o,mb.h,mb.l,mb.c,mb.v);}else if(c.timeframe==='1H'&&t){const d=c.candleSeries.data();if(d.length){const l=d[d.length-1];c.candleSeries.update({time:l.time,open:l.open,high:Math.max(l.high,t.p),low:Math.min(l.low,t.p),close:t.p});}}}catch(e){}});}
-    
-    async function updateAllWidgets(){
-        if(!state.isLeftOpen&&!state.isRightOpen)return;
-        const k=await getKeys();if(!k)return;
-        
-        state.widgets.forEach(async w=>{
-            log(`T&S Checking: ${w.ticker} (ID: ${w.id})`); // DEBUG LOG 1
-            const list = document.getElementById(`widget-list-${w.id}`);
-            if(!list) {
-                log(`T&S Error: DOM Element widget-list-${w.id} not found!`, 'error'); // DEBUG LOG 2
-                return;
-            }
-            
-            const u=`https://data.alpaca.markets/v2/stocks/${w.ticker}/trades?limit=50&sort=desc&feed=sip`;
-            try{
-                const r=await fetch(u,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});
-                if(!r.ok) {
-                    log(`T&S Error: API ${r.status}`, 'error'); // DEBUG LOG 3
-                    return;
-                }
-                
-                const j=await r.json();
-                if(j.trades){
-                    const n=j.trades.filter(t=>t.i>w.lastTradeId);
-                    if(n.length > 0) {
-                        log(`T&S: Found ${n.length} new trades for ${w.ticker}`); // DEBUG LOG 4
-                        w.lastTradeId=n[0].i;
-                        let h='';
-                        for(let t of n){
-                            const c=t.p>=w.lastPrice?'t-up':(t.p<w.lastPrice?'t-down':'tape-time');
-                            w.lastPrice=t.p;
-                            const b=t.s>=100?'t-large':'';
-                            const tm=new Date(t.t).toLocaleTimeString([],{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-                            h+=`<div class="tape-row ${b}"><span class="tape-time">${tm}</span><span class="tape-price ${c}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
-                        }
-                        list.insertAdjacentHTML('afterbegin',h);
-                        while(list.children.length>50)l.removeChild(l.lastChild);
-                    }
-                }
-            } catch(e){ log(`T&S Exception: ${e.message}`, 'error'); }
-        });
-    }
-
     function updateChartBar(c,t,o,h,l,cl,v){c.candleSeries.update({time:t,open:o,high:h,low:l,close:cl});c.volSeries.update({time:t,value:v,color:(cl>=o?'#26a69a':'#ef5350')});}
     function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'); const r=document.getElementById('sidebar-area'); const bl=document.getElementById('leftToggle'); const br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(()=>{state.charts.forEach(c=>c.chart.applyOptions({width:document.getElementById(`chart-slot-${c.id}`).clientWidth}));},300); }
     document.getElementById('leftToggle').addEventListener('click', () => { state.isLeftOpen = !state.isLeftOpen; updateSidebarVisibility(); saveState(); }); document.getElementById('rightToggle').addEventListener('click', () => { state.isRightOpen = !state.isRightOpen; updateSidebarVisibility(); saveState(); });
