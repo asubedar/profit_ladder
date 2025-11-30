@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Sidebar Fix)</title>
+    <title>Pro Charting (Layout Polish)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -44,51 +44,64 @@
         .chart-slot { position: relative; background-color: var(--bg-color); min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
         .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
         
-        /* WIDGET HEADER */
-        .widget-header { 
-            position: absolute; top: 4px; left: 4px; right: 4px; z-index: 30; 
-            display: flex; gap: 4px; align-items: center; pointer-events: none;
+        /* --- WIDGET LAYOUT --- */
+        .widget-box { display: flex; flex-direction: column; flex: 1; border-bottom: 1px solid var(--border-color); min-height: 0; }
+        
+        /* Row 1: Controls */
+        .widget-header-controls { 
+            height: 30px; background-color: var(--panel-color); 
+            display: flex; align-items: center; padding: 0 6px; gap: 4px; 
+            border-bottom: 1px solid var(--border-color); flex-shrink: 0; z-index: 30;
         }
-        .widget-header > * { pointer-events: auto; } 
+        
+        /* Row 2: Data Header */
+        .widget-header-data {
+            height: 26px; background-color: #161a25; 
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 6px;
+            flex-shrink: 0; z-index: 29;
+        }
 
-        /* Controls Left */
-        .widget-controls-left { 
-            display: flex; gap: 2px; align-items: center; 
-            background: rgba(19, 23, 34, 0.9); padding: 2px; border-radius: 4px; 
-        }
-        
-        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 45px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; box-sizing: border-box; height: 22px; }
-        
-        /* L1 Quotes Right */
-        .l1-container { margin-left: auto; display: flex; align-items: center; gap: 2px; font-family: 'Roboto', sans-serif; margin-right: 55px; }
-        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 3px; color: white; cursor: default; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 50px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 22px; box-sizing: border-box; }
+        .mini-input:focus { border-color: var(--accent-color); outline: none; }
+        .link-btn { width: 22px; height: 22px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
+
+        /* L1 Quotes */
+        .l1-container { display: flex; align-items: center; gap: 4px; font-family: 'Roboto', sans-serif; width: 100%; }
+        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60px; height: 22px; border-radius: 2px; color: white; cursor: default; font-size: 10px; }
         .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
-        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 55px; height: 24px; background: rgba(30, 34, 45, 0.9); border-radius: 3px; }
+        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; height: 22px; }
         .l1-price { font-size: 11px; font-weight: bold; line-height: 1; }
-        .l1-size { font-size: 9px; font-weight: normal; opacity: 0.9; line-height: 1; margin-top: 1px; }
+        .l1-size { font-size: 9px; opacity: 0.8; line-height: 1; }
         .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
         .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
 
-        /* CONTENT CONTAINERS */
-        .chart-legend { position: absolute; top: 32px; left: 6px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
+        /* CONTENT AREAS */
+        .chart-content-area { flex-grow: 1; position: relative; min-height: 0; }
+        .chart-legend { position: absolute; top: 6px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
 
-        .tape-content { margin-top: 30px; flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; z-index: 10; }
+        /* TAPE LIST (Fixed Margin) */
+        .tape-content { 
+            margin-top: 0; /* Removed the 30px margin causing the gap */
+            flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; 
+        }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
-        
+
+        /* TIMEFRAME */
         .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 22px; overflow: hidden; transition: all 0.2s ease-out; }
         .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 25px; text-align: center; display: block; }
         .tf-options-row { display: none; flex-direction: row; }
         .tf-morph-container.expanded .tf-single { display: none; }
         .tf-morph-container.expanded .tf-options-row { display: flex; }
         .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; }
+        .tf-btn:last-child { border-right: none; }
         .tf-btn:hover { background: #2962ff; color: white; }
         .tf-btn.active { background: #2962ff; color: white; }
 
-        /* BUTTONS */
-        .link-btn { width: 22px; height: 22px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
+        /* LINK COLORS */
         .link-btn:hover { opacity: 0.8; }
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
@@ -96,28 +109,10 @@
         .link-purple { background-color: #aa00ff; border-color: #aa00ff; color: white; }
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
         
-        /* SIDEBARS (FIXED RIGHT SIDEBAR) */
-        #sidebar-area, #left-sidebar-area { 
-            width: 280px; min-width: 280px; background-color: #131722; 
-            display: flex; flex-direction: column; flex-shrink: 0; 
-            transition: all 0.2s ease-out; overflow: hidden; 
-        }
-        
-        #sidebar-area { border-left: 1px solid var(--border-color); } 
-        #left-sidebar-area { border-right: 1px solid var(--border-color); }
-        
-        /* COLLAPSED STATE */
-        .collapsed { 
-            width: 0 !important; min-width: 0 !important; 
-            border: none !important; 
-        }
-        
-        /* WIDGET BOX (Flex column for stacking) */
-        .widget-box { 
-            display: flex; flex-direction: column; flex: 1; 
-            border-bottom: 1px solid var(--border-color); 
-            min-height: 0; position: relative; 
-        }
+        /* SIDEBARS */
+        #sidebar-area, #left-sidebar-area { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; }
+        #sidebar-area { border-left: 1px solid var(--border-color); } #left-sidebar-area { border-right: 1px solid var(--border-color); }
+        .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
         /* UI ELEMENTS */
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
@@ -155,8 +150,8 @@
 
 <div class="app-container">
     <div class="toolbar">
-        <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
         <div class="left-controls">
+            <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
             <button class="icon-btn" id="leftToggle" title="Left Sidebar"><span class="ui-icon ui-icon-left"></span></button>
         </div>
         <div class="ticker-container" id="tickerContainer">
@@ -201,7 +196,8 @@
     <div class="workspace">
         <div id="left-sidebar-area" class="sidebar collapsed"></div>
         <div id="main-area"></div>
-        <div id="sidebar-area"></div> </div>
+        <div id="sidebar-area"></div>
+    </div>
 
     <div id="screen-logger">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>System Logs</strong><button id="clearLogs">Clear</button></div>
@@ -232,15 +228,13 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 5; 
     const state = {
-        layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
         layoutMode: '1x1',
-        chartsConfig: [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
+        chartsConfig: [{ id: 0, ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
         leftWidgetsConfig: [], 
         rightWidgetsConfig: [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }],
-        activeWidgets: [], 
+        charts: [], widgets: [], 
         refreshInterval: null, screenerInterval: null, tapeInterval: null, newsInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
         newsSymbols: new Set()
@@ -249,10 +243,7 @@
     async function init() {
         log("Initializing...");
         await loadSavedState();
-        if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
-
-        renderAll();
-
+        renderChartLayout(); renderSidebars(); updateSidebarVisibility();
         refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
@@ -260,7 +251,7 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateAllWidgets, 1000);
         state.newsInterval = setInterval(refreshNewsTape, 120000);
-        
+
         document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
         document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
         document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
@@ -276,10 +267,9 @@
         main.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
         state.chartsConfig.forEach(cfg => { const div = document.createElement('div'); div.className = 'chart-slot'; main.appendChild(div); initWidget(div, cfg); });
         renderSidebar('left-sidebar-area', state.leftWidgetsConfig);
-        renderSidebar('sidebar-area', state.rightWidgetsConfig); // Fixed right ID
-        updateSidebarVisibility();
+        renderSidebar('sidebar-area', state.rightWidgetsConfig);
     }
-
+    
     function renderSidebar(domId, configArr) {
         const container = document.getElementById(domId); container.innerHTML = '';
         configArr.forEach(cfg => { const div = document.createElement('div'); div.className = 'widget-box'; container.appendChild(div); initWidget(div, cfg); });
@@ -290,32 +280,39 @@
         const isChart = cfg.type === 'chart';
         const iconClass = isChart ? 'fa-chart-bar' : 'fa-list-ol';
         
-        // HEADER (Two Rows)
+        // ROW 1: CONTROLS
         const controlsHtml = `
-            <div class="widget-header">
+            <div class="widget-header-controls">
                 <div class="widget-controls-left">
                     <div class="link-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
                     <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
                     ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
-                
-                ${isChart ? 
-                    `<div class="l1-container" id="l1-${cfg.id}">
-                        <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
-                        <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
-                        <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
-                    </div>` 
-                : ''}
             </div>
         `;
+        
+        // ROW 2: DATA HEADER
+        let dataHtml = '';
+        if(isChart) {
+            dataHtml = `
+            <div class="widget-header-data">
+                <div class="l1-container" id="l1-${cfg.id}">
+                    <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
+                    <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
+                    <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
+                </div>
+            </div>`;
+        } else {
+            dataHtml = `<div class="widget-header-data" style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; width:100%;"><span>TIME</span><span>PRICE</span><span>SIZE</span></div>`;
+        }
 
-        // CONTENT
+        // ROW 3: CONTENT
         const contentHtml = isChart 
-            ? `<div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div>`
-            : `<div class="tape-row" style="font-size:10px; color:#666; border-bottom:1px solid #333; margin-top:34px;"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="list-${cfg.id}" class="tape-content"></div>`;
+            ? `<div class="chart-content-area" id="content-${cfg.id}"><div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div></div>`
+            : `<div class="widget-content"><div id="list-${cfg.id}" class="tape-content"></div></div>`;
 
-        container.innerHTML = controlsHtml + contentHtml;
+        container.innerHTML = controlsHtml + dataHtml + contentHtml;
         
         if(isChart) initChart(cfg); else initTape(cfg);
     }
