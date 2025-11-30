@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Layout Fixed)</title>
+    <title>Pro Charting (Final Fix)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -40,69 +40,57 @@
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; z-index: 1; }
         #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; }
         
-        /* SLOT CONTAINER (CRITICAL FIX: relative positioning) */
-        .chart-slot, .widget-box { 
-            position: relative; /* Anchors absolute children */
-            background-color: var(--bg-color); 
-            min-width: 0; min-height: 0; 
-            display: flex; flex-direction: column; 
-            overflow: hidden; 
-            border-bottom: 1px solid var(--border-color);
-        }
+        /* GENERIC SLOT */
+        .slot { position: relative; background-color: var(--bg-color); min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* WIDGET HEADER (2 Rows Stacked) */
-        .widget-header-wrapper {
-            display: flex; flex-direction: column; 
-            border-bottom: 1px solid var(--border-color);
-            background: var(--panel-color);
-            z-index: 30; flex-shrink: 0;
+        /* WIDGET HEADER */
+        .widget-header { 
+            position: absolute; top: 4px; left: 4px; right: 4px; z-index: 30; 
+            display: flex; gap: 4px; align-items: center; pointer-events: none;
         }
+        .widget-header > * { pointer-events: auto; } 
 
-        /* Row 1: Controls */
-        .header-controls { 
-            height: 32px; display: flex; align-items: center; padding: 0 6px; gap: 6px; 
-            border-bottom: 1px solid #2a2e39;
-        }
+        /* Controls Left */
+        .widget-controls-left { display: flex; gap: 4px; align-items: center; background: rgba(30,34,45,0.8); padding: 2px; border-radius: 4px; }
         
-        /* Row 2: Data/Quotes */
-        .header-data {
-            height: 28px; background-color: #161a25; 
-            display: flex; align-items: center; padding: 0 6px;
-        }
-
-        /* Inputs */
-        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
+        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 50px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; box-sizing: border-box; height: 22px; }
         .mini-input:focus { border-color: var(--accent-color); outline: none; }
-        .link-btn { width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
+        .link-btn { width: 22px; height: 22px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
 
-        /* L1 Quote Box */
-        .l1-container { display: flex; align-items: center; gap: 4px; font-family: 'Roboto', sans-serif; width: 100%; }
-        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60px; height: 24px; border-radius: 2px; color: white; cursor: default; font-size: 10px; line-height: 1; }
+        /* L1 Quotes Right */
+        .l1-container { margin-left: auto; display: flex; align-items: center; gap: 2px; font-family: 'Roboto', sans-serif; margin-right: 55px; }
+        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 2px; color: white; cursor: default; font-size: 10px; }
         .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
-        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; height: 24px; }
-        .l1-price { font-size: 11px; font-weight: bold; }
-        .l1-size { font-size: 9px; opacity: 0.8; }
-        .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; }
-        .day-vol { font-size: 9px; color: #787b86; font-family: 'Monaco', monospace; }
+        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 55px; height: 24px; background: rgba(30, 34, 45, 0.9); border-radius: 3px; }
+        .l1-price { font-size: 11px; font-weight: bold; line-height: 1; }
+        .l1-size { font-size: 9px; opacity: 0.8; line-height: 1; }
+        .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
+        .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
 
-        /* CONTENT */
-        .chart-content-area { flex-grow: 1; position: relative; min-height: 0; }
+        /* HIDE L1 BUTTONS IN SIDEBARS (To prevent overlap) */
+        #left-sidebar-area .l1-bid, #left-sidebar-area .l1-ask,
+        #right-sidebar-area .l1-bid, #right-sidebar-area .l1-ask { display: none; }
+        #left-sidebar-area .l1-container, #right-sidebar-area .l1-container { margin-right: 0; }
+
+        /* CONTENT CONTAINERS */
+        .chart-content-area { flex-grow: 1; position: relative; min-height: 0; width: 100%; height: 100%; }
         .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
-        .chart-legend { position: absolute; top: 6px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
+        .chart-legend { position: absolute; top: 35px; left: 6px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
 
-        .tape-content { flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; }
+        .tape-content { margin-top: 32px; flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; z-index: 10; }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
 
         /* TIMEFRAME */
-        .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; }
-        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 22px; min-width: 25px; text-align: center; display: block; }
+        .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 22px; overflow: hidden; transition: all 0.2s ease-out; }
+        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 25px; text-align: center; display: block; }
         .tf-options-row { display: none; flex-direction: row; }
         .tf-morph-container.expanded .tf-single { display: none; }
         .tf-morph-container.expanded .tf-options-row { display: flex; }
         .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; }
+        .tf-btn:last-child { border-right: none; }
         .tf-btn:hover { background: #2962ff; color: white; }
         .tf-btn.active { background: #2962ff; color: white; }
 
@@ -115,9 +103,10 @@
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
         
         /* SIDEBARS */
-        #sidebar-area, #left-sidebar-area { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; }
-        #sidebar-area { border-left: 1px solid var(--border-color); } #left-sidebar-area { border-right: 1px solid var(--border-color); }
+        #right-sidebar-area, #left-sidebar-area { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; }
+        #right-sidebar-area { border-left: 1px solid var(--border-color); } #left-sidebar-area { border-right: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
+        .widget-box { display: flex; flex-direction: column; flex: 1; border-bottom: 1px solid var(--border-color); min-height: 0; position: relative; }
 
         /* UI ELEMENTS */
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
@@ -201,8 +190,7 @@
     <div class="workspace">
         <div id="left-sidebar-area" class="sidebar collapsed"></div>
         <div id="main-area"></div>
-        <div id="sidebar-area"></div>
-    </div>
+        <div id="right-sidebar-area" class="sidebar"></div> </div>
 
     <div id="screen-logger">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>System Logs</strong><button id="clearLogs">Clear</button></div>
@@ -233,7 +221,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 6; 
+    const LAYOUT_VERSION = 7; // Force reset on change
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -253,8 +241,7 @@
         if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
 
         renderAll();
-        
-        // Auto-populate screeners immediately
+
         refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
@@ -269,6 +256,7 @@
         document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
     }
 
+    // --- UNIVERSAL RENDERER ---
     function renderAll() {
         state.activeWidgets = [];
         const main = document.getElementById('main-area'); main.innerHTML = '';
@@ -277,7 +265,7 @@
         main.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
         state.chartsConfig.forEach(cfg => { const div = document.createElement('div'); div.className = 'chart-slot'; main.appendChild(div); initWidget(div, cfg); });
         renderSidebar('left-sidebar-area', state.leftWidgetsConfig);
-        renderSidebar('sidebar-area', state.rightWidgetsConfig);
+        renderSidebar('right-sidebar-area', state.rightWidgetsConfig);
         updateSidebarVisibility();
     }
 
@@ -291,41 +279,34 @@
         const isChart = cfg.type === 'chart';
         const iconClass = isChart ? 'fa-chart-bar' : 'fa-list-ol';
         
-        // ROW 1: CONTROLS
+        // HEADER
         const controlsHtml = `
-            <div class="widget-header-wrapper">
-                <div class="header-controls">
+            <div class="widget-header">
+                <div class="widget-controls-left">
                     <div class="link-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
                     <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
                     ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
-                    <div style="flex-grow:1;"></div>
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
-                ${getWidgetDataRow(cfg, isChart)}
+                
+                ${isChart ? 
+                    `<div class="l1-container" id="l1-${cfg.id}">
+                        <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
+                        <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
+                        <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
+                    </div>` 
+                : ''}
             </div>
         `;
         
+        // CONTENT
         const contentHtml = isChart 
             ? `<div class="chart-content-area" id="content-${cfg.id}"><div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div></div>`
-            : `<div id="list-${cfg.id}" class="tape-content"></div>`;
+            : `<div class="tape-row" style="font-size:10px; color:#666; border-bottom:1px solid #333; margin-top:32px;"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="list-${cfg.id}" class="tape-content"></div>`;
 
         container.innerHTML = controlsHtml + contentHtml;
         
         if(isChart) initChart(cfg); else initTape(cfg);
-    }
-
-    function getWidgetDataRow(cfg, isChart) {
-        if(isChart) {
-            return `
-            <div class="header-data">
-                <div class="l1-container" id="l1-${cfg.id}">
-                    <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
-                    <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
-                    <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
-                </div>
-            </div>`;
-        }
-        return `<div class="header-data" style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; width:100%;"><span>TIME</span><span>PRICE</span><span>SIZE</span></div>`;
     }
 
     function getTfHtml(id, tf) {
@@ -355,9 +336,13 @@
         const volSeries = chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+        
+        // Resize Observer
         new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(container.parentElement);
-        const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null };
+        
+        const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
+        
         chart.subscribeCrosshairMove(p => {
             const c = p.seriesData.get(candleSeries); const v = p.seriesData.get(volSeries);
             if (c) document.getElementById(`lg-${cfg.id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span> ${v?`V:${formatNum(v.value)}`:''}`;
@@ -469,7 +454,7 @@
         }
     }
 
-    // --- DATA ---
+    // --- DATA & REALTIME ---
     async function updateAllWidgets() {
         const keys = await getKeys(); if(!keys) return;
         const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
@@ -527,9 +512,7 @@
     function updateChartBar(c,t,o,h,l,cl,v){c.candleSeries.update({time:t,open:o,high:h,low:l,close:cl});c.volSeries.update({time:t,value:v,color:(cl>=o?'#26a69a':'#ef5350')});}
     async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
     async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
-    async function updateChartsRealtime(){const k=await getKeys();if(!k)return;state.charts.forEach(async c=>{const u=`https://data.alpaca.markets/v2/stocks/${c.ticker}/snapshot`;try{const r=await fetch(u,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return;const j=await r.json();const q=j.latestQuote,t=j.latestTrade,d=j.dailyBar,mb=j.minuteBar;if(q){document.getElementById(`qb-p-${c.id}`).innerText=q.bp.toFixed(2);document.getElementById(`qb-s-${c.id}`).innerText=q.bs;document.getElementById(`qa-p-${c.id}`).innerText=q.ap.toFixed(2);document.getElementById(`qa-s-${c.id}`).innerText=q.as;}if(t){const el=document.getElementById(`ql-${c.id}`);el.innerText=t.p.toFixed(2);el.style.color=(t.p>=c.lastPrice)?'#26a69a':'#ef5350';}if(d)document.getElementById(`qv-${c.id}`).innerText=formatNum(d.v);if(c.timeframe==='1D'&&d){const tm=snapTime(new Date(d.t).getTime()/1000,'1D');updateChartBar(c,tm,d.o,d.h,d.l,d.c,d.v);}else if(c.timeframe.includes('Min')&&mb){const tm=snapTime(new Date(mb.t).getTime()/1000,c.timeframe);updateChartBar(c,tm,mb.o,mb.h,mb.l,mb.c,mb.v);}else if(c.timeframe==='1H'&&t){const d=c.candleSeries.data();if(d.length){const l=d[d.length-1];c.candleSeries.update({time:l.time,open:l.open,high:Math.max(l.high,t.p),low:Math.min(l.low,t.p),close:t.p});}}}catch(e){}});}
-    
-    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
+    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('right-sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
     document.getElementById('leftToggle').addEventListener('click', () => { state.isLeftOpen = !state.isLeftOpen; updateSidebarVisibility(); saveState(); }); document.getElementById('rightToggle').addEventListener('click', () => { state.isRightOpen = !state.isRightOpen; updateSidebarVisibility(); saveState(); });
     function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
     function parseBars(b){const o=[],v=[];b.forEach(x=>{const t=new Date(x.t).getTime()/1000;o.push({time:t,open:x.o,high:x.h,low:x.l,close:x.c});v.push({time:t,value:x.v,color:(x.c>=x.o?'#26a69a':'#ef5350')});});return{ohlc:o,vol:v};}
