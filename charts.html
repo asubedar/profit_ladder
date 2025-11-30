@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Render Fix)</title>
+    <title>Pro Charting (Layout Repair)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -11,19 +11,22 @@
             --text-color: #d1d4dc; --accent-color: #2962ff; --up-color: #26a69a; --down-color: #ef5350;
         }
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
-        .app-container { display: flex; flex-direction: column; height: 100vh; }
+        
+        /* GRID SHELL */
+        .app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
         
         /* TOOLBAR */
-        .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; position: relative; z-index: 200; }
+        .toolbar { 
+            height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); 
+            display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; 
+            z-index: 200; position: relative;
+        }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
-        .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
-        .right-controls { margin-left: auto; background: var(--panel-color); z-index: 2; padding-left: 10px; }
         
         /* TAPE & NEWS */
         .ticker-container { flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 14px; cursor: pointer; }
-        .ticker-item:hover { opacity: 0.8; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 3px 6px; border-radius: 4px; margin-right: 5px; }
@@ -36,96 +39,125 @@
         .news-sym { color: #ff9800; font-weight: bold; font-size: 10px; border: 1px solid #ff9800; padding: 1px 4px; border-radius: 3px; }
         .news-time { color: #787b86; font-size: 10px; }
 
-        /* WORKSPACE GRID */
+        /* WORKSPACE */
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; z-index: 1; }
-        #main-area { 
-            flex-grow: 1; display: grid; 
-            grid-template-columns: 1fr; grid-template-rows: 1fr; 
-            gap: 1px; background-color: var(--border-color); 
-            height: 100%; min-width: 0; 
-        }
+        #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; }
         
-        /* GENERIC SLOT */
+        /* WIDGET CONTAINERS (Force Flex Column) */
         .chart-slot, .widget-box { 
-            position: relative; 
-            background-color: var(--bg-color); 
+            position: relative; background-color: var(--bg-color); 
             min-width: 0; min-height: 0; 
             display: flex; flex-direction: column; 
-            overflow: hidden; 
+            overflow: hidden; border-bottom: 1px solid var(--border-color);
         }
         
-        /* HEADER (Fixed Height) */
-        .widget-header-wrapper { display: flex; flex-direction: column; border-bottom: 1px solid var(--border-color); flex-shrink: 0; z-index: 30; background: var(--panel-color); }
-        .widget-header-controls { height: 30px; display: flex; align-items: center; padding: 0 6px; gap: 4px; border-bottom: 1px solid #2a2e39; }
-        .widget-header-data { height: 26px; background-color: #161a25; display: flex; align-items: center; padding: 0 6px; }
-
-        /* CONTENT AREA (Fills remaining space) */
-        .widget-content-area { 
-            flex: 1; /* Takes all remaining height */
-            position: relative; 
-            overflow: hidden; 
-            display: flex; 
-            flex-direction: column;
+        /* --- FIXED HEADER LAYOUT --- */
+        .widget-header-wrapper {
+            display: flex; flex-direction: column; flex-shrink: 0;
+            z-index: 30; background: var(--panel-color);
+            border-bottom: 1px solid var(--border-color);
         }
         
-        /* CHART SPECIFIC */
-        .chart-canvas-fill { 
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
-            z-index: 1; 
+        /* Row 1: Controls (Strict No-Wrap) */
+        .header-controls { 
+            height: 32px; display: flex; align-items: center; 
+            padding: 0 6px; gap: 6px; 
+            white-space: nowrap; overflow: hidden;
         }
-        .chart-legend { position: absolute; top: 6px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
-        .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
+        
+        /* Row 2: Data (Strict No-Wrap) */
+        .header-data {
+            height: 28px; background-color: #161a25; 
+            display: flex; align-items: center; padding: 0 6px;
+            white-space: nowrap; overflow: hidden; border-top: 1px solid #2a2e39;
+        }
 
-        /* TAPE SPECIFIC */
+        /* WIDGET CONTENT (Fills remaining space) */
+        .widget-content { 
+            flex: 1; position: relative; 
+            display: flex; flex-direction: column;
+            min-height: 0; /* Crucial for flex scrolling */
+        }
+        .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
+        
+        /* CONTROLS Styling */
+        .mini-input { 
+            background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; 
+            width: 50px; font-size: 11px; text-transform: uppercase; border-radius: 3px; 
+            padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; 
+        }
+        
+        /* Fixed Width Buttons to prevent crushing */
+        .link-btn, .type-btn { 
+            width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; 
+            border: 1px solid #444; background: rgba(42, 46, 57, 0.9); 
+            display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; 
+        }
+        .link-btn:hover, .type-btn:hover { background: #2a2e39; color: #fff; }
+
+        /* L1 Quote Box */
+        .l1-container { 
+            display: flex; align-items: center; gap: 4px; font-family: 'Roboto', sans-serif; 
+            width: 100%; padding-right: 4px;
+        }
+        .l1-btn { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            width: 50px; min-width: 50px; height: 22px; border-radius: 2px; color: white; 
+            cursor: default; font-size: 10px; line-height: 1;
+        }
+        .l1-center { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            flex-grow: 1; height: 22px; overflow: hidden;
+        }
+        .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
+        .l1-price { font-size: 11px; font-weight: bold; }
+        .l1-size { font-size: 9px; opacity: 0.8; }
+        .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; }
+        
+        /* Tape List */
         .tape-content { 
-            flex: 1; /* Fills height */
-            overflow-y: auto; 
-            font-family: 'Monaco', monospace; font-size: 12px; 
-            background: #131722; 
-            /* Crucial: Reset margin */
+            flex: 1; overflow-y: auto; 
+            font-family: 'Monaco', monospace; font-size: 12px; background: #131722; 
             margin: 0; padding: 0;
         }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
 
-        /* CONTROLS */
-        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 50px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 22px; box-sizing: border-box; }
-        .link-btn { width: 22px; height: 22px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
-        .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 22px; overflow: hidden; transition: all 0.2s ease-out; }
-        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 25px; text-align: center; display: block; }
+        /* TIMEFRAME BUTTON */
+        .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; min-width: 40px; }
+        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 22px; width: 100%; text-align: center; display: block; }
         .tf-options-row { display: none; flex-direction: row; }
+        .tf-morph-container.expanded { min-width: 150px; z-index: 100; position: absolute; } /* Pop over when expanded */
         .tf-morph-container.expanded .tf-single { display: none; }
         .tf-morph-container.expanded .tf-options-row { display: flex; }
-        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; }
+        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; background: #1e222d; }
         .tf-btn:hover { background: #2962ff; color: white; }
         .tf-btn.active { background: #2962ff; color: white; }
 
-        /* L1 */
-        .l1-container { margin-left: auto; display: flex; align-items: center; gap: 2px; font-family: 'Roboto', sans-serif; margin-right: 55px; }
-        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 2px; color: white; cursor: default; font-size: 10px; }
-        .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
-        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 55px; height: 24px; background: rgba(30, 34, 45, 0.9); border-radius: 3px; }
-        .l1-price { font-size: 11px; font-weight: bold; line-height: 1; }
-        .l1-size { font-size: 9px; opacity: 0.8; line-height: 1; }
-        .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
-        .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
-        #left-sidebar-area .l1-container, #right-sidebar-area .l1-container { display: none; }
-
-        /* SIDEBARS */
-        #right-sidebar-area, #left-sidebar-area { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; }
-        #right-sidebar-area { border-left: 1px solid var(--border-color); } #left-sidebar-area { border-right: 1px solid var(--border-color); }
-        .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
-        
         /* LINK COLORS */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
         .link-green { background-color: #00c853; border-color: #00c853; color: white; }
         .link-purple { background-color: #aa00ff; border-color: #aa00ff; color: white; }
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
+        
+        /* SIDEBARS */
+        #sidebar-area, #left-sidebar-area { 
+            width: 280px; min-width: 280px; background-color: #131722; 
+            display: flex; flex-direction: column; flex-shrink: 0; 
+            transition: all 0.2s ease-out; overflow: hidden; 
+        }
+        #sidebar-area { border-left: 1px solid var(--border-color); } 
+        #left-sidebar-area { border-right: 1px solid var(--border-color); }
+        .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
+        /* UTILS */
+        .chart-legend { position: absolute; top: 6px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
         .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
+        
+        /* DROPDOWNS */
         .dropdown { position: relative; }
         .dropdown-menu { position: absolute; top: 100%; right: 0; background: var(--panel-color); border: 1px solid var(--border-color); z-index: 5000; display: none; min-width: 160px; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
         .dropdown.open .dropdown-menu { display: block; }
@@ -136,6 +168,7 @@
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
+        
         .ui-icon { width: 14px; height: 10px; border: 2px solid #787b86; border-radius: 1px; display: block; position: relative; box-sizing: border-box; }
         .ui-icon-left::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: #787b86; }
         .ui-icon-right::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: #787b86; }
@@ -205,8 +238,7 @@
     <div class="workspace">
         <div id="left-sidebar-area" class="sidebar collapsed"></div>
         <div id="main-area"></div>
-        <div id="right-sidebar-area" class="sidebar"></div>
-    </div>
+        <div id="sidebar-area"></div> </div>
 
     <div id="screen-logger">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>System Logs</strong><button id="clearLogs">Clear</button></div>
@@ -237,7 +269,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 9; 
+    const LAYOUT_VERSION = 10; 
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -257,7 +289,6 @@
         if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
 
         renderAll();
-
         refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
@@ -281,7 +312,7 @@
         main.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
         state.chartsConfig.forEach(cfg => { const div = document.createElement('div'); div.className = 'chart-slot'; main.appendChild(div); initWidget(div, cfg); });
         renderSidebar('left-sidebar-area', state.leftWidgetsConfig);
-        renderSidebar('right-sidebar-area', state.rightWidgetsConfig); // CORRECT ID
+        renderSidebar('sidebar-area', state.rightWidgetsConfig); // FIXED ID
         updateSidebarVisibility();
     }
 
@@ -295,24 +326,22 @@
         const isChart = cfg.type === 'chart';
         const iconClass = isChart ? 'fa-chart-bar' : 'fa-list-ol';
         
-        // ROW 1: CONTROLS
+        // 2-ROW HEADER
         const controlsHtml = `
             <div class="widget-header-wrapper">
                 <div class="widget-header-controls">
-                    <div class="widget-controls-left">
-                        <div class="link-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
-                        <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
-                        ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
-                        <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
-                    </div>
+                    <div class="type-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
+                    <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
+                    ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
+                    <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
                 ${getWidgetDataRow(cfg, isChart)}
             </div>
         `;
         
         const contentHtml = isChart 
-            ? `<div class="widget-content-area"><div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div></div>`
-            : `<div id="list-${cfg.id}" class="tape-content"></div>`;
+            ? `<div class="widget-content" id="content-${cfg.id}"><div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div></div>`
+            : `<div class="widget-content"><div id="list-${cfg.id}" class="tape-content"></div></div>`;
 
         container.innerHTML = controlsHtml + contentHtml;
         
@@ -349,10 +378,10 @@
     }
 
     async function initChart(cfg) {
-        const container = document.getElementById(`canvas-${cfg.id}`);
-        // FIX: Delay slightly to ensure flexbox geometry is calculated
-        await new Promise(r => setTimeout(r, 10));
+        // Allow DOM to paint before grabbing canvas
+        await new Promise(r => requestAnimationFrame(r));
         
+        const container = document.getElementById(`canvas-${cfg.id}`);
         const chart = LightweightCharts.createChart(container, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
@@ -364,13 +393,13 @@
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
-        // Resize Observer
-        const resizeTarget = document.getElementById(`content-${cfg.id}`); // Observe the flex parent
+        // Resize Observer on Parent Content Wrapper
+        const wrapper = document.getElementById(`content-${cfg.id}`);
         new ResizeObserver(e => { 
             if (e.length && e[0].contentRect) {
                 chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
             }
-        }).observe(resizeTarget);
+        }).observe(wrapper);
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
@@ -540,9 +569,9 @@
     }
 
     function updateChartBar(c,t,o,h,l,cl,v){c.candleSeries.update({time:t,open:o,high:h,low:l,close:cl});c.volSeries.update({time:t,value:v,color:(cl>=o?'#26a69a':'#ef5350')});}
-    async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; updateChartsRealtime(); } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
+    async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
     async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
-    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('right-sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
+    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
     document.getElementById('leftToggle').addEventListener('click', () => { state.isLeftOpen = !state.isLeftOpen; updateSidebarVisibility(); saveState(); }); document.getElementById('rightToggle').addEventListener('click', () => { state.isRightOpen = !state.isRightOpen; updateSidebarVisibility(); saveState(); });
     function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
     function parseBars(b){const o=[],v=[];b.forEach(x=>{const t=new Date(x.t).getTime()/1000;o.push({time:t,open:x.o,high:x.h,low:x.l,close:x.c});v.push({time:t,value:x.v,color:(x.c>=x.o?'#26a69a':'#ef5350')});});return{ohlc:o,vol:v};}
