@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Modular Workspace)</title>
+    <title>Pro Charting (Stable Modular)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -16,8 +16,8 @@
         /* TOOLBAR */
         .toolbar { height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 10px; gap: 10px; font-size: 13px; flex-shrink: 0; position: relative; z-index: 200; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
-        .symbol-search input { background-color: #2a2e39; border: 1px solid #2a2e39; color: white; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; width: 80px; transition: 0.2s; text-align: center; }
-        .symbol-search input:focus { border-color: var(--accent-color); outline: none; }
+        .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+        .right-controls { margin-left: auto; background: var(--panel-color); z-index: 2; padding-left: 10px; }
         
         /* TAPE & NEWS */
         .ticker-container { flex-grow: 1; overflow: hidden; white-space: nowrap; position: relative; height: 100%; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
@@ -40,57 +40,56 @@
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; z-index: 1; }
         #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; }
         
-        /* GENERIC SLOT (Holds any widget) */
+        /* GENERIC SLOT */
         .slot { position: relative; background-color: var(--bg-color); min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* WIDGET HEADER (Unified) */
+        /* WIDGET HEADER */
         .widget-header { 
-            position: absolute; top: 6px; left: 6px; right: 6px; z-index: 25; 
-            display: flex; gap: 5px; align-items: center; pointer-events: none; /* Let clicks pass through to canvas if needed */
+            position: absolute; top: 4px; left: 4px; right: 4px; z-index: 30; 
+            display: flex; gap: 4px; align-items: center; pointer-events: none;
         }
-        .widget-header > * { pointer-events: auto; } /* Re-enable clicks on buttons */
+        .widget-header > * { pointer-events: auto; } 
 
-        /* Inputs */
-        .mini-input { background: rgba(30, 34, 45, 0.9); border: 1px solid #444; color: #fff; width: 60px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 4px 5px; font-weight: bold; text-align: center; height: 26px; box-sizing: border-box; }
+        /* Controls Left */
+        .widget-controls-left { display: flex; gap: 4px; align-items: center; background: rgba(30,34,45,0.8); padding: 2px; border-radius: 4px; }
         
-        /* L1 QUOTE BOX */
-        .l1-container { margin-left: auto; display: flex; align-items: center; gap: 4px; font-family: 'Roboto', sans-serif; }
-        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60px; height: 26px; border-radius: 3px; color: white; cursor: default; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .l1-bid { background: #ef5350; border: 1px solid #b71c1c; } 
-        .l1-ask { background: #2962ff; border: 1px solid #0d47a1; } 
-        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 60px; height: 26px; background: rgba(30, 34, 45, 0.8); border-radius: 3px; }
+        .mini-input { background: rgba(30, 34, 45, 0.9); border: 1px solid #444; color: #fff; width: 50px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; box-sizing: border-box; }
+        
+        /* L1 Quotes Right */
+        .l1-container { margin-left: auto; display: flex; align-items: center; gap: 2px; font-family: 'Roboto', sans-serif; margin-right: 50px; }
+        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 3px; color: white; cursor: default; }
+        .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
+        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 55px; height: 24px; background: rgba(30, 34, 45, 0.8); border-radius: 3px; }
         .l1-price { font-size: 11px; font-weight: bold; line-height: 1; }
         .l1-size { font-size: 9px; font-weight: normal; opacity: 0.9; line-height: 1; margin-top: 1px; }
         .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
         .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
 
-        /* TAPE LIST (If widget is Tape) */
-        .tape-content { 
-            margin-top: 36px; /* Space for header */
-            flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; 
-        }
+        /* CONTENT CONTAINERS */
+        .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
+        .chart-legend { position: absolute; top: 35px; left: 6px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
+        .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
+
+        .tape-content { margin-top: 32px; flex-grow: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; z-index: 10; }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
+        .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #2a2e39; background: #1e222d; font-size: 10px; color: #787b86; position: absolute; top: 32px; left:0; right:0; height: 20px; align-items: center; z-index: 15; }
+        .tape-content-pad { margin-top: 52px; } /* Push down for header */
+
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
-        .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
 
-        /* CHART CANVAS (If widget is Chart) */
-        .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
-        .chart-legend { position: absolute; top: 36px; left: 10px; z-index: 20; font-size: 12px; font-family: monospace; pointer-events: none; }
-
-        /* TIMEFRAME MORPH BUTTON */
-        .tf-morph-container { display: flex; align-items: center; background: rgba(30, 34, 45, 0.9); border: 1px solid #444; border-radius: 3px; height: 26px; overflow: hidden; transition: all 0.2s ease-out; }
-        .tf-single { padding: 0 8px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 24px; min-width: 30px; text-align: center; display: block; }
+        /* TIMEFRAME */
+        .tf-morph-container { display: flex; align-items: center; background: rgba(30, 34, 45, 0.9); border: 1px solid #444; border-radius: 3px; height: 22px; overflow: hidden; transition: all 0.2s ease-out; }
+        .tf-single { padding: 0 5px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 20px; text-align: center; display: block; }
         .tf-options-row { display: none; flex-direction: row; }
         .tf-morph-container.expanded .tf-single { display: none; }
         .tf-morph-container.expanded .tf-options-row { display: flex; }
-        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 24px; font-weight: bold; }
-        .tf-btn:last-child { border-right: none; }
+        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; }
         .tf-btn:hover { background: #2962ff; color: white; }
         .tf-btn.active { background: #2962ff; color: white; }
 
         /* BUTTONS */
-        .link-btn { width: 26px; height: 26px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(30, 34, 45, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
+        .link-btn { width: 22px; height: 22px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(30, 34, 45, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; transition: 0.1s; box-sizing: border-box; }
         .link-btn:hover { opacity: 0.8; }
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
@@ -99,13 +98,14 @@
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
         
         /* SIDEBARS */
-        .sidebar { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; }
-        .sidebar.collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
-        #left-sidebar-area { border-right: 1px solid var(--border-color); }
-        #right-sidebar-area { border-left: 1px solid var(--border-color); }
-        .widget-box { display: flex; flex-direction: column; flex: 1; border-bottom: 1px solid var(--border-color); min-height: 0; position: relative; }
+        #sidebar-area, #left-sidebar-area { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; }
+        #sidebar-area { border-left: 1px solid var(--border-color); } #left-sidebar-area { border-right: 1px solid var(--border-color); }
+        .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
+        .widget-box { display: flex; flex-direction: column; flex: 1; border-bottom: 1px solid var(--border-color); min-height: 0; position: relative; overflow: hidden; }
 
-        /* DROPDOWNS */
+        /* UI ELEMENTS */
+        .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
+        .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
         .dropdown { position: relative; }
         .dropdown-menu { position: absolute; top: 100%; right: 0; background: var(--panel-color); border: 1px solid var(--border-color); z-index: 5000; display: none; min-width: 160px; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
         .dropdown.open .dropdown-menu { display: block; }
@@ -113,22 +113,18 @@
         .dropdown-item:hover { background: #2a2e39; }
         .dropdown-header { padding: 4px 12px; font-size: 10px; color: #2962ff; font-weight: bold; background: #15181f; }
         
-        /* LOGS */
-        #screen-logger { position: absolute; right: 290px; top: 70px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
-        .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
-        
-        /* ICONS & CONTROLS */
-        .left-controls { display: flex; gap: 10px; align-items: center; margin-right: 15px; }
-        .right-controls { margin-left: auto; display: flex; gap: 10px; flex-shrink: 0; background: var(--panel-color); z-index: 2; padding-left: 10px; }
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
-
         .ui-icon { width: 14px; height: 10px; border: 2px solid #787b86; border-radius: 1px; display: block; position: relative; box-sizing: border-box; }
         .ui-icon-left::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: #787b86; }
         .ui-icon-right::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: #787b86; }
+        .icon-btn:hover .ui-icon { border-color: #d1d4dc; } .icon-btn:hover .ui-icon::after { background: #d1d4dc; }
+        .icon-btn.active .ui-icon { border-color: #2962ff; } .icon-btn.active .ui-icon::after { background: #2962ff; }
 
-        /* MODAL */
+        #screen-logger { position: absolute; right: 290px; top: 70px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 999; display: none; }
+        .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
+        
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; }
         .modal-content { background: var(--panel-color); padding: 20px; border-radius: 6px; width: 400px; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .form-group { margin-bottom: 15px; } .form-label { display: block; font-size: 12px; color: #787b86; margin-bottom: 5px; }
@@ -136,6 +132,7 @@
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn-p { background: var(--accent-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-s { background: transparent; color: #d1d4dc; border: 1px solid #444; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .btn-danger { background: #d50000; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: auto; }
     </style>
 </head>
 <body>
@@ -201,7 +198,11 @@
         <h3 style="margin:0 0 15px 0; color:#d1d4dc;">API Configuration</h3>
         <div class="form-group"><label class="form-label">Alpaca API Key ID</label><input type="text" id="inpApiKey" class="form-input"></div>
         <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
-        <div class="modal-actions"><button class="btn-s" onclick="toggleSettings(false)">Cancel</button><button class="btn-p" onclick="saveApiSettings()">Save & Reload</button></div>
+        <div class="modal-actions">
+            <button class="btn-danger" onclick="resetLayout()">Reset Layout</button>
+            <button class="btn-s" onclick="toggleSettings(false)">Cancel</button>
+            <button class="btn-p" onclick="saveApiSettings()">Save & Reload</button>
+        </div>
     </div>
 </div>
 
@@ -219,25 +220,26 @@
     const state = {
         isLeftOpen: false, isRightOpen: true,
         layoutMode: '1x1',
-        // Configurations now have a 'type' field
-        mainConfig: [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
-        leftConfig: [],
-        rightConfig: [{ id: 'r0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }],
-        
-        // Active Runtime Instances
+        chartsConfig: [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
+        leftWidgetsConfig: [], 
+        rightWidgetsConfig: [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }],
         activeWidgets: [], 
-        
         refreshInterval: null, screenerInterval: null, tapeInterval: null, newsInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
         newsSymbols: new Set()
     };
 
     async function init() {
-        log("Initializing Workspace...");
+        log("Initializing...");
         await loadSavedState();
         
-        renderAll(); // Renders Grid + Sidebars
-        
+        // Migration: Fix old configs missing 'type'
+        state.chartsConfig.forEach(c => { if(!c.type) c.type='chart'; });
+        state.rightWidgetsConfig.forEach(w => { if(!w.type) w.type='tape'; });
+        state.leftWidgetsConfig.forEach(w => { if(!w.type) w.type='tape'; });
+
+        renderAll();
+
         refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
@@ -245,46 +247,28 @@
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateAllWidgets, 1000);
         state.newsInterval = setInterval(refreshNewsTape, 120000);
-        
+
         document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
-        document.addEventListener('click', () => {
-            document.getElementById('layoutDropdown').classList.remove('open');
-            document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded'));
-        });
-        
+        document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
         document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
         document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
     }
 
-    // --- UNIVERSAL RENDER ENGINE ---
     function renderAll() {
         state.activeWidgets = [];
-        
-        // 1. Main Grid
         const main = document.getElementById('main-area'); main.innerHTML = '';
         const [r, c] = state.layoutMode.split('x').map(Number);
         main.style.gridTemplateRows = `repeat(${r}, 1fr)`;
         main.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
-        
-        state.mainConfig.forEach(cfg => {
-            const div = document.createElement('div'); div.className = 'chart-slot'; // Now class is generic
-            main.appendChild(div);
-            initWidget(div, cfg);
-        });
-        
-        // 2. Sidebars
-        renderSidebar('left-sidebar-area', state.leftConfig);
-        renderSidebar('right-sidebar-area', state.rightConfig);
+        state.chartsConfig.forEach(cfg => { const div = document.createElement('div'); div.className = 'slot'; main.appendChild(div); initWidget(div, cfg); });
+        renderSidebar('left-sidebar-area', state.leftWidgetsConfig);
+        renderSidebar('sidebar-area', state.rightWidgetsConfig);
         updateSidebarVisibility();
     }
 
     function renderSidebar(domId, configArr) {
         const container = document.getElementById(domId); container.innerHTML = '';
-        configArr.forEach(cfg => {
-            const div = document.createElement('div'); div.className = 'widget-box';
-            container.appendChild(div);
-            initWidget(div, cfg);
-        });
+        configArr.forEach(cfg => { const div = document.createElement('div'); div.className = 'widget-box'; container.appendChild(div); initWidget(div, cfg); });
     }
 
     function initWidget(container, cfg) {
@@ -292,23 +276,22 @@
         const isChart = cfg.type === 'chart';
         const iconClass = isChart ? 'fa-chart-bar' : 'fa-list-ol';
         
-        // Header is standard for both
         container.innerHTML = `
             <div class="widget-header">
-                <div style="display:flex; gap:4px; align-items:center;">
+                <div class="widget-controls-left">
                     <div class="link-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
                     <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
-                    
                     ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
-                    
-                    <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
+                    <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link"><i class="fas fa-link"></i></div>
                 </div>
                 
-                <div class="l1-container">
-                    <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}"></span><span class="l1-size" id="qb-s-${cfg.id}"></span></div>
-                    <div class="l1-center"><span class="last-price" id="ql-${cfg.id}"></span><span class="day-vol" id="qv-${cfg.id}"></span></div>
-                    <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}"></span><span class="l1-size" id="qa-s-${cfg.id}"></span></div>
-                </div>
+                ${isChart ? 
+                    `<div class="l1-container" id="l1-${cfg.id}">
+                        <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}"></span><span class="l1-size" id="qb-s-${cfg.id}"></span></div>
+                        <div class="l1-center"><span class="last-price" id="ql-${cfg.id}"></span><span class="day-vol" id="qv-${cfg.id}"></span></div>
+                        <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}"></span><span class="l1-size" id="qa-s-${cfg.id}"></span></div>
+                    </div>` 
+                : ''}
             </div>
             <div id="content-${cfg.id}" style="flex-grow:1; position:relative; overflow:hidden;"></div>
         `;
@@ -329,15 +312,12 @@
                     <div class="tf-btn" onclick="setWidgetTf('${id}', '1H', event)">1H</div>
                     <div class="tf-btn" onclick="setWidgetTf('${id}', '1D', event)">D</div>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
-    // --- WIDGET LOGIC ---
     async function initChart(cfg) {
         const container = document.getElementById(`content-${cfg.id}`);
         container.innerHTML = `<div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div>`;
-        
         const chart = LightweightCharts.createChart(document.getElementById(`canvas-${cfg.id}`), {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
@@ -349,140 +329,29 @@
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(container);
-
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
-
         chart.subscribeCrosshairMove(p => {
             const c = p.seriesData.get(candleSeries); const v = p.seriesData.get(volSeries);
             if (c) document.getElementById(`lg-${cfg.id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span> ${v?`V:${formatNum(v.value)}`:''}`;
         });
         chart.timeScale().subscribeVisibleLogicalRangeChange(range => { if(range && range.from < 10 && !obj.isLoading) loadOlderData(obj); });
-
         await loadChartData(obj);
     }
 
     function initTape(cfg) {
         const container = document.getElementById(`content-${cfg.id}`);
-        container.innerHTML = `<div class="tape-row" style="font-size:10px; color:#666; border-bottom:1px solid #333;"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div>`;
+        container.innerHTML = `<div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="tape-list-${cfg.id}" class="tape-content tape-content-pad"></div>`;
         state.activeWidgets.push({ ...cfg, lastTradeId: 0, lastPrice: 0 });
     }
 
-    // --- ACTIONS ---
-    window.switchWidgetType = function(id) {
-        const cfg = findConfig(id);
-        cfg.type = (cfg.type === 'chart') ? 'tape' : 'chart';
-        saveState(); renderAll();
-    };
-
-    window.cycleLink = function(id) {
-        const groups = [null, 'A', 'B', 'C', 'D', 'E'];
-        const cfg = findConfig(id);
-        const idx = groups.indexOf(cfg.linkGroup);
-        cfg.linkGroup = groups[(idx + 1) % groups.length];
-        saveState(); renderAll(); // Re-render to update border colors if we add them later
-    };
-
-    window.updateWidgetTicker = function(id, input, e) {
-        if(e.key === 'Enter') {
-            const cfg = findConfig(id);
-            const val = input.value.toUpperCase();
-            cfg.ticker = val;
-            syncLinkedWidgets(cfg.linkGroup, val);
-            saveState(); renderAll(); 
-            input.blur();
-        }
-    };
-    
-    window.setWidgetTf = function(id, val, e) {
-        e.stopPropagation();
-        const cfg = findConfig(id);
-        cfg.timeframe = val;
-        saveState(); renderAll();
-    };
-    
-    window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); document.getElementById(`tf-morph-${id}`).classList.add('expanded'); };
-
-    // --- SYNC & STATE ---
-    function findConfig(id) {
-        return state.mainConfig.find(x=>x.id===id) || state.leftConfig.find(x=>x.id===id) || state.rightConfig.find(x=>x.id===id);
-    }
-
-    function syncLinkedWidgets(group, ticker) {
-        if(!group) return;
-        [...state.mainConfig, ...state.leftConfig, ...state.rightConfig].forEach(c => {
-            if(c.linkGroup === group) c.ticker = ticker;
-        });
-    }
-
-    // --- CHART LAYOUT ---
-    window.setChartLayout = function(mode) {
-        state.layoutMode = mode;
-        const [r, c] = mode.split('x').map(Number);
-        const total = r * c;
-        if(total > state.mainConfig.length) {
-            for(let i=state.mainConfig.length; i<total; i++) state.mainConfig.push({ id: `m${i}`, type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: null });
-        } else { state.mainConfig = state.mainConfig.slice(0, total); }
-        saveState(); renderAll();
-    }
-
-    window.setSidebarConfig = function(side, count) {
-        const arr = (side==='left') ? state.leftConfig : state.rightConfig;
-        const prefix = (side==='left') ? 'l' : 'r';
-        if(count === 0) {
-            if(side==='left') state.leftConfig = []; else state.rightConfig = [];
-            if(side==='left') state.isLeftOpen = false; else state.isRightOpen = false;
-        } else {
-            if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); }
-            else if(count < arr.length) { if(side==='left') state.leftConfig = arr.slice(0,count); else state.rightConfig = arr.slice(0,count); }
-            if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true;
-        }
-        saveState(); renderAll();
-    }
-
-    async function saveState() {
-        try {
-            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
-            const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings");
-            s.put({ key: "layoutConfig", value: JSON.stringify({ main: state.mainConfig, left: state.leftConfig, right: state.rightConfig, mode: state.layoutMode, lOpen: state.isLeftOpen, rOpen: state.isRightOpen }) });
-        } catch(e) { }
-    }
-    async function loadSavedState() {
-        try {
-            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
-            const tx = db.transaction("Settings", "readonly");
-            const req = tx.objectStore("Settings").get("layoutConfig");
-            await new Promise(r => {
-                req.onsuccess = () => {
-                    if(req.result) {
-                        const d = JSON.parse(req.result.value);
-                        state.mainConfig = d.main || state.mainConfig;
-                        state.leftConfig = d.left || state.leftConfig;
-                        state.rightConfig = d.right || state.rightConfig;
-                        state.layoutMode = d.mode || '1x1';
-                        state.isLeftOpen = d.lOpen; state.isRightOpen = d.rOpen;
-                    }
-                    r();
-                };
-                req.onerror = r;
-            });
-        } catch(e) { }
-    }
-
-    // --- DATA & UPDATES (Logic same as previous robust version) ---
-    // Reusing the fetch logic from previous steps but applied to the unified `state.activeWidgets` array.
-    
     async function updateAllWidgets() {
         const keys = await getKeys(); if(!keys) return;
         const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
-
         state.activeWidgets.forEach(async w => {
-            // 1. TAPE
             if(w.type === 'tape') {
-                // Only update if visible (in sidebar that is open, or main)
                 const list = document.getElementById(`tape-list-${w.id}`);
                 if(!list || list.offsetParent === null) return;
-                
                 const u=`https://data.alpaca.markets/v2/stocks/${w.ticker}/trades?limit=50&sort=desc&feed=sip&start=${start}`;
                 try {
                     const res = await fetch(u,{headers:{"APCA-API-KEY-ID":keys.k,"APCA-API-SECRET-KEY":keys.s}});
@@ -493,8 +362,7 @@
                         w.lastTradeId=n[0].i;
                         let h='';
                         for(let t of n){
-                            const c=t.p>=w.lastPrice?'t-up':(t.p<w.lastPrice?'t-down':'tape-time');
-                            w.lastPrice=t.p;
+                            const c=t.p>=w.lastPrice?'t-up':(t.p<w.lastPrice?'t-down':'tape-time'); w.lastPrice=t.p;
                             const bg=t.s>=100?'t-large':'';
                             const tm=new Date(t.t).toLocaleTimeString([],{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
                             h+=`<div class="tape-row ${bg}"><span class="tape-time">${tm}</span><span class="tape-price ${c}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
@@ -507,50 +375,41 @@
         });
     }
 
-    async function updateChartsRealtime() {
-        const keys = await getKeys(); if(!keys) return;
-        state.activeWidgets.forEach(async w => {
-            // Common Snapshot for L1
-            const u=`https://data.alpaca.markets/v2/stocks/${w.ticker}/snapshot`;
-            try {
-                const res = await fetch(u,{headers:{"APCA-API-KEY-ID":keys.k,"APCA-API-SECRET-KEY":keys.s}});
-                if(!res.ok) return;
-                const json = await res.json();
-                
-                // L1
-                const q=json.latestQuote, t=json.latestTrade, d=json.dailyBar, mb=json.minuteBar;
-                if(q) {
-                    document.getElementById(`qb-p-${w.id}`).innerText = q.bp.toFixed(2);
-                    document.getElementById(`qb-s-${w.id}`).innerText = q.bs;
-                    document.getElementById(`qa-p-${w.id}`).innerText = q.ap.toFixed(2);
-                    document.getElementById(`qa-s-${w.id}`).innerText = q.as;
-                }
-                if(t) {
-                    const el = document.getElementById(`ql-${w.id}`);
-                    el.innerText = t.p.toFixed(2);
-                    el.style.color = (t.p >= w.lastPrice) ? '#26a69a' : '#ef5350';
-                }
-                if(d) document.getElementById(`qv-${w.id}`).innerText = formatNum(d.v);
+    // --- ACTIONS ---
+    window.switchWidgetType = function(id) { const cfg = findConfig(id); cfg.type = (cfg.type === 'chart') ? 'tape' : 'chart'; saveState(); renderAll(); };
+    window.cycleLink = function(id) { const g=[null,'A','B','C','D','E']; const c=findConfig(id); c.linkGroup=g[(g.indexOf(c.linkGroup)+1)%g.length]; saveState(); renderAll(); };
+    window.updateWidgetTicker = function(id, inp, e) { if(e.key==='Enter'){ const c=findConfig(id); const v=inp.value.toUpperCase(); c.ticker=v; syncLinkedWidgets(c.linkGroup,v); saveState(); renderAll(); inp.blur(); } };
+    window.setWidgetTf = function(id, v, e) { e.stopPropagation(); const c=findConfig(id); c.timeframe=v; saveState(); renderAll(); };
+    function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
+    function syncLinkedWidgets(g, t) { if(!g)return; [...state.chartsConfig,...state.leftWidgetsConfig,...state.rightWidgetsConfig].forEach(c=>{if(c.linkGroup===g)c.ticker=t;}); }
+    
+    // --- STATE ---
+    async function saveState(){try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Settings","readwrite");const s=tx.objectStore("Settings");s.put({key:"layout",value:JSON.stringify({m:state.chartsConfig,l:state.leftWidgetsConfig,r:state.rightWidgetsConfig,lm:state.layoutMode,lo:state.isLeftOpen,ro:state.isRightOpen})});}catch(e){}}
+    async function loadSavedState(){try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Settings","readonly");const req=tx.objectStore("Settings").get("layout");await new Promise(r=>{req.onsuccess=()=>{if(req.result){const d=JSON.parse(req.result.value);state.chartsConfig=d.m;state.leftWidgetsConfig=d.l;state.rightWidgetsConfig=d.r;state.layoutMode=d.lm;state.isLeftOpen=d.lo;state.isRightOpen=d.ro;}r();};req.onerror=r;});}catch(e){}}
+    async function resetLayout(){if(confirm("Reset Layout?")){const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Settings","readwrite");tx.objectStore("Settings").delete("layout");window.location.reload();}}
 
-                // Chart Candle
-                if(w.type === 'chart') {
-                    if(w.timeframe === '1D' && d) { updateChartBar(w, snapTime(new Date(d.t).getTime()/1000, '1D'), d.o, d.h, d.l, d.c, d.v); }
-                    else if(w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v); }
-                }
-            } catch(e) {}
-        });
-    }
+    // ... (Standard Chart Data & Realtime functions - same as before) ...
+    async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; updateChartsRealtime(); } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
+    async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
+    async function updateChartsRealtime(){const k=await getKeys();if(!k)return;state.activeWidgets.forEach(async w=>{if(w.type!=='chart')return;const u=`https://data.alpaca.markets/v2/stocks/${w.ticker}/snapshot`;try{const r=await fetch(u,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return;const j=await r.json();const q=j.latestQuote,t=j.latestTrade,d=j.dailyBar,mb=j.minuteBar;if(q){document.getElementById(`qb-p-${w.id}`).innerText=q.bp.toFixed(2);document.getElementById(`qb-s-${w.id}`).innerText=q.bs;document.getElementById(`qa-p-${w.id}`).innerText=q.ap.toFixed(2);document.getElementById(`qa-s-${w.id}`).innerText=q.as;}if(t){document.getElementById(`ql-${w.id}`).innerText=t.p.toFixed(2);if(d)document.getElementById(`qv-${w.id}`).innerText=formatNum(d.v);}if(w.timeframe==='1D'&&d){const tm=snapTime(new Date(d.t).getTime()/1000,'1D');updateChartBar(w,tm,d.o,d.h,d.l,d.c,d.v);}else if(w.timeframe.includes('Min')&&mb){const tm=snapTime(new Date(mb.t).getTime()/1000,w.timeframe);updateChartBar(w,tm,mb.o,mb.h,mb.l,mb.c,mb.v);}}catch(e){}});}
 
-    // --- BOILERPLATE UTILS ---
+    window.setChartLayout = function(m){state.layoutMode=m;const[r,c]=m.split('x').map(Number);const t=r*c;if(t>state.chartsConfig.length){for(let i=state.chartsConfig.length;i<t;i++)state.chartsConfig.push({id:`m${i}`,type:'chart',ticker:'AAPL',timeframe:'5Min',linkGroup:null});}else{state.chartsConfig=state.chartsConfig.slice(0,t);}saveState();renderAll();};
+    window.setLeftSidebarLayout = function(n){updateSidebarConfig('left',n);}
+    window.setRightSidebarLayout = function(n){updateSidebarConfig('right',n);}
+    function updateSidebarConfig(s,n){let c=(s==='left')?state.leftWidgetsConfig:state.rightWidgetsConfig;const p=(s==='left')?'l':'r';if(n===0){c=[];if(s==='left')state.isLeftOpen=false;else state.isRightOpen=false;}else{if(n>c.length){for(let i=c.length;i<n;i++)c.push({id:`w-${p}-${i}`,type:'tape',ticker:'AAPL',linkGroup:null});}else{c=c.slice(0,n);}if(s==='left')state.isLeftOpen=true;else state.isRightOpen=true;}if(s==='left')state.leftWidgetsConfig=c;else state.rightWidgetsConfig=c;saveState();renderAll();}
+    
+    window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); document.getElementById(`tf-morph-${id}`).classList.add('expanded'); };
+    function getLinkClass(g){if(g==='A')return'link-blue';if(g==='B')return'link-orange';if(g==='C')return'link-green';if(g==='D')return'link-purple';if(g==='E')return'link-red';return'';}
     function updateChartBar(c,t,o,h,l,cl,v){c.candleSeries.update({time:t,open:o,high:h,low:l,close:cl});c.volSeries.update({time:t,value:v,color:(cl>=o?'#26a69a':'#ef5350')});}
-    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
+    function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(()=>{state.activeWidgets.forEach(w=>{if(w.type==='chart') w.chart.applyOptions({width:document.getElementById(`content-${w.id}`).clientWidth});});},300); }
     document.getElementById('leftToggle').addEventListener('click', () => { state.isLeftOpen = !state.isLeftOpen; updateSidebarVisibility(); saveState(); }); document.getElementById('rightToggle').addEventListener('click', () => { state.isRightOpen = !state.isRightOpen; updateSidebarVisibility(); saveState(); });
     function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
     function parseBars(b){const o=[],v=[];b.forEach(x=>{const t=new Date(x.t).getTime()/1000;o.push({time:t,open:x.o,high:x.h,low:x.l,close:x.c});v.push({time:t,value:x.v,color:(x.c>=x.o?'#26a69a':'#ef5350')});});return{ohlc:o,vol:v};}
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
-    function getLinkClass(g){if(g==='A')return'link-blue';if(g==='B')return'link-orange';if(g==='C')return'link-green';if(g==='D')return'link-purple';if(g==='E')return'link-red';return'';}
+    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
+    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;}); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
     
-    // Tape/News (Copied)
+    // TAPE & SCREENER (Re-use)
     async function refreshPortfolioTape(){const k=await getKeys();if(!k)return;try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol);t.forEach(s=>state.newsSymbols.add(s));if(t.length){const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",i);renderTape();}}}catch(e){}}
     async function refreshScreenerTape(){const k=await getKeys();if(!k)return;fetchScreener(k,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();});fetchScreener(k,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();});fetchActives(k,'volume','activeVol',"ACTIVE (VOL)");fetchActives(k,'trades','activeTrd',"ACTIVE (TRD)");if(!state.tapeData.activeVol)fetchFallbackIndices(k);}
     async function fetchScreener(k,e,n,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return'';const j=await r.json();const i=(j[n]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change}));i.forEach(x=>state.newsSymbols.add(x.symbol));return generateSectionHTML(t,i);}catch(e){return'';}}
@@ -559,17 +418,14 @@
     async function refreshNewsTape(){const k=await getKeys();if(!k)return;let s=Array.from(state.newsSymbols);if(!s.length)s=['SPY','QQQ'];const r=s.slice(0,25).join(',');const u=`https://data.alpaca.markets/v1beta1/news?symbols=${r}&limit=50`;try{const rs=await fetch(u,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!rs.ok)return;const j=await rs.json();if(j.news){let h='';j.news.forEach(n=>{const sym=(n.symbols&&n.symbols.length)?n.symbols[0]:'MKT';const t=new Date(n.updated_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});h+=`<a class="news-item" href="${n.url}" target="_blank"><span class="news-sym">${sym}</span><span>${n.headline}</span><span class="news-time">${t}</span></a>`;});document.getElementById('newsTrack').innerHTML=h+h;}}catch(e){}}
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
-    function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
-    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
-    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;}); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
-    async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
-    async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
+    function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
 
     document.addEventListener('DOMContentLoaded', init);
     document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
     document.getElementById('refreshBtn').addEventListener('click', () => state.activeWidgets.forEach(w=>{if(w.type==='chart')loadChartData(w)}));
     document.getElementById('settingsBtn').addEventListener('click', () => toggleSettings(true));
     document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
+
 </script>
 </body>
 </html>
