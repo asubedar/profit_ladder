@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Stable Layout)</title>
+    <title>Pro Charting (Fixed)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -19,12 +19,12 @@
             height: 100vh; width: 100vw; overflow: hidden;
         }
         
-        /* TOOLBAR (STRICT GRID TO PREVENT WRAPPING) */
+        /* TOOLBAR */
         .toolbar { 
             background-color: var(--panel-color); 
             border-bottom: 1px solid var(--border-color); 
             display: grid; 
-            grid-template-columns: auto minmax(0, 1fr) auto; /* Left | Middle | Right */
+            grid-template-columns: auto minmax(0, 1fr) auto; 
             align-items: center; 
             padding: 0 10px; gap: 15px; 
             z-index: 200; 
@@ -32,7 +32,7 @@
         .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
         
-        /* TAPE (Confined to Middle Column) */
+        /* TAPE */
         .ticker-container { 
             position: relative; width: 100%; height: 100%; overflow: hidden; 
             display: flex; align-items: center; 
@@ -44,7 +44,7 @@
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         
-        /* NEWS STRIP */
+        /* NEWS */
         .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
         .news-label { background: #2962ff; color: white; font-weight: bold; padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 11px; z-index: 2; box-shadow: 5px 0 10px #131722; }
         .news-track { display: flex; gap: 40px; animation: tickerScroll 120s linear infinite; padding-left: 20px; align-items: center; height: 100%; }
@@ -71,7 +71,7 @@
         #right-sidebar-area { border-left: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* WIDGET SLOT */
+        /* SLOTS */
         .chart-slot, .widget-box { 
             position: relative; background-color: var(--bg-color); 
             min-width: 0; min-height: 0; 
@@ -80,7 +80,7 @@
             flex: 1; 
         }
         
-        /* HEADER (Single Row) */
+        /* HEADER */
         .widget-header {
             height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
             display: flex; align-items: center; padding: 0 6px; gap: 4px;
@@ -88,6 +88,7 @@
         }
         .widget-controls-left { display: flex; flex-direction: row; gap: 4px; align-items: center; flex-shrink: 0; }
         
+        /* INPUTS */
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
@@ -100,15 +101,10 @@
         .l1-size { font-size: 9px; opacity: 0.8; line-height: 1; }
         .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
         .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
-        
-        /* Hide L1 on Sidebars to prevent crowding */
         #left-sidebar-area .l1-overlay, #right-sidebar-area .l1-overlay { display: none; }
 
         /* CONTENT */
-        .widget-content { 
-            flex: 1; position: relative; display: flex; flex-direction: column; 
-            min-height: 0; background: #131722; overflow: hidden; 
-        }
+        .widget-content { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; background: #131722; overflow: hidden; }
         .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
         .chart-legend { position: absolute; top: 8px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
@@ -150,6 +146,11 @@
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
+        .ui-icon { width: 14px; height: 10px; border: 2px solid #787b86; border-radius: 1px; display: block; position: relative; box-sizing: border-box; }
+        .ui-icon-left::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: #787b86; }
+        .ui-icon-right::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: #787b86; }
+        .icon-btn:hover .ui-icon { border-color: #d1d4dc; } .icon-btn:hover .ui-icon::after { background: #d1d4dc; }
+        .icon-btn.active .ui-icon { border-color: #2962ff; } .icon-btn.active .ui-icon::after { background: #2962ff; }
         
         #screen-logger { position: absolute; right: 290px; top: 80px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
@@ -260,20 +261,61 @@
         newsSymbols: new Set()
     };
 
+    async function saveState() {
+        try {
+            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
+            const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings");
+            s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) });
+        } catch(e) { }
+    }
+
+    async function loadSavedState() {
+        try {
+            const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; });
+            const tx = db.transaction("Settings", "readonly");
+            const req = tx.objectStore("Settings").get("layoutConfig");
+            await new Promise(r => {
+                req.onsuccess = () => {
+                    if(req.result) {
+                        const d = JSON.parse(req.result.value);
+                        if(d.ver !== LAYOUT_VERSION) return r(); // FORCE RESET
+                        state.chartsConfig = d.m || state.chartsConfig;
+                        state.leftWidgetsConfig = d.l || state.leftWidgetsConfig;
+                        state.rightWidgetsConfig = d.r || state.rightWidgetsConfig;
+                        state.layoutMode = d.lm || '1x1';
+                        state.isLeftOpen = d.lo; state.isRightOpen = d.ro;
+                    }
+                    r();
+                };
+                req.onerror = r;
+            });
+        } catch(e) { }
+    }
+
+    async function resetLayout(conf=true) {
+        if(!conf || confirm("Reset Layout?")) {
+            state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }];
+            state.leftWidgetsConfig = [];
+            state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }];
+            state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION;
+            state.isLeftOpen = false; state.isRightOpen = true;
+            await saveState(); window.location.reload();
+        }
+    }
+
     async function init() {
         log("Initializing...");
         await loadSavedState();
         if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
 
         renderAll();
+
         refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
         
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
-        
-        // DATA LOOPS
         state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
-        state.tapeInterval = setInterval(updateTapeIndividual, 1000); // Ensure this is INDIVIDUAL
+        state.tapeInterval = setInterval(updateTapeIndividual, 1000);
         state.newsInterval = setInterval(refreshNewsTape, 120000);
 
         document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
@@ -364,15 +406,13 @@
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
-        // RESIZE OBSERVER (FORCE)
         const wrapper = document.getElementById(`content-${cfg.id}`);
         new ResizeObserver(e => { 
             if (e.length && e[0].contentRect) {
                 chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
             }
         }).observe(wrapper);
-        
-        setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 300);
+        setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
@@ -387,7 +427,6 @@
 
     function initTape(cfg) { state.activeWidgets.push({ ...cfg, lastTradeId: 0, lastPrice: 0 }); }
 
-    // --- INDIVIDUAL TAPE UPDATE (FIXED) ---
     async function updateTapeIndividual() {
         if(!state.isLeftOpen && !state.isRightOpen && !state.chartsConfig.some(x=>x.type==='tape')) return;
         const k=await getKeys(); if(!k) return;
@@ -395,7 +434,6 @@
         const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
         const tapeWidgets = state.activeWidgets.filter(w => w.type === 'tape');
         
-        // Parallel Fetch
         await Promise.all(tapeWidgets.map(async w => {
             const list = document.getElementById(`tape-list-${w.id}`);
             if(!list || list.offsetParent === null) return;
@@ -427,7 +465,6 @@
         }));
     }
 
-    // --- BATCHED SNAPSHOTS ---
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
         const chartWidgets = state.activeWidgets.filter(w => w.type === 'chart');
@@ -469,7 +506,6 @@
         } catch(e) {}
     }
 
-    // --- UTILS ---
     function updateChartBar(c,t,o,h,l,cl,v){c.candleSeries.update({time:t,open:o,high:h,low:l,close:cl});c.volSeries.update({time:t,value:v,color:(cl>=o?'#26a69a':'#ef5350')});}
     async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
     async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${c.timeframe}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
@@ -494,7 +530,7 @@
 
     document.addEventListener('DOMContentLoaded', init);
     document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
-    document.getElementById('refreshBtn').addEventListener('click', () => state.activeWidgets.forEach(w=>{if(w.type==='chart')loadChartData(w)}));
+    document.getElementById('refreshBtn').addEventListener('click', () => state.charts.forEach(c=>loadChartData(c)));
     document.getElementById('settingsBtn').addEventListener('click', () => toggleSettings(true));
     document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
 </script>
