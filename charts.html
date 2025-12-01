@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Compact Overlay)</title>
+    <title>Pro Charting (Final Stable)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -12,119 +12,104 @@
         }
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         
-        /* LAYOUT SHELL */
-        .app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+        /* APP SHELL (Strict Grid) */
+        .app-container { 
+            display: grid; 
+            grid-template-rows: 40px 30px 1fr; /* Toolbar, News, Workspace */
+            height: 100vh; width: 100vw; overflow: hidden;
+        }
         
         /* TOOLBAR */
         .toolbar { 
-            height: 40px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); 
-            display: flex; align-items: center; padding: 0 10px; gap: 10px; flex-shrink: 0; z-index: 200; position: relative;
+            background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); 
+            display: flex; align-items: center; padding: 0 10px; gap: 15px;
+            z-index: 200; overflow: hidden; white-space: nowrap;
         }
+        .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
         .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
         .right-controls { margin-left: auto; }
-        .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; }
-
-        /* TAPE & NEWS */
-        .ticker-container { flex: 1; overflow: hidden; position: relative; height: 100%; display: flex; align-items: center; margin: 0 15px; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
-        .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; }
+        
+        /* TAPE (FIX: Force Single Line) */
+        .ticker-container { 
+            flex: 1; height: 100%; overflow: hidden; position: relative; 
+            display: flex; align-items: center; margin: 0 10px;
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
+        }
+        .ticker-track { display: flex; gap: 25px; animation: tickerScroll 90s linear infinite; align-items: center; height: 100%; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 5px; border-radius: 4px; margin-right: 5px; }
+        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
 
-        .news-strip { height: 30px; background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; flex-shrink: 0; z-index: 190; }
+        /* NEWS STRIP */
+        .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
         .news-label { background: #2962ff; color: white; font-weight: bold; padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 11px; z-index: 2; box-shadow: 5px 0 10px #131722; }
-        .news-track { display: flex; gap: 40px; animation: tickerScroll 120s linear infinite; padding-left: 20px; align-items: center; }
+        .news-track { display: flex; gap: 40px; animation: tickerScroll 120s linear infinite; padding-left: 20px; align-items: center; height: 100%; }
         .news-item { display: flex; align-items: center; gap: 8px; color: #d1d4dc; text-decoration: none; cursor: pointer; }
         .news-sym { color: #ff9800; font-weight: bold; font-size: 10px; border: 1px solid #ff9800; padding: 1px 4px; border-radius: 3px; }
         .news-time { color: #787b86; font-size: 10px; }
 
-        /* WORKSPACE GRID */
+        /* WORKSPACE */
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; z-index: 1; }
-        #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; }
+        #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; overflow: hidden; }
         
         /* SIDEBARS */
         #left-sidebar-area, #right-sidebar-area { 
             width: 280px; min-width: 280px; background-color: #131722; 
             display: flex; flex-direction: column; flex-shrink: 0; 
-            transition: all 0.2s ease-out; overflow: hidden; 
+            transition: all 0.2s ease-out; overflow: hidden; height: 100%;
         }
         #left-sidebar-area { border-right: 1px solid var(--border-color); }
         #right-sidebar-area { border-left: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* WIDGET SLOT */
+        /* WIDGET SLOTS */
         .chart-slot, .widget-box { 
             position: relative; background-color: var(--bg-color); 
             min-width: 0; min-height: 0; 
             display: flex; flex-direction: column; 
             overflow: hidden; border-bottom: 1px solid var(--border-color);
+            flex: 1; 
         }
         
-        /* --- HEADER (SINGLE ROW, CONTROLS ONLY) --- */
+        /* WIDGET HEADER */
         .widget-header {
-            height: 30px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
-            display: flex; align-items: center; padding: 0 6px; gap: 4px;
-            flex-shrink: 0; z-index: 30;
-            white-space: nowrap; /* Prevent wrapping */
+            height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 6px; gap: 6px;
+            flex-shrink: 0; z-index: 30; white-space: nowrap; overflow: hidden;
         }
+        .widget-controls-left { display: flex; flex-direction: row; gap: 4px; align-items: center; flex-shrink: 0; }
+        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
+        .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
-        /* Controls Container (Forces Horizontal) */
-        .widget-controls-left { 
-            display: flex; flex-direction: row; gap: 4px; align-items: center; flex-shrink: 0;
-        }
-        
-        /* Input Styles */
-        .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 22px; box-sizing: border-box; }
-        .link-btn, .type-btn { width: 22px; min-width: 22px; height: 22px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
-        .link-btn:hover, .type-btn:hover { background: #2a2e39; color: #fff; }
-
-        /* --- CONTENT & OVERLAYS --- */
-        .widget-content { 
-            flex: 1; position: relative; display: flex; flex-direction: column; 
-            min-height: 0; background: #131722;
-        }
-        .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
-        
-        /* L1 QUOTES (Floating Top-Right inside Chart) */
-        .l1-overlay { 
-            position: absolute; top: 6px; right: 60px; /* Clears Price Axis */
-            z-index: 25; display: flex; gap: 3px; align-items: center; font-family: 'Roboto', sans-serif;
-            pointer-events: none; /* Allow clicks to pass through gaps */
-        }
-        .l1-btn { 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            width: 50px; height: 24px; border-radius: 3px; color: white; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5); pointer-events: auto; cursor: default;
-        }
+        /* L1 QUOTES */
+        .l1-container { margin-left: auto; display: flex; align-items: center; gap: 4px; font-family: 'Roboto', sans-serif; margin-right: 0; padding-right: 4px; }
+        .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 3px; color: white; cursor: default; box-shadow: 0 2px 5px rgba(0,0,0,0.4); font-size: 10px; line-height: 1; }
         .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
-        .l1-center { 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            min-width: 55px; height: 24px; background: rgba(30, 34, 45, 0.9); border-radius: 3px; 
-        }
+        .l1-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 55px; height: 24px; background: rgba(30, 34, 45, 0.8); border-radius: 3px; }
         .l1-price { font-size: 11px; font-weight: bold; line-height: 1; }
-        .l1-size { font-size: 9px; opacity: 0.9; line-height: 1; }
+        .l1-size { font-size: 9px; opacity: 0.8; line-height: 1; }
         .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
         .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
+        /* Hide L1 on Sidebars */
+        #left-sidebar-area .l1-bid, #left-sidebar-area .l1-ask, #right-sidebar-area .l1-bid, #right-sidebar-area .l1-ask { display: none; }
 
-        /* HIDE L1 on Sidebars (Too narrow) */
-        #left-sidebar-area .l1-bid, #left-sidebar-area .l1-ask, 
-        #right-sidebar-area .l1-bid, #right-sidebar-area .l1-ask { display: none; }
-
-        /* LEGEND */
+        /* CONTENT */
+        .widget-content { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; background: #131722; overflow: hidden; }
+        .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
         .chart-legend { position: absolute; top: 8px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
 
-        /* TAPE LIST */
-        .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
         .tape-content { flex: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; margin: 0; padding: 0; }
+        .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
 
-        /* TIMEFRAME MORPH */
-        .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 22px; overflow: hidden; transition: all 0.2s ease-out; position: relative; }
-        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 25px; text-align: center; display: block; }
+        /* TIMEFRAME */
+        .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; position: relative; }
+        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 22px; min-width: 25px; text-align: center; display: block; }
         .tf-options-row { display: none; flex-direction: row; }
         .tf-morph-container.expanded { position: absolute; z-index: 100; width: auto; top: 0; left: 0; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .tf-morph-container.expanded .tf-single { display: none; }
@@ -133,7 +118,8 @@
         .tf-btn:hover { background: #2962ff; color: white; }
         .tf-btn.active { background: #2962ff; color: white; }
 
-        /* LINK COLORS */
+        /* LINKS */
+        .link-btn:hover { opacity: 0.8; }
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
         .link-green { background-color: #00c853; border-color: #00c853; color: white; }
@@ -156,6 +142,8 @@
         .ui-icon { width: 14px; height: 10px; border: 2px solid #787b86; border-radius: 1px; display: block; position: relative; box-sizing: border-box; }
         .ui-icon-left::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: #787b86; }
         .ui-icon-right::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: #787b86; }
+        .icon-btn:hover .ui-icon { border-color: #d1d4dc; } .icon-btn:hover .ui-icon::after { background: #d1d4dc; }
+        .icon-btn.active .ui-icon { border-color: #2962ff; } .icon-btn.active .ui-icon::after { background: #2962ff; }
         
         #screen-logger { position: absolute; right: 290px; top: 80px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
@@ -174,8 +162,8 @@
 
 <div class="app-container">
     <div class="toolbar">
+        <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
         <div class="left-controls">
-            <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
             <button class="icon-btn" id="leftToggle" title="Left Sidebar"><span class="ui-icon ui-icon-left"></span></button>
         </div>
         <div class="ticker-container" id="tickerContainer">
@@ -287,7 +275,7 @@
         document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
     }
 
-    // --- RENDERER ---
+    // --- UNIVERSAL RENDERER ---
     function renderAll() {
         state.activeWidgets = [];
         const main = document.getElementById('main-area'); main.innerHTML = '';
@@ -310,35 +298,32 @@
         const isChart = cfg.type === 'chart';
         const iconClass = isChart ? 'fa-chart-bar' : 'fa-list-ol';
         
-        // HEADER (Controls Left)
-        const headerHtml = `
+        // HEADER
+        const controlsHtml = `
             <div class="widget-header">
                 <div class="widget-controls-left">
-                    <div class="type-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
+                    <div class="link-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
                     <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
                     ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
+                
+                ${isChart ? 
+                    `<div class="l1-container" id="l1-${cfg.id}">
+                        <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
+                        <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
+                        <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
+                    </div>` 
+                : ''}
             </div>
         `;
         
-        // CONTENT (Overlay Style)
+        // CONTENT
         const contentHtml = isChart 
-            ? `<div class="widget-content" id="content-${cfg.id}">
-                <div class="l1-overlay" id="l1-${cfg.id}">
-                    <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
-                    <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
-                    <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
-                </div>
-                <div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div>
-                <div id="canvas-${cfg.id}" class="chart-canvas-fill"></div>
-               </div>`
-            : `<div class="widget-content">
-                 <div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div>
-                 <div id="list-${cfg.id}" class="tape-content"></div>
-               </div>`;
+            ? `<div class="widget-content" id="content-${cfg.id}"><div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div></div>`
+            : `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="list-${cfg.id}" class="tape-content"></div></div>`;
 
-        container.innerHTML = headerHtml + contentHtml;
+        container.innerHTML = controlsHtml + contentHtml;
         
         if(isChart) initChart(cfg); else initTape(cfg);
     }
@@ -373,18 +358,19 @@
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
+        // RESIZE OBSERVER
         const wrapper = document.getElementById(`content-${cfg.id}`);
         new ResizeObserver(e => { 
             if (e.length && e[0].contentRect) {
                 chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
             }
         }).observe(wrapper);
-        setTimeout(() => { 
-             if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight });
-        }, 200);
+        // Force initial
+        setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
+        
         chart.subscribeCrosshairMove(p => {
             const c = p.seriesData.get(candleSeries); const v = p.seriesData.get(volSeries);
             if (c) document.getElementById(`lg-${cfg.id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span> ${v?`V:${formatNum(v.value)}`:''}`;
