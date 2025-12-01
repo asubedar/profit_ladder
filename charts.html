@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Recovery Mode)</title>
+    <title>Pro Charting (Stable Layout)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -15,28 +15,36 @@
         /* APP SHELL */
         .app-container { 
             display: grid; 
-            grid-template-rows: 40px 30px 1fr; 
+            grid-template-rows: 40px 30px 1fr; /* Toolbar | News | Workspace */
             height: 100vh; width: 100vw; overflow: hidden;
         }
         
-        /* TOOLBAR */
+        /* TOOLBAR (STRICT GRID TO PREVENT WRAPPING) */
         .toolbar { 
-            background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); 
-            display: flex; align-items: center; padding: 0 10px; gap: 15px;
-            z-index: 200; overflow: visible; white-space: nowrap;
+            background-color: var(--panel-color); 
+            border-bottom: 1px solid var(--border-color); 
+            display: grid; 
+            grid-template-columns: auto minmax(0, 1fr) auto; /* Left | Middle | Right */
+            align-items: center; 
+            padding: 0 10px; gap: 15px; 
+            z-index: 200; 
         }
+        .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
-        .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
-        .right-controls { margin-left: auto; }
         
-        /* TAPE */
-        .ticker-container { flex: 1; height: 100%; overflow: hidden; position: relative; display: flex; align-items: center; margin: 0 10px; min-width: 0; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
-        .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; align-items: center; height: 100%; }
+        /* TAPE (Confined to Middle Column) */
+        .ticker-container { 
+            position: relative; width: 100%; height: 100%; overflow: hidden; 
+            display: flex; align-items: center; 
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
+        }
+        .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; align-items: center; height: 100%; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         
-        /* NEWS */
+        /* NEWS STRIP */
         .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
         .news-label { background: #2962ff; color: white; font-weight: bold; padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 11px; z-index: 2; box-shadow: 5px 0 10px #131722; }
         .news-track { display: flex; gap: 40px; animation: tickerScroll 120s linear infinite; padding-left: 20px; align-items: center; height: 100%; }
@@ -46,7 +54,12 @@
 
         /* WORKSPACE */
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; z-index: 1; height: 100%; }
-        #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; overflow: hidden; }
+        #main-area { 
+            flex-grow: 1; display: grid; 
+            grid-template-columns: 1fr; grid-template-rows: 1fr; 
+            gap: 1px; background-color: var(--border-color); 
+            height: 100%; min-width: 0; 
+        }
         
         /* SIDEBARS */
         #left-sidebar-area, #right-sidebar-area { 
@@ -58,7 +71,7 @@
         #right-sidebar-area { border-left: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* SLOTS */
+        /* WIDGET SLOT */
         .chart-slot, .widget-box { 
             position: relative; background-color: var(--bg-color); 
             min-width: 0; min-height: 0; 
@@ -67,13 +80,14 @@
             flex: 1; 
         }
         
-        /* HEADER */
+        /* HEADER (Single Row) */
         .widget-header {
             height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
             display: flex; align-items: center; padding: 0 6px; gap: 4px;
             flex-shrink: 0; z-index: 30; white-space: nowrap; overflow: visible;
         }
         .widget-controls-left { display: flex; flex-direction: row; gap: 4px; align-items: center; flex-shrink: 0; }
+        
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
@@ -86,10 +100,15 @@
         .l1-size { font-size: 9px; opacity: 0.8; line-height: 1; }
         .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
         .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
+        
+        /* Hide L1 on Sidebars to prevent crowding */
         #left-sidebar-area .l1-overlay, #right-sidebar-area .l1-overlay { display: none; }
 
         /* CONTENT */
-        .widget-content { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; background: #131722; overflow: hidden; }
+        .widget-content { 
+            flex: 1; position: relative; display: flex; flex-direction: column; 
+            min-height: 0; background: #131722; overflow: hidden; 
+        }
         .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
         .chart-legend { position: absolute; top: 8px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
         .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
@@ -97,8 +116,8 @@
         .tape-content { flex: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; margin: 0; padding: 0; }
         .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
+        .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
-        .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
 
         /* TIMEFRAME */
         .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; position: relative; }
@@ -119,6 +138,7 @@
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
 
         /* UTILS */
+        .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
         .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
         .dropdown { position: relative; }
         .dropdown-menu { position: absolute; top: 100%; right: 0; background: var(--panel-color); border: 1px solid var(--border-color); z-index: 5000; display: none; min-width: 160px; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
@@ -150,13 +170,13 @@
     <div class="toolbar">
         <div class="left-controls">
             <a href="./portfolio.html" class="brand"><i class="fas fa-chart-line"></i></a>
-            <button class="icon-btn" id="leftToggle" title="Left Sidebar"><i class="fas fa-columns"></i></button>
+            <button class="icon-btn" id="leftToggle" title="Left Sidebar"><span class="ui-icon ui-icon-left"></span></button>
         </div>
         <div class="ticker-container" id="tickerContainer">
             <div class="ticker-track" id="tickerTrack"><span style="font-size:11px; color:#666;">Loading Market Data...</span></div>
         </div>
         <div class="right-controls">
-            <button class="icon-btn active" id="rightToggle" title="Right Sidebar"><i class="fas fa-columns"></i></button>
+            <button class="icon-btn active" id="rightToggle" title="Right Sidebar"><span class="ui-icon ui-icon-right"></span></button>
             <div class="dropdown" id="layoutDropdown">
                 <button class="icon-btn" title="Layouts"><i class="fas fa-th-large"></i></button>
                 <div class="dropdown-menu">
@@ -226,8 +246,9 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    // No auto-reset version check to prevent data loss
+    const LAYOUT_VERSION = 21; 
     const state = {
+        layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
         layoutMode: '1x1',
         chartsConfig: [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }],
@@ -241,44 +262,33 @@
 
     async function init() {
         log("Initializing...");
-        try {
-            await loadSavedState();
-            
-            // RENDER
-            renderAll();
+        await loadSavedState();
+        if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
 
-            // DATA
-            refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
-            
-            clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
-            state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
-            state.screenerInterval = setInterval(refreshScreenerTape, 60000);
-            state.tapeInterval = setInterval(updateTapeIndividual, 1000);
-            state.newsInterval = setInterval(refreshNewsTape, 120000);
+        renderAll();
+        refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
+        
+        clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
+        
+        // DATA LOOPS
+        state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
+        state.screenerInterval = setInterval(refreshScreenerTape, 60000);
+        state.tapeInterval = setInterval(updateTapeIndividual, 1000); // Ensure this is INDIVIDUAL
+        state.newsInterval = setInterval(refreshNewsTape, 120000);
 
-            // EVENTS
-            document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
-            document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
-            document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
-            document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
-            
-        } catch(e) {
-            log("CRASH: " + e.message, 'error');
-        }
+        document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
+        document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
+        document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
+        document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
     }
 
-    // --- RENDERER ---
     function renderAll() {
         state.activeWidgets = [];
         const main = document.getElementById('main-area'); main.innerHTML = '';
         const [r, c] = state.layoutMode.split('x').map(Number);
         main.style.gridTemplateRows = `repeat(${r}, 1fr)`;
         main.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
-        
-        state.chartsConfig.forEach(cfg => { 
-            const div = document.createElement('div'); div.className = 'chart-slot'; 
-            main.appendChild(div); initWidget(div, cfg); 
-        });
+        state.chartsConfig.forEach(cfg => { const div = document.createElement('div'); div.className = 'chart-slot'; main.appendChild(div); initWidget(div, cfg); });
         renderSidebar('left-sidebar-area', state.leftWidgetsConfig);
         renderSidebar('right-sidebar-area', state.rightWidgetsConfig);
         updateSidebarVisibility();
@@ -354,24 +364,25 @@
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
+        // RESIZE OBSERVER (FORCE)
         const wrapper = document.getElementById(`content-${cfg.id}`);
         new ResizeObserver(e => { 
             if (e.length && e[0].contentRect) {
                 chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
             }
         }).observe(wrapper);
-        setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
+        
+        setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 300);
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
-        
         chart.subscribeCrosshairMove(p => {
             const c = p.seriesData.get(candleSeries); const v = p.seriesData.get(volSeries);
             if (c) document.getElementById(`lg-${cfg.id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span> ${v?`V:${formatNum(v.value)}`:''}`;
         });
         chart.timeScale().subscribeVisibleLogicalRangeChange(range => { if(range && range.from < 10 && !obj.isLoading) loadOlderData(obj); });
         await loadChartData(obj);
-        updateChartsRealtime(); // Force L1
+        updateChartsRealtime();
     }
 
     function initTape(cfg) { state.activeWidgets.push({ ...cfg, lastTradeId: 0, lastPrice: 0 }); }
@@ -384,6 +395,7 @@
         const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
         const tapeWidgets = state.activeWidgets.filter(w => w.type === 'tape');
         
+        // Parallel Fetch
         await Promise.all(tapeWidgets.map(async w => {
             const list = document.getElementById(`tape-list-${w.id}`);
             if(!list || list.offsetParent === null) return;
@@ -410,8 +422,6 @@
                     }
                     list.insertAdjacentHTML('afterbegin', h);
                     while(list.children.length > 50) list.removeChild(list.lastChild);
-                } else {
-                     if(!w.hasLoggedEmpty) { w.hasLoggedEmpty=true; }
                 }
             } catch(e) { }
         }));
@@ -478,37 +488,15 @@
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
     function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
-    
-    // --- STATE & CONFIG ---
-    window.setChartLayout = function(m){state.layoutMode=m;const[r,c]=m.split('x').map(Number);const t=r*c;if(t>state.chartsConfig.length){for(let i=state.chartsConfig.length;i<t;i++)state.chartsConfig.push({id:`m${i}`,type:'chart',ticker:'AAPL',timeframe:'5Min',linkGroup:null});}else{state.chartsConfig=state.chartsConfig.slice(0,t);}saveState();renderAll();};
-    window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); }
-    window.setRightSidebarLayout = function(n) { updateSidebarConfig('right', n); }
-    function updateSidebarConfig(side, count) {
-        const arr = (side==='left') ? state.leftWidgetsConfig : state.rightWidgetsConfig;
-        const prefix = (side==='left') ? 'l' : 'r';
-        if(count === 0) {
-            if(side==='left') state.leftWidgetsConfig=[]; else state.rightWidgetsConfig=[];
-            if(side==='left') state.isLeftOpen=false; else state.isRightOpen=false;
-        } else {
-            if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); }
-            else if(count < arr.length) { if(side==='left') state.leftWidgetsConfig = arr.slice(0,count); else state.rightWidgetsConfig = arr.slice(0,count); }
-            if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true;
-        }
-        saveState(); renderAll();
-    }
-    window.switchWidgetType = function(id) { const cfg = findConfig(id); cfg.type = (cfg.type === 'chart') ? 'tape' : 'chart'; if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; saveState(); renderAll(); };
-    window.cycleLink = function(id) { const groups = [null, 'A', 'B', 'C', 'D', 'E']; const cfg = findConfig(id); cfg.linkGroup = groups[(groups.indexOf(cfg.linkGroup) + 1) % groups.length]; saveState(); renderAll(); };
-    window.updateWidgetTicker = function(id, input, e) { if(e.key === 'Enter') { const cfg = findConfig(id); const val = input.value.toUpperCase(); cfg.ticker = val; syncLinkedWidgets(cfg.linkGroup, val); saveState(); renderAll(); input.blur(); } };
-    window.setWidgetTf = function(id, val, e) { e.stopPropagation(); const cfg = findConfig(id); cfg.timeframe = val; saveState(); renderAll(); };
-    window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); document.getElementById(`tf-morph-${id}`).classList.add('expanded'); };
-    function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
-    function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
-
-    async function saveState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings"); s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen }) }); } catch(e) { } }
-    async function loadSavedState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readonly"); const req = tx.objectStore("Settings").get("layoutConfig"); await new Promise(r => { req.onsuccess = () => { if(req.result) { const d = JSON.parse(req.result.value); state.chartsConfig = d.m || state.chartsConfig; state.leftWidgetsConfig = d.l || state.leftWidgetsConfig; state.rightWidgetsConfig = d.r || state.rightWidgetsConfig; state.layoutMode = d.lm || '1x1'; state.isLeftOpen = d.lo; state.isRightOpen = d.ro; } r(); }; req.onerror = r; }); } catch(e) { } }
+    window.changeTicker=function(s){ const c=state.charts[0]; if(c){ c.ticker=s; state.chartsConfig[0].ticker=s; document.querySelector('#chart-slot-0 input').value=s; syncLinkedWidgets(c.linkGroup, s); loadChartData(c); saveState(); } };
     function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
     async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;}); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
-    async function resetLayout(c=true){if(!c||confirm("Reset?")){state.chartsConfig=[{id:'m0',type:'chart',ticker:'AAPL',timeframe:'5Min',linkGroup:'A'}];state.leftWidgetsConfig=[];state.rightWidgetsConfig=[{id:'w-right-0',type:'tape',ticker:'AAPL',linkGroup:'A'}];state.layoutMode='1x1';state.isLeftOpen=false;state.isRightOpen=true;await saveState();window.location.reload();}}
+
+    document.addEventListener('DOMContentLoaded', init);
+    document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
+    document.getElementById('refreshBtn').addEventListener('click', () => state.activeWidgets.forEach(w=>{if(w.type==='chart')loadChartData(w)}));
+    document.getElementById('settingsBtn').addEventListener('click', () => toggleSettings(true));
+    document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
 </script>
 </body>
 </html>
