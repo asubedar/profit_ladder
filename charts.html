@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Ordered T&S)</title>
+    <title>Pro Charting (Timestamp Sort)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -13,20 +13,37 @@
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         
         /* APP SHELL */
-        .app-container { display: grid; grid-template-rows: 40px 30px 1fr; height: 100vh; width: 100vw; overflow: hidden; }
+        .app-container { 
+            display: grid; 
+            grid-template-rows: 40px 30px 1fr; 
+            height: 100vh; width: 100vw; overflow: hidden;
+        }
         
         /* TOOLBAR */
-        .toolbar { background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; padding: 0 10px; gap: 15px; z-index: 200; }
+        .toolbar { 
+            background-color: var(--panel-color); 
+            border-bottom: 1px solid var(--border-color); 
+            display: grid; 
+            grid-template-columns: auto minmax(0, 1fr) auto; 
+            align-items: center; 
+            padding: 0 10px; gap: 15px; 
+            z-index: 200; 
+        }
         .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
         
         /* TAPE */
-        .ticker-container { position: relative; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
+        .ticker-container { 
+            position: relative; width: 100%; height: 100%; overflow: hidden; 
+            display: flex; align-items: center; 
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
+        }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; padding-left: 20px; align-items: center; height: 100%; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 5px; border-radius: 4px; margin-right: 5px; }
+        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
 
         /* NEWS */
         .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
@@ -38,22 +55,39 @@
 
         /* WORKSPACE */
         .workspace { display: flex; flex-grow: 1; overflow: hidden; position: relative; z-index: 1; height: 100%; }
-        #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; overflow: hidden; }
+        #main-area { 
+            flex-grow: 1; display: grid; 
+            grid-template-columns: 1fr; grid-template-rows: 1fr; 
+            gap: 1px; background-color: var(--border-color); 
+            height: 100%; min-width: 0; overflow: hidden;
+        }
         
         /* SIDEBARS */
-        #left-sidebar-area, #right-sidebar-area { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; height: 100%; }
+        #left-sidebar-area, #right-sidebar-area { 
+            width: 280px; min-width: 280px; background-color: #131722; 
+            display: flex; flex-direction: column; flex-shrink: 0; 
+            transition: all 0.2s ease-out; overflow: hidden; height: 100%;
+        }
         #left-sidebar-area { border-right: 1px solid var(--border-color); }
         #right-sidebar-area { border-left: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* SLOT */
-        .chart-slot, .widget-box { position: relative; background-color: var(--bg-color); min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border-color); flex: 1; }
+        /* SLOTS */
+        .chart-slot, .widget-box { 
+            position: relative; background-color: var(--bg-color); 
+            min-width: 0; min-height: 0; 
+            display: flex; flex-direction: column; 
+            overflow: hidden; border-bottom: 1px solid var(--border-color);
+            flex: 1; 
+        }
         
         /* HEADER */
-        .widget-header { height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 6px; gap: 4px; flex-shrink: 0; z-index: 30; white-space: nowrap; overflow: visible; }
+        .widget-header {
+            height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 6px; gap: 4px;
+            flex-shrink: 0; z-index: 30; white-space: nowrap; overflow: visible;
+        }
         .widget-controls-left { display: flex; flex-direction: row; gap: 4px; align-items: center; flex-shrink: 0; }
-        
-        /* INPUTS */
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
@@ -88,8 +122,7 @@
         .tf-morph-container.expanded .tf-single { display: none; }
         .tf-morph-container.expanded .tf-options-row { display: flex; }
         .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; background: #1e222d; white-space: nowrap; }
-        .tf-btn:hover { background: #2962ff; color: white; }
-        .tf-btn.active { background: #2962ff; color: white; }
+        .tf-btn:hover, .tf-btn.active { background: #2962ff; color: white; }
 
         /* LINKS */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
@@ -111,11 +144,6 @@
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
-        .ui-icon { width: 14px; height: 10px; border: 2px solid #787b86; border-radius: 1px; display: block; position: relative; box-sizing: border-box; }
-        .ui-icon-left::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: #787b86; }
-        .ui-icon-right::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: #787b86; }
-        .icon-btn:hover .ui-icon { border-color: #d1d4dc; } .icon-btn:hover .ui-icon::after { background: #d1d4dc; }
-        .icon-btn.active .ui-icon { border-color: #2962ff; } .icon-btn.active .ui-icon::after { background: #2962ff; }
         
         #screen-logger { position: absolute; right: 290px; top: 80px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
@@ -151,12 +179,19 @@
                     <div class="dropdown-item" onclick="setChartLayout('2x1')">2 Stacked</div>
                     <div class="dropdown-item" onclick="setChartLayout('1x2')">2 Side-by-Side</div>
                     <div class="dropdown-item" onclick="setChartLayout('2x2')">Quad Grid (4)</div>
+                    <div class="dropdown-item" onclick="setChartLayout('3x2')">6 Grid (3x2)</div>
+                    <div class="dropdown-item" onclick="setChartLayout('2x3')">6 Grid (2x3)</div>
                     <div class="dropdown-item" onclick="setChartLayout('3x3')">9 Grid (3x3)</div>
-                    <div class="dropdown-header">SIDEBARS</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(0)">Left: Hidden</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(1)">Left: 1 Widget</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(0)">Right: Hidden</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(1)">Right: 1 Widget</div>
+                    <div class="dropdown-header">LEFT SIDEBAR</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(0)">Hidden</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(1)">1 Widget</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(2)">2 Widgets</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(3)">3 Widgets</div>
+                    <div class="dropdown-header">RIGHT SIDEBAR</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(0)">Hidden</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(1)">1 Widget</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(2)">2 Widgets</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(3)">3 Widgets</div>
                 </div>
             </div>
             <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
@@ -219,7 +254,7 @@
         newsSymbols: new Set()
     };
 
-    // --- ACTIONS ---
+    // --- ACTIONS (GLOBAL) ---
     window.switchWidgetType = function(id) { const cfg = findConfig(id); if(cfg) { cfg.type = (cfg.type === 'chart') ? 'tape' : 'chart'; if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; saveState(); renderAll(); } };
     window.cycleLink = function(id) { const groups = [null, 'A', 'B', 'C', 'D', 'E']; const cfg = findConfig(id); if(cfg) { cfg.linkGroup = groups[(groups.indexOf(cfg.linkGroup) + 1) % groups.length]; saveState(); renderAll(); } };
     window.updateWidgetTicker = function(id, input, e) { if(e.key === 'Enter') { const cfg = findConfig(id); if(cfg) { const val = input.value.toUpperCase(); cfg.ticker = val; syncLinkedWidgets(cfg.linkGroup, val); saveState(); renderAll(); input.blur(); } } };
@@ -229,27 +264,38 @@
     window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); };
     window.setRightSidebarLayout = function(n) { updateSidebarConfig('right', n); };
 
+    // --- HELPERS ---
     function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
     function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
     function updateSidebarConfig(side, count) { const arr = (side==='left') ? state.leftWidgetsConfig : state.rightWidgetsConfig; const prefix = (side==='left') ? 'l' : 'r'; if(count === 0) { if(side==='left') state.leftWidgetsConfig=[]; else state.rightWidgetsConfig=[]; if(side==='left') state.isLeftOpen=false; else state.isRightOpen=false; } else { if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); } else if(count < arr.length) { if(side==='left') state.leftWidgetsConfig = arr.slice(0,count); else state.rightWidgetsConfig = arr.slice(0,count); } if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true; } saveState(); renderAll(); }
+    async function saveState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings"); s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) }); } catch(e) { } }
+    async function loadSavedState() { try { const db = await new Promise((r, j) => { const req = indexedDB.open("ProfitLadderDB", 3); req.onsuccess = e => r(e.target.result); req.onerror = j; }); const tx = db.transaction("Settings", "readonly"); const req = tx.objectStore("Settings").get("layoutConfig"); await new Promise(r => { req.onsuccess = () => { if(req.result) { const d = JSON.parse(req.result.value); if(d.ver !== LAYOUT_VERSION) return r(); state.chartsConfig = d.m || state.chartsConfig; state.leftWidgetsConfig = d.l || state.leftWidgetsConfig; state.rightWidgetsConfig = d.r || state.rightWidgetsConfig; state.layoutMode = d.lm || '1x1'; state.isLeftOpen = d.lo; state.isRightOpen = d.ro; } r(); }; req.onerror = r; }); } catch(e) { } }
+    async function resetLayout(conf=true) { if(!conf || confirm("Reset Layout?")) { state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }]; state.leftWidgetsConfig = []; state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }]; state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION; state.isLeftOpen = false; state.isRightOpen = true; await saveState(); window.location.reload(); } }
+    
+    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
+    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;}); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
 
     async function init() {
         log("Initializing...");
         await loadSavedState();
         if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
+
         renderAll();
         refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
+        
         clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
         state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
         state.screenerInterval = setInterval(refreshScreenerTape, 60000);
         state.tapeInterval = setInterval(updateTapeIndividual, 1000);
         state.newsInterval = setInterval(refreshNewsTape, 120000);
+
         document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
         document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
         document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
         document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
     }
 
+    // --- RENDERERS ---
     function renderAll() {
         state.activeWidgets = [];
         const main = document.getElementById('main-area'); main.innerHTML = '';
@@ -320,6 +366,7 @@
     async function initChart(cfg) {
         const container = document.getElementById(`canvas-${cfg.id}`);
         await new Promise(r => setTimeout(r, 50)); 
+        
         const chart = LightweightCharts.createChart(container, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
@@ -351,20 +398,19 @@
     }
 
     function initTape(cfg) { 
-        // Init with empty history array for sorting
+        // Sortable history buffer
         const obj = { ...cfg, lastTradeId: 0, lastPrice: 0, tradeHistory: [] };
         state.activeWidgets.push(obj); 
     }
 
-    // --- UPDATED TAPE LOGIC (SORTED) ---
+    // --- INDIVIDUAL TAPE UPDATE (SORTED) ---
     async function updateTapeIndividual() {
         if(!state.isLeftOpen && !state.isRightOpen && !state.chartsConfig.some(x=>x.type==='tape')) return;
         const k=await getKeys(); if(!k) return;
         
-        // Use a slightly closer start time for efficiency if list is populated, otherwise 3 days
         const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
-        
         const tapeWidgets = state.activeWidgets.filter(w => w.type === 'tape');
+        
         await Promise.all(tapeWidgets.map(async w => {
             const list = document.getElementById(`tape-list-${w.id}`);
             if(!list || list.offsetParent === null) return;
@@ -376,28 +422,19 @@
                 const json = await res.json();
                 
                 if(json.trades) {
-                    // Merge new trades into history
-                    // 1. Filter out any we already have
                     const newTrades = json.trades.filter(t => !w.tradeHistory.some(existing => existing.i === t.i));
                     if(newTrades.length === 0) return;
 
-                    // 2. Add to history and Sort by ID Descending (Newest First)
-                    w.tradeHistory = [...w.tradeHistory, ...newTrades].sort((a, b) => b.i - a.i);
-                    
-                    // 3. Keep only top 50
+                    w.tradeHistory = [...w.tradeHistory, ...newTrades].sort((a, b) => new Date(b.t) - new Date(a.t));
                     if(w.tradeHistory.length > 50) w.tradeHistory = w.tradeHistory.slice(0, 50);
                     
-                    // 4. Re-render DOM from scratch (Cleanest way to ensure order)
                     let h = '';
-                    // Calculate price change direction relative to *previous trade in list* (which is actually the next item in desc array)
                     for(let i=0; i<w.tradeHistory.length; i++) {
                         const t = w.tradeHistory[i];
                         const prevPrice = (i < w.tradeHistory.length - 1) ? w.tradeHistory[i+1].p : t.p;
-                        
                         const c = t.p >= prevPrice ? 't-up' : 't-down';
                         const bg = t.s >= 100 ? 't-large' : '';
                         const tm = new Date(t.t).toLocaleTimeString([],{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-                        
                         h += `<div class="tape-row ${bg}"><span class="tape-time">${tm}</span><span class="tape-price ${c}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
                     }
                     list.innerHTML = h;
@@ -410,8 +447,10 @@
         const keys = await getKeys(); if(!keys) return;
         const widgets = state.activeWidgets;
         if(widgets.length === 0) return;
+
         const symbols = [...new Set(widgets.map(w => w.ticker))];
         const u = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols.join(',')}`;
+        
         try {
             const res = await fetch(u, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
@@ -423,7 +462,6 @@
                 const t = data.latestTrade;
                 const d = data.dailyBar;
                 const mb = data.minuteBar;
-
                 const l1 = document.getElementById(`l1-${w.id}`);
                 if(l1 && l1.offsetParent !== null && q) {
                     document.getElementById(`qb-p-${w.id}`).innerText = q.bp.toFixed(2);
@@ -437,7 +475,6 @@
                     }
                     if(d) document.getElementById(`qv-${w.id}`).innerText = formatNum(d.v);
                 }
-
                 if(w.type === 'chart') {
                     if(w.timeframe === '1D' && d) { updateChartBar(w, snapTime(new Date(d.t).getTime()/1000, '1D'), d.o, d.h, d.l, d.c, d.v); }
                     else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v); }
@@ -446,7 +483,7 @@
         } catch(e) {}
     }
 
-    // --- BOILERPLATE ---
+    // --- UTILS ---
     function updateChartBar(c,t,o,h,l,cl,v){c.candleSeries.update({time:t,open:o,high:h,low:l,close:cl});c.volSeries.update({time:t,value:v,color:(cl>=o?'#26a69a':'#ef5350')});}
     async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; 
         let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M') tf='1Month'; if(tf==='1H') tf='1Hour';
@@ -468,9 +505,12 @@
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
     function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
-    async function saveState(){try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Settings","readwrite");const s=tx.objectStore("Settings");s.put({key:"layoutConfig",value:JSON.stringify({m:state.chartsConfig,l:state.leftWidgetsConfig,r:state.rightWidgetsConfig,lm:state.layoutMode,lo:state.isLeftOpen,ro:state.isRightOpen,ver:state.layoutVersion})});}catch(e){}}
-    async function loadSavedState(){try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",3);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Settings","readonly");const req=tx.objectStore("Settings").get("layoutConfig");await new Promise(r=>{req.onsuccess=()=>{if(req.result){const d=JSON.parse(req.result.value);if(d.ver!==LAYOUT_VERSION)return r();state.chartsConfig=d.m||state.chartsConfig;state.leftWidgetsConfig=d.l||state.leftWidgetsConfig;state.rightWidgetsConfig=d.r||state.rightWidgetsConfig;state.layoutMode=d.lm||'1x1';state.isLeftOpen=d.lo;state.isRightOpen=d.ro;}r();};req.onerror=r;});}catch(e){}}
-    async function resetLayout(c=true){if(!c||confirm("Reset?")){state.chartsConfig=[{id:'m0',type:'chart',ticker:'AAPL',timeframe:'5Min',linkGroup:'A'}];state.leftWidgetsConfig=[];state.rightWidgetsConfig=[{id:'w-right-0',type:'tape',ticker:'AAPL',linkGroup:'A'}];state.layoutMode='1x1';state.layoutVersion=LAYOUT_VERSION;state.isLeftOpen=false;state.isRightOpen=true;await saveState();window.location.reload();}}
+
+    document.addEventListener('DOMContentLoaded', init);
+    document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
+    document.getElementById('refreshBtn').addEventListener('click', () => state.activeWidgets.forEach(w=>{if(w.type==='chart')loadChartData(w)}));
+    document.getElementById('settingsBtn').addEventListener('click', () => toggleSettings(true));
+    document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
 </script>
 </body>
 </html>
