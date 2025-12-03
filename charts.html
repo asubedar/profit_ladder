@@ -313,6 +313,24 @@
         }
     }
 
+    function updateChartBar(w, time, open, high, low, close, vol) {
+        if (!w.candleSeries || !w.volSeries) return;
+        
+        const bar = { time: time, open: open, high: high, low: low, close: close };
+        w.candleSeries.update(bar);
+        
+        if (vol !== undefined) {
+            w.volSeries.update({
+                time: time,
+                value: vol,
+                color: close >= open ? '#26a69a' : '#ef5350'
+            });
+        }
+        
+        // Update local state so the crosshair logic has the latest close
+        w.lastPrice = close;
+    }
+    
     // --- RENDERERS ---
     function renderAll() {
         state.activeWidgets = [];
