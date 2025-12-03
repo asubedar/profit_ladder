@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Data Integrity Fix)</title>
+    <title>Pro Charting (L1 Fix)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -13,12 +13,19 @@
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         
         /* APP SHELL */
-        .app-container { display: grid; grid-template-rows: 40px 30px 1fr; height: 100vh; width: 100vw; overflow: hidden; }
+        .app-container { 
+            display: grid; 
+            grid-template-rows: 40px 30px 1fr; 
+            height: 100vh; width: 100vw; overflow: hidden;
+        }
         
         /* TOOLBAR */
-        .toolbar { background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; padding: 0 10px; gap: 15px; z-index: 200; overflow: visible; }
+        .toolbar { 
+            background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); 
+            display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; 
+            padding: 0 10px; gap: 15px; z-index: 200; overflow: visible; 
+        }
         .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
-        .right-controls { margin-left: auto; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
         
         /* TAPE */
@@ -27,7 +34,8 @@
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        
+        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+
         /* NEWS */
         .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
         .news-label { background: #2962ff; color: white; font-weight: bold; padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 11px; z-index: 2; box-shadow: 5px 0 10px #131722; }
@@ -46,7 +54,7 @@
         #right-sidebar-area { border-left: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* SLOT */
+        /* WIDGETS */
         .chart-slot, .widget-box { position: relative; background-color: var(--bg-color); min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border-color); flex: 1; }
         
         /* HEADER */
@@ -55,7 +63,7 @@
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
-        /* L1 QUOTES */
+        /* L1 QUOTES (Overlay) */
         .l1-overlay { position: absolute; top: 6px; right: 60px; z-index: 25; display: flex; gap: 4px; align-items: center; font-family: 'Roboto', sans-serif; pointer-events: none; }
         .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 3px; color: white; cursor: default; box-shadow: 0 2px 5px rgba(0,0,0,0.4); font-size: 10px; line-height: 1; pointer-events: auto; }
         .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
@@ -64,6 +72,7 @@
         .l1-size { font-size: 9px; opacity: 0.8; line-height: 1; }
         .last-price { font-size: 13px; font-weight: bold; color: #d1d4dc; line-height: 1; }
         .day-vol { font-size: 9px; color: #787b86; margin-top: 1px; font-family: 'Monaco', monospace; }
+        /* Hide L1 in Sidebar */
         #left-sidebar-area .l1-overlay, #right-sidebar-area .l1-overlay { display: none; }
 
         /* CONTENT */
@@ -88,16 +97,15 @@
         .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; background: #1e222d; white-space: nowrap; }
         .tf-btn:hover, .tf-btn.active { background: #2962ff; color: white; }
 
-        /* LINKS */
+        /* LINKS & UTILS */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
         .link-green { background-color: #00c853; border-color: #00c853; color: white; }
         .link-purple { background-color: #aa00ff; border-color: #aa00ff; color: white; }
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
-
-        /* UTILS */
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
         .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
+        
         .dropdown { position: relative; }
         .dropdown-menu { position: absolute; top: 100%; right: 0; background: var(--panel-color); border: 1px solid var(--border-color); z-index: 5000; display: none; min-width: 160px; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
         .dropdown.open .dropdown-menu { display: block; }
@@ -108,13 +116,8 @@
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
-        .ui-icon { width: 14px; height: 10px; border: 2px solid #787b86; border-radius: 1px; display: block; position: relative; box-sizing: border-box; }
-        .ui-icon-left::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: #787b86; }
-        .ui-icon-right::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: #787b86; }
-        .icon-btn:hover .ui-icon { border-color: #d1d4dc; } .icon-btn:hover .ui-icon::after { background: #d1d4dc; }
-        .icon-btn.active .ui-icon { border-color: #2962ff; } .icon-btn.active .ui-icon::after { background: #2962ff; }
         
-        #screen-logger { position: absolute; right: 290px; top: 80px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
+        #screen-logger { position: absolute; right: 20px; top: 80px; bottom: 20px; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
         
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; }
@@ -192,7 +195,7 @@
         <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
         <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input" placeholder="Optional (60 req/min limit)"></div>
         <div class="modal-actions">
-            <button class="btn-danger" onclick="resetLayout()">Reset Layout</button>
+            <button class="btn-danger" onclick="nuclearReset()">Factory Reset</button>
             <button class="btn-s" onclick="toggleSettings(false)">Cancel</button>
             <button class="btn-p" onclick="saveApiSettings()">Save & Reload</button>
         </div>
@@ -203,6 +206,7 @@
 <script src="shared.js"></script>
 
 <script>
+    // --- UTILS ---
     const logger = document.getElementById('screen-logger');
     function log(msg, type='info') {
         const div = document.createElement('div'); div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
@@ -210,7 +214,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 27; 
+    const LAYOUT_VERSION = 28; 
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -238,7 +242,7 @@
     function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
     function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
     function updateSidebarConfig(side, count) { const arr = (side==='left') ? state.leftWidgetsConfig : state.rightWidgetsConfig; const prefix = (side==='left') ? 'l' : 'r'; if(count === 0) { if(side==='left') state.leftWidgetsConfig=[]; else state.rightWidgetsConfig=[]; if(side==='left') state.isLeftOpen=false; else state.isRightOpen=false; } else { if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); } else if(count < arr.length) { if(side==='left') state.leftWidgetsConfig = arr.slice(0,count); else state.rightWidgetsConfig = arr.slice(0,count); } if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true; } saveState(); renderAll(); }
-
+    
     // --- DB ---
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -250,13 +254,15 @@
                 if (!db.objectStoreNames.contains("Financials")) db.createObjectStore("Financials", { keyPath: "symbol" });
             };
             req.onsuccess = (event) => resolve(event.target.result);
-            req.onerror = (event) => reject("DB Error");
+            req.onerror = (event) => reject(event);
         });
     }
+    
+    window.nuclearReset = function() { if(confirm("Full Reset?")) { indexedDB.deleteDatabase("ProfitLadderDB").onsuccess = () => window.location.reload(); } };
 
     async function saveState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings"); s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) }); } catch(e) { } }
     async function loadSavedState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readonly"); const req = tx.objectStore("Settings").get("layoutConfig"); await new Promise(r => { req.onsuccess = () => { if(req.result) { const d = JSON.parse(req.result.value); if(d.ver !== LAYOUT_VERSION) return r(); state.chartsConfig = d.m || state.chartsConfig; state.leftWidgetsConfig = d.l || state.leftWidgetsConfig; state.rightWidgetsConfig = d.r || state.rightWidgetsConfig; state.layoutMode = d.lm || '1x1'; state.isLeftOpen = d.lo; state.isRightOpen = d.ro; } r(); }; req.onerror = r; }); } catch(e) { } }
-    async function resetLayout(conf=true) { if(!conf || confirm("Reset Layout?")) { state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }]; state.leftWidgetsConfig = []; state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }]; state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION; state.isLeftOpen = false; state.isRightOpen = true; await saveState(); window.location.reload(); } }
+    async function resetLayout(c=true) { if(!c || confirm("Reset Layout?")) { state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }]; state.leftWidgetsConfig = []; state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }]; state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION; state.isLeftOpen = false; state.isRightOpen = true; await saveState(); window.location.reload(); } }
     function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) { (async () => { const db = await openDB(); const tx = db.transaction("Settings","readonly"); const store = tx.objectStore("Settings"); const getVal = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : ''); }); const [k, s, f] = await Promise.all([getVal("APCA_API_KEY_ID"), getVal("APCA_API_SECRET_KEY"), getVal("FINNHUB_API_KEY")]); document.getElementById('inpApiKey').value = k; document.getElementById('inpApiSecret').value = s; document.getElementById('inpFinnhubKey').value = f; })(); } }
     async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); const f = document.getElementById('inpFinnhubKey').value.trim(); if(!k||!s) return alert("Alpaca keys required"); try{ const db=await openDB(); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); store.put({key:"FINNHUB_API_KEY",value:f}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
 
@@ -287,7 +293,6 @@
         try {
             await loadSavedState();
             if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
-
             renderAll();
             refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
             pruneFinancials();
@@ -302,9 +307,9 @@
             document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
             document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
             document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
-            
         } catch(e) {
-            log("CRASH: " + e.message, 'error');
+            console.error(e);
+            // Could show a manual reset button here if init fails
         }
     }
 
@@ -331,11 +336,6 @@
         const isChart = cfg.type === 'chart';
         const iconClass = isChart ? 'fa-chart-bar' : 'fa-list-ol';
         
-        // SYNC PUSH (Fixes activeWidgets race condition)
-        // If Chart, we push later inside initChart to attach object. 
-        // If Tape, we must push now or in initTape.
-        // Let's standardize: We push in the specific init function.
-
         const headerHtml = `
             <div class="widget-header">
                 <div class="widget-controls-left">
@@ -473,7 +473,6 @@
                 const mb = data.minuteBar;
                 
                 const l1 = document.getElementById(`l1-${w.id}`);
-                // NOTE: Removed the check if offsetParent is null to allow T&S widgets to update if visible
                 if(l1 && q) {
                     document.getElementById(`qb-p-${w.id}`).innerText = q.bp.toFixed(2);
                     document.getElementById(`qb-s-${w.id}`).innerText = q.bs;
