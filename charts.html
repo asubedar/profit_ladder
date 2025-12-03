@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Safe Mode)</title>
+    <title>Pro Charting (Safe Boot)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -12,44 +12,26 @@
         }
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         
-        /* GLOBAL ERROR OVERLAY */
-        #global-error {
-            position: fixed; top: 0; left: 0; width: 100%; background: #d50000; color: white; padding: 10px;
-            z-index: 99999; display: none; font-family: monospace; font-weight: bold;
-        }
-
-        /* GRID LAYOUT */
-        .app-container { 
-            display: grid; 
-            grid-template-rows: 40px 30px 1fr; 
-            height: 100vh; width: 100vw; overflow: hidden;
-        }
+        /* EMERGENCY RESET BUTTON (Visible only on crash) */
+        #crash-reset { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background: #d50000; color: white; padding: 20px; border-radius: 8px; display: none; text-align: center; box-shadow: 0 10px 30px black; }
+        
+        /* LAYOUT */
+        .app-container { display: grid; grid-template-rows: 40px 30px 1fr; height: 100vh; width: 100vw; overflow: hidden; }
         
         /* TOOLBAR */
-        .toolbar { 
-            background-color: var(--panel-color); 
-            border-bottom: 1px solid var(--border-color); 
-            display: grid; 
-            grid-template-columns: auto minmax(0, 1fr) auto; 
-            align-items: center; 
-            padding: 0 10px; gap: 15px; 
-            z-index: 200; overflow: visible;
-        }
+        .toolbar { background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; padding: 0 10px; gap: 15px; z-index: 200; overflow: visible; }
         .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
+        .right-controls { margin-left: auto; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
 
         /* TAPE */
-        .ticker-container { 
-            position: relative; width: 100%; height: 100%; overflow: hidden; 
-            display: flex; align-items: center; margin: 0 10px; min-width: 0;
-            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
-            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); 
-        }
+        .ticker-container { position: relative; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; margin: 0 10px; min-width: 0; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; align-items: center; height: 100%; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        
+        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+
         /* NEWS */
         .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
         .news-label { background: #2962ff; color: white; font-weight: bold; padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 11px; z-index: 2; box-shadow: 5px 0 10px #131722; }
@@ -63,33 +45,17 @@
         #main-area { flex-grow: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; gap: 1px; background-color: var(--border-color); height: 100%; min-width: 0; overflow: hidden; }
         
         /* SIDEBARS */
-        #left-sidebar-area, #right-sidebar-area { 
-            width: 280px; min-width: 280px; background-color: #131722; 
-            display: flex; flex-direction: column; flex-shrink: 0; 
-            transition: all 0.2s ease-out; overflow: hidden; height: 100%;
-        }
+        #left-sidebar-area, #right-sidebar-area { width: 280px; min-width: 280px; background-color: #131722; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.2s ease-out; overflow: hidden; height: 100%; }
         #left-sidebar-area { border-right: 1px solid var(--border-color); }
         #right-sidebar-area { border-left: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* WIDGETS */
-        .chart-slot, .widget-box { 
-            position: relative; background-color: var(--bg-color); 
-            min-width: 0; min-height: 0; 
-            display: flex; flex-direction: column; 
-            overflow: hidden; border-bottom: 1px solid var(--border-color);
-            flex: 1; 
-        }
+        /* SLOTS */
+        .chart-slot, .widget-box { position: relative; background-color: var(--bg-color); min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border-color); flex: 1; }
         
         /* HEADER */
-        .widget-header {
-            height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color);
-            display: flex; align-items: center; padding: 0 6px; gap: 4px;
-            flex-shrink: 0; z-index: 30; white-space: nowrap; overflow: visible;
-        }
+        .widget-header { height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 6px; gap: 4px; flex-shrink: 0; z-index: 30; white-space: nowrap; overflow: visible; }
         .widget-controls-left { display: flex; flex-direction: row; gap: 4px; align-items: center; flex-shrink: 0; }
-        
-        /* INPUTS */
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
@@ -113,11 +79,12 @@
         .tape-content { flex: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; margin: 0; padding: 0; }
         .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
+        .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
 
         /* TIMEFRAME */
         .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; position: relative; }
-        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 22px; min-width: 25px; text-align: center; display: block; }
+        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 25px; text-align: center; display: block; }
         .tf-options-row { display: none; flex-direction: row; }
         .tf-morph-container.expanded { position: absolute; z-index: 100; width: auto; top: 0; left: 0; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .tf-morph-container.expanded .tf-single { display: none; }
@@ -125,7 +92,7 @@
         .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; background: #1e222d; white-space: nowrap; }
         .tf-btn:hover, .tf-btn.active { background: #2962ff; color: white; }
 
-        /* LINKS & UTILS */
+        /* UTILS */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
         .link-green { background-color: #00c853; border-color: #00c853; color: white; }
@@ -133,19 +100,17 @@
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
         .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
-
         .dropdown { position: relative; }
         .dropdown-menu { position: absolute; top: 100%; right: 0; background: var(--panel-color); border: 1px solid var(--border-color); z-index: 5000; display: none; min-width: 160px; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
         .dropdown.open .dropdown-menu { display: block; }
         .dropdown-item { padding: 8px 12px; color: #d1d4dc; cursor: pointer; font-size: 13px; border-bottom: 1px solid #2a2e39; }
         .dropdown-item:hover { background: #2a2e39; }
         .dropdown-header { padding: 4px 12px; font-size: 10px; color: #2962ff; font-weight: bold; background: #15181f; }
-        
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
         
-        #screen-logger { position: absolute; right: 20px; top: 80px; bottom: 20px; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
+        #screen-logger { position: absolute; right: 290px; top: 80px; bottom: 0; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
         
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; }
@@ -159,7 +124,12 @@
     </style>
 </head>
 <body>
-<div id="global-error"></div>
+
+<div id="crash-reset">
+    <h3>Application Error</h3>
+    <p>Something went wrong loading your layout.</p>
+    <button class="btn-p" onclick="nuclearReset()">Factory Reset</button>
+</div>
 
 <div class="app-container">
     <div class="toolbar">
@@ -180,19 +150,12 @@
                     <div class="dropdown-item" onclick="setChartLayout('2x1')">2 Stacked</div>
                     <div class="dropdown-item" onclick="setChartLayout('1x2')">2 Side-by-Side</div>
                     <div class="dropdown-item" onclick="setChartLayout('2x2')">Quad Grid (4)</div>
-                    <div class="dropdown-item" onclick="setChartLayout('3x2')">6 Grid (3x2)</div>
-                    <div class="dropdown-item" onclick="setChartLayout('2x3')">6 Grid (2x3)</div>
                     <div class="dropdown-item" onclick="setChartLayout('3x3')">9 Grid (3x3)</div>
-                    <div class="dropdown-header">LEFT SIDEBAR</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(0)">Hidden</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(1)">1 Widget</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(2)">2 Widgets</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(3)">3 Widgets</div>
-                    <div class="dropdown-header">RIGHT SIDEBAR</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(0)">Hidden</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(1)">1 Widget</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(2)">2 Widgets</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(3)">3 Widgets</div>
+                    <div class="dropdown-header">SIDEBARS</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(0)">Left: Hidden</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(1)">Left: 1 Widget</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(0)">Right: Hidden</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(1)">Right: 1 Widget</div>
                 </div>
             </div>
             <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
@@ -222,9 +185,9 @@
         <h3 style="margin:0 0 15px 0; color:#d1d4dc;">API Configuration</h3>
         <div class="form-group"><label class="form-label">Alpaca API Key ID</label><input type="text" id="inpApiKey" class="form-input"></div>
         <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input" placeholder="Optional (60 req/min limit)"></div>
+        <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input"></div>
         <div class="modal-actions">
-            <button class="btn-danger" onclick="resetLayout()">Reset Layout</button>
+            <button class="btn-danger" onclick="nuclearReset()">Factory Reset</button>
             <button class="btn-s" onclick="toggleSettings(false)">Cancel</button>
             <button class="btn-p" onclick="saveApiSettings()">Save & Reload</button>
         </div>
@@ -235,12 +198,10 @@
 <script src="shared.js"></script>
 
 <script>
-    // --- GLOBAL ERROR HANDLER ---
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
-        const d = document.getElementById('global-error');
-        d.style.display = 'block';
-        d.innerHTML = `CRASH: ${msg} <br> Line: ${lineNo}`;
-        return false;
+    // --- ERROR TRAP ---
+    window.onerror = function(msg, url, line) {
+        document.getElementById('crash-reset').style.display = 'block';
+        console.error(`Error: ${msg} at line ${line}`);
     };
 
     const logger = document.getElementById('screen-logger');
@@ -250,7 +211,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 26; 
+    const LAYOUT_VERSION = 27; 
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -264,19 +225,28 @@
         newsSymbols: new Set()
     };
 
-    // --- CORE FUNCTIONS (Fully Defined) ---
+    // --- DB ---
     function openDB() {
         return new Promise((resolve, reject) => {
             const req = indexedDB.open("ProfitLadderDB", 4);
             req.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                if (!db.objectStoreNames.contains("Settings")) db.createObjectStore("Settings", { keyPath: "key" });
-                if (!db.objectStoreNames.contains("Positions")) db.createObjectStore("Positions", { keyPath: "symbol" });
-                if (!db.objectStoreNames.contains("Financials")) db.createObjectStore("Financials", { keyPath: "symbol" });
+                if(!db.objectStoreNames.contains("Settings")) db.createObjectStore("Settings", { keyPath: "key" });
+                if(!db.objectStoreNames.contains("Positions")) db.createObjectStore("Positions", { keyPath: "symbol" });
+                if(!db.objectStoreNames.contains("Financials")) db.createObjectStore("Financials", { keyPath: "symbol" });
             };
             req.onsuccess = (event) => resolve(event.target.result);
-            req.onerror = (event) => reject("DB Error");
+            req.onerror = (event) => reject(event);
         });
+    }
+
+    async function nuclearReset() {
+        if(confirm("This will reset your layout to default. Continue?")) {
+            const db = await openDB();
+            const tx = db.transaction("Settings", "readwrite");
+            tx.objectStore("Settings").delete("layoutConfig");
+            tx.oncomplete = () => window.location.reload();
+        }
     }
 
     async function saveState() {
@@ -284,16 +254,8 @@
             const db = await openDB();
             const tx = db.transaction("Settings", "readwrite");
             const s = tx.objectStore("Settings");
-            s.put({ key: "layoutConfig", value: JSON.stringify({ 
-                m: state.chartsConfig, 
-                l: state.leftWidgetsConfig, 
-                r: state.rightWidgetsConfig, 
-                lm: state.layoutMode, 
-                lo: state.isLeftOpen, 
-                ro: state.isRightOpen, 
-                ver: state.layoutVersion 
-            }) });
-        } catch(e) { console.error(e); }
+            s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) });
+        } catch(e) {}
     }
 
     async function loadSavedState() {
@@ -305,35 +267,23 @@
                 req.onsuccess = () => {
                     if(req.result) {
                         const d = JSON.parse(req.result.value);
-                        if(d.ver !== LAYOUT_VERSION) return r(); 
-                        state.chartsConfig = d.m || state.chartsConfig;
-                        state.leftWidgetsConfig = d.l || state.leftWidgetsConfig;
-                        state.rightWidgetsConfig = d.r || state.rightWidgetsConfig;
-                        state.layoutMode = d.lm || '1x1';
-                        state.isLeftOpen = d.lo; state.isRightOpen = d.ro;
+                        if(d.ver === LAYOUT_VERSION) {
+                            state.chartsConfig = d.m;
+                            state.leftWidgetsConfig = d.l;
+                            state.rightWidgetsConfig = d.r;
+                            state.layoutMode = d.lm;
+                            state.isLeftOpen = d.lo;
+                            state.isRightOpen = d.ro;
+                        }
                     }
                     r();
                 };
                 req.onerror = r;
             });
-        } catch(e) { console.error(e); }
+        } catch(e) {}
     }
 
-    async function resetLayout(conf=true) {
-        if(!conf || confirm("Reset Layout?")) {
-            state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }];
-            state.leftWidgetsConfig = [];
-            state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }];
-            state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION;
-            state.isLeftOpen = false; state.isRightOpen = true;
-            await saveState(); window.location.reload();
-        }
-    }
-
-    function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
-    function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
-
-    // --- WINDOW ACTIONS ---
+    // --- ACTIONS ---
     window.switchWidgetType = function(id) { const cfg = findConfig(id); if(cfg) { cfg.type = (cfg.type === 'chart') ? 'tape' : 'chart'; if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; saveState(); renderAll(); } };
     window.cycleLink = function(id) { const groups = [null, 'A', 'B', 'C', 'D', 'E']; const cfg = findConfig(id); if(cfg) { cfg.linkGroup = groups[(groups.indexOf(cfg.linkGroup) + 1) % groups.length]; saveState(); renderAll(); } };
     window.updateWidgetTicker = function(id, input, e) { if(e.key === 'Enter') { const cfg = findConfig(id); if(cfg) { const val = input.value.toUpperCase(); cfg.ticker = val; syncLinkedWidgets(cfg.linkGroup, val); saveState(); renderAll(); input.blur(); } } };
@@ -343,52 +293,38 @@
     window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); };
     window.setRightSidebarLayout = function(n) { updateSidebarConfig('right', n); };
     
+    function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
+    function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
     function updateSidebarConfig(side, count) { const arr = (side==='left') ? state.leftWidgetsConfig : state.rightWidgetsConfig; const prefix = (side==='left') ? 'l' : 'r'; if(count === 0) { if(side==='left') state.leftWidgetsConfig=[]; else state.rightWidgetsConfig=[]; if(side==='left') state.isLeftOpen=false; else state.isRightOpen=false; } else { if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); } else if(count < arr.length) { if(side==='left') state.leftWidgetsConfig = arr.slice(0,count); else state.rightWidgetsConfig = arr.slice(0,count); } if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true; } saveState(); renderAll(); }
-
-    // --- FINNHUB ---
-    async function fetchFinancials(symbol) {
-        const db = await openDB();
-        const tx = db.transaction(["Settings", "Financials"], "readwrite");
-        const cache = await new Promise(r => { const req = tx.objectStore("Financials").get(symbol); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-        const now = Date.now();
-        if (cache && (now - cache.timestamp < 86400000)) return cache.data;
-        const key = await new Promise(r => { const req = tx.objectStore("Settings").get("FINNHUB_API_KEY"); req.onsuccess = () => r(req.result ? req.result.value : null); });
-        if (!key) return null;
-        try {
-            const url = `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${key}`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("Finnhub API Error");
-            const data = await res.json();
-            const store = db.transaction("Financials", "readwrite").objectStore("Financials");
-            store.put({ symbol: symbol, data: data, timestamp: now });
-            return data;
-        } catch (e) { return null; }
-    }
-
-    async function pruneFinancials() { const db = await openDB(); const tx = db.transaction("Financials", "readwrite"); const store = tx.objectStore("Financials"); const now = Date.now(); store.openCursor().onsuccess = (event) => { const cursor = event.target.result; if (cursor) { if (now - cursor.value.timestamp > 86400000) cursor.delete(); cursor.continue(); } }; }
+    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
+    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await openDB(); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
 
     // --- INIT ---
     async function init() {
         log("Initializing...");
-        await loadSavedState();
-        if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
+        try {
+            await loadSavedState();
+            renderAll();
+            refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
+            pruneFinancials();
 
-        renderAll();
-        refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
-        pruneFinancials();
-        
-        clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
-        state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
-        state.screenerInterval = setInterval(refreshScreenerTape, 60000);
-        state.tapeInterval = setInterval(updateTapeIndividual, 1000);
-        state.newsInterval = setInterval(refreshNewsTape, 120000);
+            clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
+            state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
+            state.screenerInterval = setInterval(refreshScreenerTape, 60000);
+            state.tapeInterval = setInterval(updateTapeIndividual, 1000);
+            state.newsInterval = setInterval(refreshNewsTape, 120000);
 
-        document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
-        document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
-        document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
-        document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
+            document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
+            document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
+            document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
+            document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
+        } catch(e) {
+            console.error(e);
+            document.getElementById('crash-reset').style.display = 'block';
+        }
     }
 
+    // --- RENDER ---
     function renderAll() {
         state.activeWidgets = [];
         const main = document.getElementById('main-area'); main.innerHTML = '';
@@ -456,6 +392,26 @@
             </div>`;
     }
 
+    // --- DATA LOGIC ---
+    async function fetchFinancials(symbol) {
+        const db = await openDB();
+        const tx = db.transaction(["Settings", "Financials"], "readwrite");
+        const cache = await new Promise(r => { const req = tx.objectStore("Financials").get(symbol); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+        if (cache && (Date.now() - cache.timestamp < 86400000)) return cache.data;
+        const key = await new Promise(r => { const req = tx.objectStore("Settings").get("FINNHUB_API_KEY"); req.onsuccess = () => r(req.result ? req.result.value : null); });
+        if (!key) return null;
+        try {
+            const url = `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${key}`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const store = db.transaction("Financials", "readwrite").objectStore("Financials");
+            store.put({ symbol: symbol, data: data, timestamp: Date.now() });
+            return data;
+        } catch (e) { return null; }
+    }
+    async function pruneFinancials() { const db = await openDB(); const tx = db.transaction("Financials", "readwrite"); const store = tx.objectStore("Financials"); const now = Date.now(); store.openCursor().onsuccess = (event) => { const cursor = event.target.result; if (cursor) { if (now - cursor.value.timestamp > 86400000) cursor.delete(); cursor.continue(); } }; }
+
     async function initChart(cfg) {
         const container = document.getElementById(`canvas-${cfg.id}`);
         await new Promise(r => setTimeout(r, 50)); 
@@ -471,11 +427,7 @@
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
         const wrapper = document.getElementById(`content-${cfg.id}`);
-        new ResizeObserver(e => { 
-            if (e.length && e[0].contentRect) {
-                chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
-            }
-        }).observe(wrapper);
+        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(wrapper);
         setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
@@ -565,16 +517,15 @@
         } catch(e) {}
     }
 
+    // --- BOILERPLATE ---
     async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; 
-        fetchFinancials(c.ticker); // Background
+        fetchFinancials(c.ticker); // BACKGROUND FINNHUB
         const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; 
         let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M') tf='1Month'; if(tf==='1H') tf='1Hour';
         const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
     async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); 
         let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M') tf='1Month'; if(tf==='1H') tf='1Hour';
         const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
-    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) { (async () => { const db = await openDB(); const tx = db.transaction("Settings","readonly"); const store = tx.objectStore("Settings"); const getVal = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : ''); }); const [k, s, f] = await Promise.all([getVal("APCA_API_KEY_ID"), getVal("APCA_API_SECRET_KEY"), getVal("FINNHUB_API_KEY")]); document.getElementById('inpApiKey').value = k; document.getElementById('inpApiSecret').value = s; document.getElementById('inpFinnhubKey').value = f; })(); } }
-    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); const f = document.getElementById('inpFinnhubKey').value.trim(); if(!k||!s) return alert("Alpaca keys required"); try{ const db=await openDB(); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); store.put({key:"FINNHUB_API_KEY",value:f}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
     function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('right-sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
     function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
     function parseBars(b){const o=[],v=[];b.forEach(x=>{const t=new Date(x.t).getTime()/1000;o.push({time:t,open:x.o,high:x.h,low:x.l,close:x.c});v.push({time:t,value:x.v,color:(x.c>=x.o?'#26a69a':'#ef5350')});});return{ohlc:o,vol:v};}
@@ -589,6 +540,12 @@
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
     function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
+    
+    document.addEventListener('DOMContentLoaded', init);
+    document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
+    document.getElementById('refreshBtn').addEventListener('click', () => state.activeWidgets.forEach(w=>{if(w.type==='chart')loadChartData(w)}));
+    document.getElementById('settingsBtn').addEventListener('click', () => toggleSettings(true));
+    document.getElementById('clearLogs').addEventListener('click', () => logger.innerHTML = '');
 </script>
 </body>
 </html>
