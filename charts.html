@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Safe Boot)</title>
+    <title>Pro Charting (Version Fix)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -12,16 +12,26 @@
         }
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         
-        /* EMERGENCY RESET BUTTON (Visible only on crash) */
-        #crash-reset { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background: #d50000; color: white; padding: 20px; border-radius: 8px; display: none; text-align: center; box-shadow: 0 10px 30px black; }
-        
+        /* ERROR OVERLAY */
+        #db-error {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(19, 23, 34, 0.95); z-index: 99999;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            color: #ef5350; font-family: monospace; text-align: center;
+        }
+        #db-error h2 { margin-bottom: 10px; }
+        #db-error p { color: #d1d4dc; max-width: 500px; margin-bottom: 20px; }
+
         /* LAYOUT */
         .app-container { display: grid; grid-template-rows: 40px 30px 1fr; height: 100vh; width: 100vw; overflow: hidden; }
         
         /* TOOLBAR */
-        .toolbar { background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; padding: 0 10px; gap: 15px; z-index: 200; overflow: visible; }
+        .toolbar { 
+            background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); 
+            display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; 
+            padding: 0 10px; gap: 15px; z-index: 200; overflow: visible; 
+        }
         .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
-        .right-controls { margin-left: auto; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
 
         /* TAPE */
@@ -92,12 +102,14 @@
         .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; background: #1e222d; white-space: nowrap; }
         .tf-btn:hover, .tf-btn.active { background: #2962ff; color: white; }
 
-        /* UTILS */
+        /* LINKS */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
         .link-orange { background-color: #ff9800; border-color: #ff9800; color: white; }
         .link-green { background-color: #00c853; border-color: #00c853; color: white; }
         .link-purple { background-color: #aa00ff; border-color: #aa00ff; color: white; }
         .link-red { background-color: #d50000; border-color: #d50000; color: white; }
+
+        /* UTILS */
         .t-up { color: var(--up-color); } .t-down { color: var(--down-color); } .t-large { background-color: rgba(41, 98, 255, 0.15); }
         .color-up { color: var(--up-color); } .color-down { color: var(--down-color); }
         .dropdown { position: relative; }
@@ -106,6 +118,7 @@
         .dropdown-item { padding: 8px 12px; color: #d1d4dc; cursor: pointer; font-size: 13px; border-bottom: 1px solid #2a2e39; }
         .dropdown-item:hover { background: #2a2e39; }
         .dropdown-header { padding: 4px 12px; font-size: 10px; color: #2962ff; font-weight: bold; background: #15181f; }
+        
         .icon-btn { background: none; border: none; color: #787b86; cursor: pointer; font-size: 14px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .icon-btn:hover { color: var(--text-color); background: #2a2e39; }
         .icon-btn.active { color: var(--accent-color); background: rgba(41, 98, 255, 0.1); }
@@ -125,10 +138,10 @@
 </head>
 <body>
 
-<div id="crash-reset">
-    <h3>Application Error</h3>
-    <p>Something went wrong loading your layout.</p>
-    <button class="btn-p" onclick="nuclearReset()">Factory Reset</button>
+<div id="db-error">
+    <h2>Database Version Mismatch</h2>
+    <p>The application detected a conflict with your local database version.</p>
+    <button class="btn-danger" onclick="forceReset()">Delete & Reset Database</button>
 </div>
 
 <div class="app-container">
@@ -150,12 +163,19 @@
                     <div class="dropdown-item" onclick="setChartLayout('2x1')">2 Stacked</div>
                     <div class="dropdown-item" onclick="setChartLayout('1x2')">2 Side-by-Side</div>
                     <div class="dropdown-item" onclick="setChartLayout('2x2')">Quad Grid (4)</div>
+                    <div class="dropdown-item" onclick="setChartLayout('3x2')">6 Grid (3x2)</div>
+                    <div class="dropdown-item" onclick="setChartLayout('2x3')">6 Grid (2x3)</div>
                     <div class="dropdown-item" onclick="setChartLayout('3x3')">9 Grid (3x3)</div>
-                    <div class="dropdown-header">SIDEBARS</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(0)">Left: Hidden</div>
-                    <div class="dropdown-item" onclick="setLeftSidebarLayout(1)">Left: 1 Widget</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(0)">Right: Hidden</div>
-                    <div class="dropdown-item" onclick="setRightSidebarLayout(1)">Right: 1 Widget</div>
+                    <div class="dropdown-header">LEFT SIDEBAR</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(0)">Hidden</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(1)">1 Widget</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(2)">2 Widgets</div>
+                    <div class="dropdown-item" onclick="setLeftSidebarLayout(3)">3 Widgets</div>
+                    <div class="dropdown-header">RIGHT SIDEBAR</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(0)">Hidden</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(1)">1 Widget</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(2)">2 Widgets</div>
+                    <div class="dropdown-item" onclick="setRightSidebarLayout(3)">3 Widgets</div>
                 </div>
             </div>
             <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
@@ -185,9 +205,9 @@
         <h3 style="margin:0 0 15px 0; color:#d1d4dc;">API Configuration</h3>
         <div class="form-group"><label class="form-label">Alpaca API Key ID</label><input type="text" id="inpApiKey" class="form-input"></div>
         <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input" placeholder="Optional (60 req/min limit)"></div>
         <div class="modal-actions">
-            <button class="btn-danger" onclick="nuclearReset()">Factory Reset</button>
+            <button class="btn-danger" onclick="resetLayout()">Reset Layout</button>
             <button class="btn-s" onclick="toggleSettings(false)">Cancel</button>
             <button class="btn-p" onclick="saveApiSettings()">Save & Reload</button>
         </div>
@@ -199,11 +219,6 @@
 
 <script>
     // --- ERROR TRAP ---
-    window.onerror = function(msg, url, line) {
-        document.getElementById('crash-reset').style.display = 'block';
-        console.error(`Error: ${msg} at line ${line}`);
-    };
-
     const logger = document.getElementById('screen-logger');
     function log(msg, type='info') {
         const div = document.createElement('div'); div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
@@ -211,7 +226,8 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 27; 
+    // --- VERSION & STATE ---
+    const LAYOUT_VERSION = 27;
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -225,65 +241,34 @@
         newsSymbols: new Set()
     };
 
-    // --- DB ---
+    // --- DB CONNECTION (FIX) ---
     function openDB() {
         return new Promise((resolve, reject) => {
-            const req = indexedDB.open("ProfitLadderDB", 4);
+            const req = indexedDB.open("ProfitLadderDB", 4); // Version 4
             req.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                if(!db.objectStoreNames.contains("Settings")) db.createObjectStore("Settings", { keyPath: "key" });
-                if(!db.objectStoreNames.contains("Positions")) db.createObjectStore("Positions", { keyPath: "symbol" });
-                if(!db.objectStoreNames.contains("Financials")) db.createObjectStore("Financials", { keyPath: "symbol" });
+                if (!db.objectStoreNames.contains("Settings")) db.createObjectStore("Settings", { keyPath: "key" });
+                if (!db.objectStoreNames.contains("Positions")) db.createObjectStore("Positions", { keyPath: "symbol" });
+                if (!db.objectStoreNames.contains("Financials")) db.createObjectStore("Financials", { keyPath: "symbol" });
             };
             req.onsuccess = (event) => resolve(event.target.result);
-            req.onerror = (event) => reject(event);
+            req.onerror = (event) => {
+                // CATCH VERSION ERROR
+                if(event.target.error.name === 'VersionError') {
+                    document.getElementById('db-error').style.display = 'flex';
+                }
+                reject(event.target.error);
+            };
         });
     }
+    
+    // --- GLOBAL ACTIONS ---
+    window.forceReset = function() {
+        const req = indexedDB.deleteDatabase("ProfitLadderDB");
+        req.onsuccess = () => window.location.reload();
+        req.onerror = () => alert("Could not delete DB. Clear browser data manually.");
+    };
 
-    async function nuclearReset() {
-        if(confirm("This will reset your layout to default. Continue?")) {
-            const db = await openDB();
-            const tx = db.transaction("Settings", "readwrite");
-            tx.objectStore("Settings").delete("layoutConfig");
-            tx.oncomplete = () => window.location.reload();
-        }
-    }
-
-    async function saveState() {
-        try {
-            const db = await openDB();
-            const tx = db.transaction("Settings", "readwrite");
-            const s = tx.objectStore("Settings");
-            s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) });
-        } catch(e) {}
-    }
-
-    async function loadSavedState() {
-        try {
-            const db = await openDB();
-            const tx = db.transaction("Settings", "readonly");
-            const req = tx.objectStore("Settings").get("layoutConfig");
-            await new Promise(r => {
-                req.onsuccess = () => {
-                    if(req.result) {
-                        const d = JSON.parse(req.result.value);
-                        if(d.ver === LAYOUT_VERSION) {
-                            state.chartsConfig = d.m;
-                            state.leftWidgetsConfig = d.l;
-                            state.rightWidgetsConfig = d.r;
-                            state.layoutMode = d.lm;
-                            state.isLeftOpen = d.lo;
-                            state.isRightOpen = d.ro;
-                        }
-                    }
-                    r();
-                };
-                req.onerror = r;
-            });
-        } catch(e) {}
-    }
-
-    // --- ACTIONS ---
     window.switchWidgetType = function(id) { const cfg = findConfig(id); if(cfg) { cfg.type = (cfg.type === 'chart') ? 'tape' : 'chart'; if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; saveState(); renderAll(); } };
     window.cycleLink = function(id) { const groups = [null, 'A', 'B', 'C', 'D', 'E']; const cfg = findConfig(id); if(cfg) { cfg.linkGroup = groups[(groups.indexOf(cfg.linkGroup) + 1) % groups.length]; saveState(); renderAll(); } };
     window.updateWidgetTicker = function(id, input, e) { if(e.key === 'Enter') { const cfg = findConfig(id); if(cfg) { const val = input.value.toUpperCase(); cfg.ticker = val; syncLinkedWidgets(cfg.linkGroup, val); saveState(); renderAll(); input.blur(); } } };
@@ -292,22 +277,27 @@
     window.setChartLayout = function(mode) { state.layoutMode = mode; const [r, c] = mode.split('x').map(Number); const total = r * c; if(total > state.chartsConfig.length) { for(let i=state.chartsConfig.length; i<total; i++) state.chartsConfig.push({ id: `m${i}`, type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: null }); } else { state.chartsConfig = state.chartsConfig.slice(0, total); } saveState(); renderAll(); };
     window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); };
     window.setRightSidebarLayout = function(n) { updateSidebarConfig('right', n); };
-    
+
+    // --- HELPERS ---
     function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
     function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
     function updateSidebarConfig(side, count) { const arr = (side==='left') ? state.leftWidgetsConfig : state.rightWidgetsConfig; const prefix = (side==='left') ? 'l' : 'r'; if(count === 0) { if(side==='left') state.leftWidgetsConfig=[]; else state.rightWidgetsConfig=[]; if(side==='left') state.isLeftOpen=false; else state.isRightOpen=false; } else { if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); } else if(count < arr.length) { if(side==='left') state.leftWidgetsConfig = arr.slice(0,count); else state.rightWidgetsConfig = arr.slice(0,count); } if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true; } saveState(); renderAll(); }
-    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
-    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); if(!k||!s) return alert("Missing keys"); try{ const db=await openDB(); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
+    async function saveState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings"); s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) }); } catch(e) { } }
+    async function loadSavedState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readonly"); const req = tx.objectStore("Settings").get("layoutConfig"); await new Promise(r => { req.onsuccess = () => { if(req.result) { const d = JSON.parse(req.result.value); if(d.ver !== LAYOUT_VERSION) return r(); state.chartsConfig = d.m || state.chartsConfig; state.leftWidgetsConfig = d.l || state.leftWidgetsConfig; state.rightWidgetsConfig = d.r || state.rightWidgetsConfig; state.layoutMode = d.lm || '1x1'; state.isLeftOpen = d.lo; state.isRightOpen = d.ro; } r(); }; req.onerror = r; }); } catch(e) { } }
+    async function resetLayout(conf=true) { if(!conf || confirm("Reset Layout?")) { state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }]; state.leftWidgetsConfig = []; state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }]; state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION; state.isLeftOpen = false; state.isRightOpen = true; await saveState(); window.location.reload(); } }
+    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) { (async () => { const db = await openDB(); const tx = db.transaction("Settings","readonly"); const store = tx.objectStore("Settings"); const getVal = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : ''); }); const [k, s, f] = await Promise.all([getVal("APCA_API_KEY_ID"), getVal("APCA_API_SECRET_KEY"), getVal("FINNHUB_API_KEY")]); document.getElementById('inpApiKey').value = k; document.getElementById('inpApiSecret').value = s; document.getElementById('inpFinnhubKey').value = f; })(); } }
+    async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); const f = document.getElementById('inpFinnhubKey').value.trim(); if(!k||!s) return alert("Alpaca keys required"); try{ const db=await openDB(); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); store.put({key:"FINNHUB_API_KEY",value:f}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
 
     // --- INIT ---
     async function init() {
         log("Initializing...");
         try {
             await loadSavedState();
+            if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
+
             renderAll();
             refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
-            pruneFinancials();
-
+            
             clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
             state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
             state.screenerInterval = setInterval(refreshScreenerTape, 60000);
@@ -318,9 +308,9 @@
             document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
             document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
             document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
+            
         } catch(e) {
-            console.error(e);
-            document.getElementById('crash-reset').style.display = 'block';
+            log("CRASH: " + e.message, 'error');
         }
     }
 
@@ -392,14 +382,16 @@
             </div>`;
     }
 
-    // --- DATA LOGIC ---
+    // --- DATA ---
     async function fetchFinancials(symbol) {
         const db = await openDB();
         const tx = db.transaction(["Settings", "Financials"], "readwrite");
         const cache = await new Promise(r => { const req = tx.objectStore("Financials").get(symbol); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
         if (cache && (Date.now() - cache.timestamp < 86400000)) return cache.data;
+
         const key = await new Promise(r => { const req = tx.objectStore("Settings").get("FINNHUB_API_KEY"); req.onsuccess = () => r(req.result ? req.result.value : null); });
         if (!key) return null;
+
         try {
             const url = `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${key}`;
             const res = await fetch(url);
@@ -427,7 +419,11 @@
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
         const wrapper = document.getElementById(`content-${cfg.id}`);
-        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(wrapper);
+        new ResizeObserver(e => { 
+            if (e.length && e[0].contentRect) {
+                chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
+            }
+        }).observe(wrapper);
         setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
@@ -540,7 +536,7 @@
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
     function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
-    
+
     document.addEventListener('DOMContentLoaded', init);
     document.getElementById('debugToggle').addEventListener('click', () => logger.style.display = logger.style.display === 'block' ? 'none' : 'block');
     document.getElementById('refreshBtn').addEventListener('click', () => state.activeWidgets.forEach(w=>{if(w.type==='chart')loadChartData(w)}));
