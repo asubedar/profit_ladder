@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (L1 Fix)</title>
+    <title>Pro Charting (L1 Fix + Financials)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -128,6 +128,23 @@
         .btn-p { background: var(--accent-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-s { background: transparent; color: #d1d4dc; border: 1px solid #444; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
         .btn-danger { background: #d50000; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: auto; }
+
+        /* FINANCIALS WIDGET STYLES */
+        .fin-container { padding: 10px; overflow-y: auto; height: 100%; font-family: 'Roboto', sans-serif; }
+        .fin-section { margin-bottom: 15px; border-bottom: 1px solid #2a2e39; padding-bottom: 10px; }
+        .fin-section:last-child { border-bottom: none; }
+        .fin-title { font-size: 10px; font-weight: bold; color: #2962ff; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; }
+        .fin-item { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; }
+        .fin-label { color: #787b86; }
+        .fin-val { color: #d1d4dc; font-weight: bold; font-family: 'Monaco', monospace; }
+
+        /* 52 WEEK RANGE BAR */
+        .range-container { margin: 10px 0 15px 0; }
+        .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: #787b86; margin-bottom: 4px; }
+        .range-track { height: 4px; background: #2a2e39; border-radius: 2px; position: relative; width: 100%; }
+        .range-fill { height: 100%; background: #2962ff; border-radius: 2px; position: absolute; left: 0; }
+        .range-cursor { position: absolute; width: 4px; height: 10px; background: #fff; top: -3px; transform: translateX(-50%); border-radius: 1px; box-shadow: 0 0 5px rgba(255,255,255,0.5); }
     </style>
 </head>
 <body>
@@ -214,7 +231,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 28; 
+    const LAYOUT_VERSION = 29; 
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -229,7 +246,21 @@
     };
 
     // --- GLOBAL ACTIONS ---
-    window.switchWidgetType = function(id) { const cfg = findConfig(id); if(cfg) { cfg.type = (cfg.type === 'chart') ? 'tape' : 'chart'; if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; saveState(); renderAll(); } };
+    window.switchWidgetType = function(id) { 
+        const cfg = findConfig(id); 
+        if(cfg) { 
+            // Cycle: chart -> tape -> financials -> chart
+            if (cfg.type === 'chart') cfg.type = 'tape';
+            else if (cfg.type === 'tape') cfg.type = 'financials';
+            else cfg.type = 'chart';
+            
+            // Default timeframe if switching back to chart
+            if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; 
+            saveState(); 
+            renderAll(); 
+        } 
+    };
+
     window.cycleLink = function(id) { const groups = [null, 'A', 'B', 'C', 'D', 'E']; const cfg = findConfig(id); if(cfg) { cfg.linkGroup = groups[(groups.indexOf(cfg.linkGroup) + 1) % groups.length]; saveState(); renderAll(); } };
     window.updateWidgetTicker = function(id, input, e) { if(e.key === 'Enter') { const cfg = findConfig(id); if(cfg) { const val = input.value.toUpperCase(); cfg.ticker = val; syncLinkedWidgets(cfg.linkGroup, val); saveState(); renderAll(); input.blur(); } } };
     window.setWidgetTf = function(id, val, e) { e.stopPropagation(); const cfg = findConfig(id); if(cfg) { cfg.timeframe = val; saveState(); renderAll(); } };
@@ -309,28 +340,9 @@
             document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
         } catch(e) {
             console.error(e);
-            // Could show a manual reset button here if init fails
         }
     }
 
-    function updateChartBar(w, time, open, high, low, close, vol) {
-        if (!w.candleSeries || !w.volSeries) return;
-        
-        const bar = { time: time, open: open, high: high, low: low, close: close };
-        w.candleSeries.update(bar);
-        
-        if (vol !== undefined) {
-            w.volSeries.update({
-                time: time,
-                value: vol,
-                color: close >= open ? '#26a69a' : '#ef5350'
-            });
-        }
-        
-        // Update local state so the crosshair logic has the latest close
-        w.lastPrice = close;
-    }
-    
     // --- RENDERERS ---
     function renderAll() {
         state.activeWidgets = [];
@@ -351,34 +363,43 @@
 
     function initWidget(container, cfg) {
         const linkClass = getLinkClass(cfg.linkGroup);
-        const isChart = cfg.type === 'chart';
-        const iconClass = isChart ? 'fa-chart-bar' : 'fa-list-ol';
-        
+        let iconClass = 'fa-chart-bar';
+        if(cfg.type === 'tape') iconClass = 'fa-list-ol';
+        if(cfg.type === 'financials') iconClass = 'fa-file-invoice-dollar';
+
         const headerHtml = `
             <div class="widget-header">
                 <div class="widget-controls-left">
                     <div class="type-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
                     <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
-                    ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
+                    ${cfg.type === 'chart' ? getTfHtml(cfg.id, cfg.timeframe) : ''}
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
-                <div class="l1-overlay" id="l1-${cfg.id}">
+                ${cfg.type === 'chart' ? `<div class="l1-overlay" id="l1-${cfg.id}">
                     <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
                     <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
                     <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
-                </div>
+                </div>` : ''}
             </div>
         `;
         
-        const contentHtml = isChart 
-            ? `<div class="widget-content" id="content-${cfg.id}">
+        let contentHtml = '';
+        if (cfg.type === 'chart') {
+            contentHtml = `<div class="widget-content" id="content-${cfg.id}">
                  <div class="chart-legend" id="legend-${cfg.id}"><div class="legend-row" id="lg-${cfg.id}"></div></div>
                  <div id="canvas-${cfg.id}" class="chart-canvas-fill"></div>
-               </div>`
-            : `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div></div>`;
+               </div>`;
+        } else if (cfg.type === 'tape') {
+            contentHtml = `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div></div>`;
+        } else if (cfg.type === 'financials') {
+            contentHtml = `<div class="widget-content"><div id="fin-content-${cfg.id}" class="fin-container"><span style="color:#666; font-size:11px;">Loading Metrics...</span></div></div>`;
+        }
 
         container.innerHTML = headerHtml + contentHtml;
-        if(isChart) initChart(cfg); else initTape(cfg);
+
+        if(cfg.type === 'chart') initChart(cfg);
+        else if(cfg.type === 'tape') initTape(cfg);
+        else if(cfg.type === 'financials') initFinancials(cfg);
     }
 
     function getTfHtml(id, tf) {
@@ -437,6 +458,75 @@
         state.activeWidgets.push(obj); 
         updateTapeIndividual();
     }
+    
+    // --- FINANCIALS LOGIC ---
+    async function initFinancials(cfg) {
+        state.activeWidgets.push({ ...cfg }); // Track it, but it doesn't need realtime updates like charts
+        const container = document.getElementById(`fin-content-${cfg.id}`);
+        const data = await fetchFinancials(cfg.ticker);
+        
+        if (!data || !data.metric) {
+            container.innerHTML = '<div style="padding:20px; color:#787b86; text-align:center;">No Data Available<br><span style="font-size:10px">Check API Limit</span></div>';
+            return;
+        }
+        
+        const m = data.metric;
+        const fmt = (n, p=2) => n ? n.toFixed(p) : '-';
+        const fmtPct = (n) => n ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '-';
+        const color = (n) => n > 0 ? 'color-up' : (n < 0 ? 'color-down' : '');
+        const fmtBig = (n) => {
+            if (!n) return '-';
+            if (n > 1000000) return (n/1000000).toFixed(2) + 'T'; 
+            if (n > 1000) return (n/1000).toFixed(2) + 'B';
+            return n.toFixed(2) + 'M';
+        };
+
+        const low = m['52WeekLow'];
+        const high = m['52WeekHigh'];
+        
+        const html = `
+            <div class="range-container">
+                <div class="range-labels"><span>L: ${low}</span><span>52W RANGE</span><span>H: ${high}</span></div>
+                <div class="range-track">
+                    <div class="range-fill" style="width: 100%; background: linear-gradient(90deg, #ef5350, #2962ff, #26a69a);"></div>
+                </div>
+            </div>
+
+            <div class="fin-section">
+                <div class="fin-title">Valuation</div>
+                <div class="fin-grid">
+                    <div class="fin-item"><span class="fin-label">Mkt Cap</span><span class="fin-val" style="color:#ffa726">${fmtBig(m.marketCapitalization)}</span></div>
+                    <div class="fin-item"><span class="fin-label">P/E (TTM)</span><span class="fin-val">${fmt(m.peTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">P/B</span><span class="fin-val">${fmt(m.pb)}</span></div>
+                    <div class="fin-item"><span class="fin-label">P/S</span><span class="fin-val">${fmt(m.psTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Ent. Val</span><span class="fin-val">${fmtBig(m.enterpriseValue)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Beta</span><span class="fin-val">${fmt(m.beta)}</span></div>
+                </div>
+            </div>
+
+            <div class="fin-section">
+                <div class="fin-title">Performance (YoY)</div>
+                <div class="fin-grid">
+                    <div class="fin-item"><span class="fin-label">Rev Growth</span><span class="fin-val ${color(m.revenueGrowthTTMYoy)}">${fmtPct(m.revenueGrowthTTMYoy)}</span></div>
+                    <div class="fin-item"><span class="fin-label">EPS Growth</span><span class="fin-val ${color(m.epsGrowthTTMYoy)}">${fmtPct(m.epsGrowthTTMYoy)}</span></div>
+                    <div class="fin-item"><span class="fin-label">ROE</span><span class="fin-val ${color(m.roeTTM)}">${fmtPct(m.roeTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">ROA</span><span class="fin-val ${color(m.roaTTM)}">${fmtPct(m.roaTTM)}</span></div>
+                </div>
+            </div>
+
+            <div class="fin-section">
+                <div class="fin-title">Health & Dividends</div>
+                <div class="fin-grid">
+                    <div class="fin-item"><span class="fin-label">Gr. Margin</span><span class="fin-val">${fmtPct(m.grossMarginTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Oper. Mrg</span><span class="fin-val">${fmtPct(m.operatingMarginTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Div Yield</span><span class="fin-val" style="color:#26a69a">${fmtPct(m.dividendYieldIndicatedAnnual)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Debt/Eq</span><span class="fin-val">${fmt(m['totalDebt/totalEquityQuarterly'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">Cur. Ratio</span><span class="fin-val">${fmt(m.currentRatio)}</span></div>
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+    }
 
     async function updateTapeIndividual() {
         if(!state.isLeftOpen && !state.isRightOpen && !state.chartsConfig.some(x=>x.type==='tape')) return;
@@ -470,7 +560,8 @@
             } catch(e) { }
         }));
     }
-
+    
+    // --- REALTIME CHART UPDATE LOOP ---
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
         const widgets = state.activeWidgets;
@@ -481,7 +572,7 @@
             const res = await fetch(u, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
             widgets.forEach(w => {
-                // FIX: CASE INSENSITIVE LOOKUP
+                // CASE INSENSITIVE LOOKUP
                 const data = json[w.ticker] || json[w.ticker.toUpperCase()];
                 if(!data) return;
                 
@@ -508,7 +599,26 @@
                     else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v); }
                 }
             });
-        } catch(e) {}
+        } catch(e) {
+            console.error("Realtime Update Error:", e);
+        }
+    }
+    
+    // THE MISSING FUNCTION THAT CAUSED THE BUG
+    function updateChartBar(w, time, open, high, low, close, vol) {
+        if (!w.candleSeries || !w.volSeries) return;
+        
+        const bar = { time: time, open: open, high: high, low: low, close: close };
+        w.candleSeries.update(bar);
+        
+        if (vol !== undefined) {
+            w.volSeries.update({
+                time: time,
+                value: vol,
+                color: close >= open ? '#26a69a' : '#ef5350'
+            });
+        }
+        w.lastPrice = close;
     }
 
     // --- BOILERPLATE ---
