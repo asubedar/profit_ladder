@@ -1,86 +1,69 @@
-/**
- * shared.js
- * Common logic for Profit Ladder Suite
- * Handles: IndexedDB, API Key Management, and Logging
- */
-
-// --- Constants ---
+// shared.js - Central Data Manager
 const DB_NAME = "ProfitLadderDB";
-const POSITIONS_STORE_NAME = "Positions";
-const SETTINGS_STORE_NAME = "Settings";
-const DB_VERSION = 3;
+const DB_VERSION = 4; // Updated to match charts.html
 
-// --- Debug Logging ---
-function appendDebugLog(message) {
-    const debugLogs = document.getElementById("debugLogs");
-    if (debugLogs) {
-        const logEntry = document.createElement("div");
-        const timestamp = new Date().toLocaleTimeString();
-        logEntry.textContent = `[${timestamp}] ${message}`;
-        logEntry.style.borderBottom = "1px solid #333";
-        debugLogs.appendChild(logEntry);
-        debugLogs.scrollTop = debugLogs.scrollHeight;
-    } else {
-        console.log(`[DEBUG]: ${message}`);
-    }
-}
-
-// --- Database Connection ---
-function openDatabase() {
+function getApiKeys() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            // Create Positions Store
-            if (!db.objectStoreNames.contains(POSITIONS_STORE_NAME)) {
-                const positionsStore = db.createObjectStore(POSITIONS_STORE_NAME, { keyPath: "id" });
-                positionsStore.createIndex("tickerSymbol", "tickerSymbol", { unique: false });
+            if (!db.objectStoreNames.contains("Settings")) {
+                db.createObjectStore("Settings", { keyPath: "key" });
             }
-            // Create Settings Store
-            if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
-                db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: "key" });
+            if (!db.objectStoreNames.contains("Positions")) {
+                db.createObjectStore("Positions", { keyPath: "symbol" });
+            }
+            // New store for Finnhub data
+            if (!db.objectStoreNames.contains("Financials")) {
+                db.createObjectStore("Financials", { keyPath: "symbol" });
             }
         };
 
-        request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror = (event) => reject(event.target.error);
+        request.onsuccess = (event) => {
+            const db = event.target.result;
+            const transaction = db.transaction(["Settings"], "readonly");
+            const store = transaction.objectStore("Settings");
+
+            const keys = { alpacaKey: null, alpacaSecret: null, finnhubKey: null };
+            
+            let req1 = store.get("APCA_API_KEY_ID");
+            req1.onsuccess = () => {
+                if (req1.result) keys.alpacaKey = req1.result.value;
+            };
+
+            let req2 = store.get("APCA_API_SECRET_KEY");
+            req2.onsuccess = () => {
+                if (req2.result) keys.alpacaSecret = req2.result.value;
+            };
+
+            let req3 = store.get("FINNHUB_API_KEY");
+            req3.onsuccess = () => {
+                if (req3.result) keys.finnhubKey = req3.result.value;
+            };
+
+            transaction.oncomplete = () => {
+                // Fallback for older keys if stored differently
+                resolve({
+                    k: keys.alpacaKey,
+                    s: keys.alpacaSecret,
+                    f: keys.finnhubKey
+                });
+            };
+        };
+
+        request.onerror = (event) => {
+            console.error("DB Error in shared.js:", event.target.error);
+            reject(event.target.error);
+        };
     });
 }
 
-// --- API Key Helper ---
-async function getApiKeys() {
-    try {
-        const db = await openDatabase();
-        const transaction = db.transaction(SETTINGS_STORE_NAME, "readonly");
-        const store = transaction.objectStore(SETTINGS_STORE_NAME);
-
-        const getKey = (keyName) => new Promise((resolve) => {
-            const req = store.get(keyName);
-            req.onsuccess = (e) => resolve(e.target.result?.value || null);
-            req.onerror = () => resolve(null);
-        });
-
-        const [alpacaKey, alpacaSecret, finnhubKey] = await Promise.all([
-            getKey("APCA_API_KEY_ID"),
-            getKey("APCA_API_SECRET_KEY"),
-            getKey("finnhubApiKey")
-        ]);
-
-        return { alpacaKey, alpacaSecret, finnhubKey };
-    } catch (error) {
-        console.error("Error fetching keys:", error);
-        return { alpacaKey: null, alpacaSecret: null, finnhubKey: null };
-    }
-}
-
-// --- Common UI: Settings Toggle ---
-function initializeSettingsToggle() {
-    const icon = document.getElementById("settingsIcon");
-    const panel = document.getElementById("settings");
-    if(icon && panel) {
-        icon.addEventListener("click", () => {
-            panel.classList.toggle("d-none");
-        });
-    }
+// Helper to clear DB if needed from console
+function nukeDatabase() {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => {
+        console.log("Database deleted.");
+        window.location.reload();
+    };
 }
