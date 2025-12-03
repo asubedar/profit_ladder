@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Emergency Fix)</title>
+    <title>Pro Charting (Unified)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -12,19 +12,15 @@
         }
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; }
         
-        /* EMERGENCY BUTTON - ALWAYS VISIBLE */
-        #emergency-btn {
-            position: fixed; top: 10px; left: 10px; z-index: 100000;
-            background: #d50000; color: white; padding: 10px 20px;
-            border: 2px solid white; border-radius: 4px; cursor: pointer;
-            font-weight: bold; font-family: sans-serif;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        #emergency-btn:hover { background: #ff1744; }
-
-        /* LAYOUT */
+        /* APP SHELL */
         .app-container { display: grid; grid-template-rows: 40px 30px 1fr; height: 100vh; width: 100vw; overflow: hidden; }
-        .toolbar { background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; padding: 0 10px 0 140px; /* Padding left for button */ gap: 15px; z-index: 200; }
+        
+        /* TOOLBAR */
+        .toolbar { 
+            background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); 
+            display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; 
+            padding: 0 10px; gap: 15px; z-index: 200; overflow: visible; 
+        }
         .left-controls, .right-controls { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
         .right-controls { margin-left: auto; }
         .brand { font-weight: bold; color: var(--text-color); text-decoration: none; margin-right: 5px; font-size: 14px; }
@@ -35,7 +31,8 @@
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        
+        .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+
         /* NEWS */
         .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
         .news-label { background: #2962ff; color: white; font-weight: bold; padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 11px; z-index: 2; box-shadow: 5px 0 10px #131722; }
@@ -54,7 +51,7 @@
         #right-sidebar-area { border-left: 1px solid var(--border-color); }
         .collapsed { width: 0 !important; min-width: 0 !important; border: none !important; }
 
-        /* SLOT */
+        /* SLOTS */
         .chart-slot, .widget-box { position: relative; background-color: var(--bg-color); min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border-color); flex: 1; }
         
         /* HEADER */
@@ -63,7 +60,7 @@
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
-        /* L1 */
+        /* L1 QUOTES */
         .l1-overlay { position: absolute; top: 6px; right: 60px; z-index: 25; display: flex; gap: 4px; align-items: center; font-family: 'Roboto', sans-serif; pointer-events: none; }
         .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 3px; color: white; cursor: default; box-shadow: 0 2px 5px rgba(0,0,0,0.4); font-size: 10px; line-height: 1; pointer-events: auto; }
         .l1-bid { background: #ef5350; } .l1-ask { background: #2962ff; } 
@@ -131,8 +128,6 @@
     </style>
 </head>
 <body>
-
-<button id="emergency-btn" onclick="nuclearReset()">EMERGENCY DB RESET</button>
 
 <div class="app-container">
     <div class="toolbar">
@@ -215,7 +210,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 28; // FORCE RESET FOR SAFETY
+    const LAYOUT_VERSION = 28; 
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -229,7 +224,7 @@
         newsSymbols: new Set()
     };
 
-    // --- GLOBAL ACTIONS (ATTACHED TO WINDOW) ---
+    // --- GLOBAL ACTIONS ---
     window.nuclearReset = function() {
         if(confirm("NUKE DATABASE? This will clear all settings and reload.")) {
             const req = indexedDB.deleteDatabase("ProfitLadderDB");
@@ -247,15 +242,14 @@
     window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); };
     window.setRightSidebarLayout = function(n) { updateSidebarConfig('right', n); };
 
-    // --- HELPERS ---
+    // --- CORE FUNCTIONS ---
     function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
     function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
     function updateSidebarConfig(side, count) { const arr = (side==='left') ? state.leftWidgetsConfig : state.rightWidgetsConfig; const prefix = (side==='left') ? 'l' : 'r'; if(count === 0) { if(side==='left') state.leftWidgetsConfig=[]; else state.rightWidgetsConfig=[]; if(side==='left') state.isLeftOpen=false; else state.isRightOpen=false; } else { if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); } else if(count < arr.length) { if(side==='left') state.leftWidgetsConfig = arr.slice(0,count); else state.rightWidgetsConfig = arr.slice(0,count); } if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true; } saveState(); renderAll(); }
 
-    // --- DB ---
     function openDB() {
         return new Promise((resolve, reject) => {
-            const req = indexedDB.open("ProfitLadderDB", 4);
+            const req = indexedDB.open("ProfitLadderDB", 4); // Ensure V4
             req.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains("Settings")) db.createObjectStore("Settings", { keyPath: "key" });
@@ -263,19 +257,36 @@
                 if (!db.objectStoreNames.contains("Financials")) db.createObjectStore("Financials", { keyPath: "symbol" });
             };
             req.onsuccess = (event) => resolve(event.target.result);
-            req.onerror = (event) => {
-                // Force show reset button if DB is broken
-                document.getElementById('emergency-btn').style.display = 'block';
-                reject("DB Error");
-            };
+            req.onerror = (event) => reject(event);
         });
     }
 
     async function saveState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings"); s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) }); } catch(e) { } }
     async function loadSavedState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readonly"); const req = tx.objectStore("Settings").get("layoutConfig"); await new Promise(r => { req.onsuccess = () => { if(req.result) { const d = JSON.parse(req.result.value); if(d.ver !== LAYOUT_VERSION) return r(); state.chartsConfig = d.m || state.chartsConfig; state.leftWidgetsConfig = d.l || state.leftWidgetsConfig; state.rightWidgetsConfig = d.r || state.rightWidgetsConfig; state.layoutMode = d.lm || '1x1'; state.isLeftOpen = d.lo; state.isRightOpen = d.ro; } r(); }; req.onerror = r; }); } catch(e) { } }
     async function resetLayout(c=true) { if(!c || confirm("Reset Layout?")) { state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }]; state.leftWidgetsConfig = []; state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }]; state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION; state.isLeftOpen = false; state.isRightOpen = true; await saveState(); window.location.reload(); } }
-    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) { (async () => { const db = await openDB(); const tx = db.transaction("Settings","readonly"); const store = tx.objectStore("Settings"); const getVal = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : ''); }); const [k, s, f] = await Promise.all([getVal("APCA_API_KEY_ID"), getVal("APCA_API_SECRET_KEY"), getVal("FINNHUB_API_KEY")]); document.getElementById('inpApiKey').value = k; document.getElementById('inpApiSecret').value = s; document.getElementById('inpFinnhubKey').value = f; })(); } }
+    function toggleSettings(show) { document.getElementById('settingsModal').style.display = show ? 'flex' : 'none'; if(show) getKeys().then(k=>{if(k){document.getElementById('inpApiKey').value=k.k||'';document.getElementById('inpApiSecret').value=k.s||'';}}); }
     async function saveApiSettings() { const k = document.getElementById('inpApiKey').value.trim(); const s = document.getElementById('inpApiSecret').value.trim(); const f = document.getElementById('inpFinnhubKey').value.trim(); if(!k||!s) return alert("Alpaca keys required"); try{ const db=await openDB(); const tx=db.transaction("Settings","readwrite"); const store=tx.objectStore("Settings"); store.put({key:"APCA_API_KEY_ID",value:k}); store.put({key:"APCA_API_SECRET_KEY",value:s}); store.put({key:"FINNHUB_API_KEY",value:f}); tx.oncomplete=()=>{alert("Saved");window.location.reload();}; }catch(e){alert("Error: "+e.message);} }
+
+    // --- FINNHUB ---
+    async function fetchFinancials(symbol) {
+        const db = await openDB();
+        const tx = db.transaction(["Settings", "Financials"], "readwrite");
+        const cache = await new Promise(r => { const req = tx.objectStore("Financials").get(symbol); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+        const now = Date.now();
+        if (cache && (now - cache.timestamp < 86400000)) return cache.data;
+        const key = await new Promise(r => { const req = tx.objectStore("Settings").get("FINNHUB_API_KEY"); req.onsuccess = () => r(req.result ? req.result.value : null); });
+        if (!key) return null;
+        try {
+            const url = `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${key}`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const store = db.transaction("Financials", "readwrite").objectStore("Financials");
+            store.put({ symbol: symbol, data: data, timestamp: now });
+            return data;
+        } catch (e) { return null; }
+    }
+    async function pruneFinancials() { const db = await openDB(); const tx = db.transaction("Financials", "readwrite"); const store = tx.objectStore("Financials"); const now = Date.now(); store.openCursor().onsuccess = (event) => { const cursor = event.target.result; if (cursor) { if (now - cursor.value.timestamp > 86400000) cursor.delete(); cursor.continue(); } }; }
 
     // --- INIT ---
     async function init() {
@@ -286,6 +297,7 @@
 
             renderAll();
             refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
+            pruneFinancials();
             
             clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
             state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
@@ -299,8 +311,7 @@
             document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
             
         } catch(e) {
-            console.error(e);
-            document.getElementById('emergency-btn').style.display = 'block'; // Show reset if crash
+            log("CRASH: " + e.message, 'error');
         }
     }
 
@@ -335,13 +346,11 @@
                     ${isChart ? getTfHtml(cfg.id, cfg.timeframe) : ''}
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
-                ${isChart ? 
-                    `<div class="l1-overlay" id="l1-${cfg.id}">
-                        <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
-                        <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
-                        <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
-                    </div>` 
-                : ''}
+                <div class="l1-overlay" id="l1-${cfg.id}">
+                    <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
+                    <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
+                    <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
+                </div>
             </div>
         `;
         
@@ -372,28 +381,6 @@
                     <div class="tf-btn" onclick="setWidgetTf('${id}', '1M', event)">M</div>
                 </div>
             </div>`;
-    }
-
-    // --- DATA LOGIC ---
-    async function fetchFinancials(symbol) {
-        const db = await openDB();
-        const tx = db.transaction(["Settings", "Financials"], "readwrite");
-        const cache = await new Promise(r => { const req = tx.objectStore("Financials").get(symbol); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-        const now = Date.now();
-        if (cache && (now - cache.timestamp < 86400000)) return cache.data;
-
-        const key = await new Promise(r => { const req = tx.objectStore("Settings").get("FINNHUB_API_KEY"); req.onsuccess = () => r(req.result ? req.result.value : null); });
-        if (!key) return null;
-
-        try {
-            const url = `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${key}`;
-            const res = await fetch(url);
-            if (!res.ok) return null;
-            const data = await res.json();
-            const store = db.transaction("Financials", "readwrite").objectStore("Financials");
-            store.put({ symbol: symbol, data: data, timestamp: now });
-            return data;
-        } catch (e) { return null; }
     }
 
     async function initChart(cfg) {
@@ -505,7 +492,7 @@
         } catch(e) {}
     }
 
-    function updateChartBar(c,t,o,h,l,cl,v){c.candleSeries.update({time:t,open:o,high:h,low:l,close:cl});c.volSeries.update({time:t,value:v,color:(cl>=o?'#26a69a':'#ef5350')});}
+    // --- BOILERPLATE ---
     async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; 
         fetchFinancials(c.ticker); // BACKGROUND FINNHUB
         const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; 
