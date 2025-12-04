@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Financials V2)</title>
+    <title>Pro Charting (Unified Quotes)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -145,7 +145,6 @@
         .range-dates { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 2px; }
         .range-track { height: 4px; background: #2a2e39; border-radius: 2px; position: relative; width: 100%; margin: 6px 0; }
         .range-fill { height: 100%; background: #2962ff; border-radius: 2px; position: absolute; left: 0; }
-        /* ARROW INDICATOR */
         .range-arrow { position: absolute; top: -5px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #fff; transform: translateX(-50%); z-index: 2; }
     </style>
 </head>
@@ -233,7 +232,7 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 30; 
+    const LAYOUT_VERSION = 31; 
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -375,7 +374,7 @@
                     ${cfg.type === 'chart' ? getTfHtml(cfg.id, cfg.timeframe) : ''}
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
-                ${(cfg.type === 'chart' || cfg.type === 'financials') ? `<div class="l1-overlay" id="l1-${cfg.id}">
+                ${(cfg.type === 'chart' || cfg.type === 'financials' || cfg.type === 'tape') ? `<div class="l1-overlay" id="l1-${cfg.id}">
                     <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
                     <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
                     <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
@@ -461,7 +460,6 @@
     
     // --- FINANCIALS LOGIC ---
     async function initFinancials(cfg) {
-        // Track this widget so updateChartsRealtime will find it and update the Quote Bar
         state.activeWidgets.push({ ...cfg }); 
         
         const container = document.getElementById(`fin-content-${cfg.id}`);
@@ -486,7 +484,6 @@
         const low = m['52WeekLow'];
         const high = m['52WeekHigh'];
         
-        // Fetch Current Price for Arrow Position
         let pctRange = 50; 
         try {
             const k = await getKeys();
@@ -494,7 +491,6 @@
                 const res = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${cfg.ticker}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});
                 if(res.ok) {
                     const snap = await res.json();
-                    // Case insensitive check
                     const d = snap[cfg.ticker] || snap[cfg.ticker.toUpperCase()];
                     if(d && d.latestTrade && d.latestTrade.p) {
                         const price = d.latestTrade.p;
@@ -598,7 +594,6 @@
             const res = await fetch(u, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
             widgets.forEach(w => {
-                // CASE INSENSITIVE LOOKUP
                 const data = json[w.ticker] || json[w.ticker.toUpperCase()];
                 if(!data) return;
                 
