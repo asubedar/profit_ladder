@@ -664,13 +664,21 @@
         
         const m = data.metric;
         
-        // Formatters
-        const fmt = (n, p=2) => n ? n.toFixed(p) : '-';
-        const fmtPct = (n) => n ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '-';
+        // --- FORMATTERS ---
+        const fmt = (n, p=2) => (n !== null && n !== undefined) ? n.toFixed(p) : '-';
+        const fmtPct = (n) => (n !== null && n !== undefined) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '-';
         const color = (n) => n > 0 ? 'color-up' : (n < 0 ? 'color-down' : '');
         const fmtBig = (n) => {
             if (!n) return '-';
-            if (n > 1000000) return (n/1000000).toFixed(2) + 'T'; 
+            if (n > 1e9) return (n/1e6).toFixed(2) + 'T'; // Finnhub 'millions' logic sometimes weird, assuming standard
+            if (n > 1e6) return (n/1e6).toFixed(2) + 'T'; // Adjust based on raw data scale
+            if (n > 1000) return (n/1000).toFixed(2) + 'B';
+            return n.toFixed(2) + 'M';
+        };
+        // Finnhub sends Mkt Cap in Millions. 4227958 = 4.2T. 
+        const fmtCap = (n) => {
+            if (!n) return '-';
+            if (n > 1000000) return (n/1000000).toFixed(2) + 'T';
             if (n > 1000) return (n/1000).toFixed(2) + 'B';
             return n.toFixed(2) + 'M';
         };
@@ -700,52 +708,108 @@
             </div>
 
             <div class="fin-section">
-                <div class="fin-title">Valuation & Cash Flow</div>
+                <div class="fin-title">Valuation</div>
                 <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Mkt Cap</span><span class="fin-val" style="color:#ffa726">${fmtBig(m.marketCapitalization)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Ent. Val</span><span class="fin-val">${fmtBig(m.enterpriseValue)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Mkt Cap</span><span class="fin-val" style="color:#ffa726">${fmtCap(m.marketCapitalization)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Ent. Val</span><span class="fin-val">${fmtCap(m.enterpriseValue)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Beta</span><span class="fin-val">${fmt(m.beta)}</span></div>
+                    
                     <div class="fin-item"><span class="fin-label">P/E (TTM)</span><span class="fin-val">${fmt(m.peTTM)}</span></div>
                     <div class="fin-item"><span class="fin-label">Fwd P/E</span><span class="fin-val">${fmt(m.forwardPE)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EV/FCF</span><span class="fin-val" style="color:#29b6f6">${fmt(m['currentEv/freeCashFlowTTM'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">EV/EBITDA</span><span class="fin-val">${fmt(m.evEbitdaTTM)}</span></div>
                     <div class="fin-item"><span class="fin-label">PEG</span><span class="fin-val">${fmt(m.pegTTM)}</span></div>
+                    
                     <div class="fin-item"><span class="fin-label">P/S</span><span class="fin-val">${fmt(m.psTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">P/B</span><span class="fin-val">${fmt(m.pb)}</span></div>
+                    <div class="fin-item"><span class="fin-label">P/FCF</span><span class="fin-val">${fmt(m.pfcfShareTTM)}</span></div>
+                    
+                    <div class="fin-item"><span class="fin-label">EV/EBITDA</span><span class="fin-val">${fmt(m.evEbitdaTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">EV/Rev</span><span class="fin-val">${fmt(m.evRevenueTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">EV/FCF</span><span class="fin-val" style="color:#29b6f6">${fmt(m['currentEv/freeCashFlowTTM'])}</span></div>
                 </div>
             </div>
 
             <div class="fin-section">
-                <div class="fin-title">Trade Profile & Volatility</div>
+                <div class="fin-title">Momentum & Returns</div>
                 <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Beta</span><span class="fin-val">${fmt(m.beta)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Vol (3M Std)</span><span class="fin-val">${fmt(m['3MonthADReturnStd'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">Avg Vol (10D)</span><span class="fin-val">${fmtBig(m['10DayAverageTradingVolume'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">Rel SPY (YTD)</span><span class="fin-val ${color(m['priceRelativeToS&P500Ytd'])}">${fmtPct(m['priceRelativeToS&P500Ytd'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">52W Return</span><span class="fin-val ${color(m['52WeekPriceReturnDaily'])}">${fmtPct(m['52WeekPriceReturnDaily'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">5D Return</span><span class="fin-val ${color(m['5DayPriceReturnDaily'])}">${fmtPct(m['5DayPriceReturnDaily'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">MTD Return</span><span class="fin-val ${color(m['monthToDatePriceReturnDaily'])}">${fmtPct(m['monthToDatePriceReturnDaily'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">YTD Return</span><span class="fin-val ${color(m['yearToDatePriceReturnDaily'])}">${fmtPct(m['yearToDatePriceReturnDaily'])}</span></div>
+
                     <div class="fin-item"><span class="fin-label">13W Return</span><span class="fin-val ${color(m['13WeekPriceReturnDaily'])}">${fmtPct(m['13WeekPriceReturnDaily'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">26W Return</span><span class="fin-val ${color(m['26WeekPriceReturnDaily'])}">${fmtPct(m['26WeekPriceReturnDaily'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">52W Return</span><span class="fin-val ${color(m['52WeekPriceReturnDaily'])}">${fmtPct(m['52WeekPriceReturnDaily'])}</span></div>
+
+                    <div class="fin-item"><span class="fin-label">Rel SPY 4W</span><span class="fin-val ${color(m['priceRelativeToS&P5004Week'])}">${fmtPct(m['priceRelativeToS&P5004Week'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">Rel SPY 26W</span><span class="fin-val ${color(m['priceRelativeToS&P50026Week'])}">${fmtPct(m['priceRelativeToS&P50026Week'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">Rel SPY 52W</span><span class="fin-val ${color(m['priceRelativeToS&P50052Week'])}">${fmtPct(m['priceRelativeToS&P50052Week'])}</span></div>
+                    
+                    <div class="fin-item"><span class="fin-label">Vol (3M)</span><span class="fin-val">${fmt(m['3MonthADReturnStd'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">AvgVol (10D)</span><span class="fin-val">${fmtCap(m['10DayAverageTradingVolume'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">AvgVol (3M)</span><span class="fin-val">${fmtCap(m['3MonthAverageTradingVolume'])}</span></div>
                 </div>
             </div>
 
             <div class="fin-section">
-                <div class="fin-title">Growth (TTM vs 5Y)</div>
+                <div class="fin-title">Growth Profile</div>
                 <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Rev (TTM)</span><span class="fin-val ${color(m.revenueGrowthTTMYoy)}">${fmtPct(m.revenueGrowthTTMYoy)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Rev (5Y)</span><span class="fin-val">${fmtPct(m.revenueGrowth5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EPS (TTM)</span><span class="fin-val ${color(m.epsGrowthTTMYoy)}">${fmtPct(m.epsGrowthTTMYoy)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EPS (5Y)</span><span class="fin-val">${fmtPct(m.epsGrowth5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Book (5Y)</span><span class="fin-val">${fmtPct(m.bookValueShareGrowth5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Capex (5Y)</span><span class="fin-val">${fmtPct(m.capexCagr5Y)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Rev Qtr YoY</span><span class="fin-val ${color(m.revenueGrowthQuarterlyYoy)}">${fmtPct(m.revenueGrowthQuarterlyYoy)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Rev TTM</span><span class="fin-val ${color(m.revenueGrowthTTMYoy)}">${fmtPct(m.revenueGrowthTTMYoy)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Rev 5Y</span><span class="fin-val">${fmtPct(m.revenueGrowth5Y)}</span></div>
+
+                    <div class="fin-item"><span class="fin-label">EPS Qtr YoY</span><span class="fin-val ${color(m.epsGrowthQuarterlyYoy)}">${fmtPct(m.epsGrowthQuarterlyYoy)}</span></div>
+                    <div class="fin-item"><span class="fin-label">EPS TTM</span><span class="fin-val ${color(m.epsGrowthTTMYoy)}">${fmtPct(m.epsGrowthTTMYoy)}</span></div>
+                    <div class="fin-item"><span class="fin-label">EPS 5Y</span><span class="fin-val">${fmtPct(m.epsGrowth5Y)}</span></div>
+
+                    <div class="fin-item"><span class="fin-label">Div Growth 5Y</span><span class="fin-val">${fmtPct(m.dividendGrowthRate5Y)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Capex 5Y</span><span class="fin-val">${fmtPct(m.capexCagr5Y)}</span></div>
+                    <div class="fin-item"><span class="fin-label">FOCF 5Y</span><span class="fin-val">${fmtPct(m.focfCagr5Y)}</span></div>
                 </div>
             </div>
 
             <div class="fin-section">
-                <div class="fin-title">Health & Efficiency</div>
+                <div class="fin-title">Profitability (TTM vs 5Y)</div>
                 <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Gross Mrg</span><span class="fin-val">${fmtPct(m.grossMarginTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Oper. Mrg</span><span class="fin-val">${fmtPct(m.operatingMarginTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Inv Turn</span><span class="fin-val">${fmt(m.inventoryTurnoverTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Asset Turn</span><span class="fin-val">${fmt(m.assetTurnoverTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Div Yield</span><span class="fin-val" style="color:#26a69a">${fmtPct(m.dividendYieldIndicatedAnnual)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Gross %</span><span class="fin-val">${fmtPct(m.grossMarginTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Oper %</span><span class="fin-val">${fmtPct(m.operatingMarginTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Net %</span><span class="fin-val">${fmtPct(m.netProfitMarginTTM)}</span></div>
+
+                    <div class="fin-item"><span class="fin-label">Gross 5Y</span><span class="fin-val">${fmtPct(m.grossMargin5Y)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Oper 5Y</span><span class="fin-val">${fmtPct(m.operatingMargin5Y)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Net 5Y</span><span class="fin-val">${fmtPct(m.netProfitMargin5Y)}</span></div>
+
+                    <div class="fin-item"><span class="fin-label">ROE</span><span class="fin-val ${color(m.roeTTM)}">${fmtPct(m.roeTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">ROA</span><span class="fin-val ${color(m.roaTTM)}">${fmtPct(m.roaTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">ROI</span><span class="fin-val ${color(m.roiTTM)}">${fmtPct(m.roiTTM)}</span></div>
+                </div>
+            </div>
+
+            <div class="fin-section">
+                <div class="fin-title">Balance Sheet & Liquidity</div>
+                <div class="fin-grid">
                     <div class="fin-item"><span class="fin-label">Current Ratio</span><span class="fin-val">${fmt(m.currentRatio)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Quick Ratio</span><span class="fin-val">${fmt(m.quickRatioQuarterly)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Debt/Eq</span><span class="fin-val">${fmt(m['totalDebt/totalEquityQuarterly'])}</span></div>
+                    
+                    <div class="fin-item"><span class="fin-label">LT Debt/Eq</span><span class="fin-val">${fmt(m['longTermDebt/equityQuarterly'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">Int. Cov</span><span class="fin-val">${fmt(m.netInterestCoverageTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Payout %</span><span class="fin-val">${fmt(m.payoutRatioTTM)}%</span></div>
+                </div>
+            </div>
+
+            <div class="fin-section">
+                <div class="fin-title">Efficiency & Per Share</div>
+                <div class="fin-grid">
+                    <div class="fin-item"><span class="fin-label">Rev/Share</span><span class="fin-val">${fmt(m.revenuePerShareTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Cash/Share</span><span class="fin-val">${fmt(m.cashPerSharePerShareQuarterly)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Book/Share</span><span class="fin-val">${fmt(m.bookValuePerShareQuarterly)}</span></div>
+                    
+                    <div class="fin-item"><span class="fin-label">Asset Turn</span><span class="fin-val">${fmt(m.assetTurnoverTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Inv Turn</span><span class="fin-val">${fmt(m.inventoryTurnoverTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Rec Turn</span><span class="fin-val">${fmt(m.receivablesTurnoverTTM)}</span></div>
+                    
+                    <div class="fin-item"><span class="fin-label">Rev/Empl</span><span class="fin-val">${fmt(m.revenueEmployeeTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Inc/Empl</span><span class="fin-val">${fmt(m.netIncomeEmployeeTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Div Yield</span><span class="fin-val" style="color:#26a69a">${fmtPct(m.dividendYieldIndicatedAnnual)}</span></div>
                 </div>
             </div>
         `;
