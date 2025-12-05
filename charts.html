@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (State Store)</title>
+    <title>Pro Charting (Fund. Trends)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -63,6 +63,11 @@
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
+        /* DROPDOWNS IN HEADER */
+        .metric-select { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #d1d4dc; font-size: 11px; height: 24px; border-radius: 3px; outline: none; max-width: 100px; cursor: pointer; }
+        .freq-btn { width: 24px; height: 24px; border: 1px solid #444; background: #1e222d; color: #d1d4dc; font-size: 10px; font-weight: bold; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .freq-btn:hover { background: #2962ff; color: white; border-color: #2962ff; }
+
         /* L1 QUOTES (Overlay) */
         .l1-overlay { position: absolute; top: 6px; right: 60px; z-index: 25; display: flex; gap: 4px; align-items: center; font-family: 'Roboto', sans-serif; pointer-events: none; }
         .l1-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 24px; border-radius: 3px; color: white; cursor: default; box-shadow: 0 2px 5px rgba(0,0,0,0.4); font-size: 10px; line-height: 1; pointer-events: auto; }
@@ -232,7 +237,24 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
-    const LAYOUT_VERSION = 32; 
+    // --- CONFIG & CONSTANTS ---
+    const LAYOUT_VERSION = 33; 
+    
+    const FUND_METRICS = {
+        'Valuation': {
+            'pe': 'P/E', 'ps': 'P/S', 'pb': 'P/B', 'evEbitda': 'EV/EBITDA'
+        },
+        'Profitability': {
+            'grossMargin': 'Gross Margin', 'operatingMargin': 'Oper. Margin', 'netMargin': 'Net Margin', 'roe': 'ROE', 'roa': 'ROA'
+        },
+        'Per Share': {
+            'eps': 'EPS', 'salesPerShare': 'Sales/Share', 'bookValue': 'Book/Share', 'fcfPerShareTTM': 'FCF/Share'
+        },
+        'Health': {
+            'currentRatio': 'Current Ratio', 'quickRatio': 'Quick Ratio', 'totalDebtToEquity': 'Debt/Eq'
+        }
+    };
+
     const state = {
         layoutVersion: LAYOUT_VERSION,
         isLeftOpen: false, isRightOpen: true,
@@ -244,15 +266,22 @@
         refreshInterval: null, screenerInterval: null, tapeInterval: null, newsInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
         newsSymbols: new Set(),
-        quoteStore: {} // CENTRAL STORE FOR QUOTES
+        quoteStore: {} 
     };
 
     // --- GLOBAL ACTIONS ---
     window.switchWidgetType = function(id) { 
         const cfg = findConfig(id); 
         if(cfg) { 
+            // Cycle: chart -> tape -> financials -> fund-chart -> chart
             if (cfg.type === 'chart') cfg.type = 'tape';
             else if (cfg.type === 'tape') cfg.type = 'financials';
+            else if (cfg.type === 'financials') {
+                cfg.type = 'fund-chart';
+                // Set defaults if missing
+                if(!cfg.fundPeriod) cfg.fundPeriod = 'quarterly';
+                if(!cfg.fundMetric) cfg.fundMetric = 'eps';
+            }
             else cfg.type = 'chart';
             
             if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; 
@@ -265,6 +294,11 @@
     window.updateWidgetTicker = function(id, input, e) { if(e.key === 'Enter') { const cfg = findConfig(id); if(cfg) { const val = input.value.toUpperCase(); cfg.ticker = val; syncLinkedWidgets(cfg.linkGroup, val); saveState(); renderAll(); input.blur(); } } };
     window.setWidgetTf = function(id, val, e) { e.stopPropagation(); const cfg = findConfig(id); if(cfg) { cfg.timeframe = val; saveState(); renderAll(); } };
     window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); const el = document.getElementById(`tf-morph-${id}`); if(el) el.classList.add('expanded'); };
+    
+    // FUND CHART ACTIONS
+    window.setFundMetric = function(id, val) { const cfg = findConfig(id); if(cfg) { cfg.fundMetric = val; saveState(); updateFundChart(cfg); } };
+    window.toggleFundPeriod = function(id) { const cfg = findConfig(id); if(cfg) { cfg.fundPeriod = (cfg.fundPeriod === 'quarterly' ? 'annual' : 'quarterly'); saveState(); renderAll(); } }; // Re-render needed to toggle button text
+
     window.setChartLayout = function(mode) { state.layoutMode = mode; const [r, c] = mode.split('x').map(Number); const total = r * c; if(total > state.chartsConfig.length) { for(let i=state.chartsConfig.length; i<total; i++) state.chartsConfig.push({ id: `m${i}`, type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: null }); } else { state.chartsConfig = state.chartsConfig.slice(0, total); } saveState(); renderAll(); };
     window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); };
     window.setRightSidebarLayout = function(n) { updateSidebarConfig('right', n); };
@@ -366,16 +400,38 @@
         let iconClass = 'fa-chart-bar';
         if(cfg.type === 'tape') iconClass = 'fa-list-ol';
         if(cfg.type === 'financials') iconClass = 'fa-file-invoice-dollar';
+        if(cfg.type === 'fund-chart') iconClass = 'fa-chart-area';
+
+        // GENERATE FUND CHART SELECTOR OPTIONS
+        let fundSelector = '';
+        if(cfg.type === 'fund-chart') {
+            fundSelector += `<select class="metric-select" onchange="setFundMetric('${cfg.id}', this.value)">`;
+            for(const [cat, metrics] of Object.entries(FUND_METRICS)) {
+                fundSelector += `<optgroup label="${cat}">`;
+                for(const [key, label] of Object.entries(metrics)) {
+                    const sel = (key === cfg.fundMetric) ? 'selected' : '';
+                    fundSelector += `<option value="${key}" ${sel}>${label}</option>`;
+                }
+                fundSelector += `</optgroup>`;
+            }
+            fundSelector += `</select>`;
+            // Toggle for Q/Y
+            const pdLabel = cfg.fundPeriod === 'quarterly' ? 'Q' : 'Y';
+            fundSelector += `<div class="freq-btn" onclick="toggleFundPeriod('${cfg.id}')">${pdLabel}</div>`;
+        }
 
         const headerHtml = `
             <div class="widget-header">
                 <div class="widget-controls-left">
                     <div class="type-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
-                    <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
+                    
+                    ${cfg.type === 'fund-chart' ? '' : `<input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">`}
+                    ${cfg.type === 'fund-chart' ? fundSelector : ''}
+                    
                     ${cfg.type === 'chart' ? getTfHtml(cfg.id, cfg.timeframe) : ''}
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
-                ${(cfg.type === 'chart' || cfg.type === 'financials' || cfg.type === 'tape') ? `<div class="l1-overlay" id="l1-${cfg.id}">
+                ${(cfg.type === 'chart' || cfg.type === 'financials' || cfg.type === 'tape' || cfg.type === 'fund-chart') ? `<div class="l1-overlay" id="l1-${cfg.id}">
                     <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
                     <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
                     <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
@@ -393,19 +449,19 @@
             contentHtml = `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div></div>`;
         } else if (cfg.type === 'financials') {
             contentHtml = `<div class="widget-content"><div id="fin-content-${cfg.id}" class="fin-container"><span style="color:#666; font-size:11px;">Loading Metrics...</span></div></div>`;
+        } else if (cfg.type === 'fund-chart') {
+            contentHtml = `<div class="widget-content" id="content-${cfg.id}"><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div></div>`;
         }
 
         container.innerHTML = headerHtml + contentHtml;
 
-        // INSTANTLY RENDER QUOTE FROM STORE IF AVAILABLE (NO FLICKER)
-        if(state.quoteStore[cfg.ticker]) {
-            // Slight timeout to let DOM settle, or use simple direct update if elements exist
-            setTimeout(() => updateQuoteDisplay(cfg.id, state.quoteStore[cfg.ticker]), 0);
-        }
+        // INSTANTLY RENDER QUOTE FROM STORE
+        if(state.quoteStore[cfg.ticker]) setTimeout(() => updateQuoteDisplay(cfg.id, state.quoteStore[cfg.ticker]), 0);
 
         if(cfg.type === 'chart') initChart(cfg);
         else if(cfg.type === 'tape') initTape(cfg);
         else if(cfg.type === 'financials') initFinancials(cfg);
+        else if(cfg.type === 'fund-chart') initFundChart(cfg);
     }
 
     function getTfHtml(id, tf) {
@@ -441,11 +497,7 @@
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
         const wrapper = document.getElementById(`content-${cfg.id}`);
-        new ResizeObserver(e => { 
-            if (e.length && e[0].contentRect) {
-                chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
-            }
-        }).observe(wrapper);
+        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(wrapper);
         setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
@@ -465,6 +517,61 @@
         updateTapeIndividual();
     }
     
+    // --- FUNDAMENTAL CHART LOGIC ---
+    async function initFundChart(cfg) {
+        const container = document.getElementById(`canvas-${cfg.id}`);
+        await new Promise(r => setTimeout(r, 50));
+        
+        const chart = LightweightCharts.createChart(container, {
+            layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+            grid: { vertLines: { visible: false }, horzLines: { color: '#1e222d', style: 2 } },
+            timeScale: { borderColor: '#2a2e39', fixLeftEdge: true, fixRightEdge: true },
+            rightPriceScale: { borderColor: '#2a2e39' }
+        });
+        
+        // Use Histogram for discrete periods
+        const series = chart.addHistogramSeries({ color: '#2962ff' });
+        
+        const wrapper = document.getElementById(`content-${cfg.id}`);
+        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(wrapper);
+        setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
+
+        const obj = { ...cfg, chart, series, type: 'fund-chart' };
+        state.activeWidgets.push(obj);
+        
+        updateFundChart(obj);
+    }
+
+    async function updateFundChart(cfg) {
+        // Find the active widget object
+        const w = state.activeWidgets.find(x => x.id === cfg.id);
+        if(!w) return;
+        
+        const data = await fetchFinancials(w.ticker);
+        if(!data || !data.series) return;
+        
+        // Pick Annual vs Quarterly
+        const rawSeries = data.series[w.fundPeriod];
+        if(!rawSeries) return;
+        
+        // Pick Metric
+        const metricData = rawSeries[w.fundMetric];
+        if(!metricData) return;
+        
+        // Transform for Lightweight Charts
+        const chartData = metricData
+            .filter(d => d.v !== null)
+            .map(d => ({
+                time: d.period,
+                value: d.v,
+                color: d.v >= 0 ? '#26a69a' : '#ef5350' // Auto Color
+            }))
+            .sort((a,b) => new Date(a.time) - new Date(b.time)); // Sort Old -> New
+            
+        w.series.setData(chartData);
+        w.chart.timeScale().fitContent();
+    }
+
     async function initFinancials(cfg) {
         state.activeWidgets.push({ ...cfg }); 
         
@@ -490,7 +597,6 @@
         const low = m['52WeekLow'];
         const high = m['52WeekHigh'];
         
-        // Try to set initial position from store, otherwise default to 50%
         let pctRange = 50; 
         const stored = state.quoteStore[cfg.ticker] || state.quoteStore[cfg.ticker.toUpperCase()];
         if (stored && stored.latestTrade && stored.latestTrade.p) {
@@ -602,13 +708,11 @@
             const res = await fetch(u, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
             
-            // 1. UPDATE CENTRAL STORE
             symbols.forEach(sym => {
                 const d = json[sym] || json[sym.toUpperCase()];
                 if(d) state.quoteStore[sym] = d;
             });
 
-            // 2. UPDATE ACTIVE WIDGETS
             widgets.forEach(w => {
                 const data = state.quoteStore[w.ticker] || state.quoteStore[w.ticker.toUpperCase()];
                 if(!data) return;
@@ -622,7 +726,7 @@
                     else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v); }
                 }
                 
-                // FIX: LIVE ARROW UPDATE
+                // FIX: LIVE ARROW UPDATE FOR FINANCIALS
                 if(w.type === 'financials') {
                    const track = document.getElementById(`rng-track-${w.id}`);
                    const arrow = document.getElementById(`rng-arrow-${w.id}`);
@@ -643,7 +747,6 @@
         }
     }
     
-    // EXTRACTED HELPER FOR DOM UPDATES
     function updateQuoteDisplay(id, data) {
         const q = data.latestQuote;
         const t = data.latestTrade;
@@ -659,7 +762,6 @@
                 const el = document.getElementById(`ql-${id}`);
                 const price = t.p;
                 el.innerText = price.toFixed(2);
-                // We don't track prev price in store easily, but could rely on color logic if we stored prev
             }
             if(d) document.getElementById(`qv-${id}`).innerText = formatNum(d.v);
         }
