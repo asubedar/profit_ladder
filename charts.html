@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Full Fundamentals)</title>
+    <title>Pro Charting (Fund. Fix)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -238,7 +238,7 @@
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
     // --- CONFIG & CONSTANTS ---
-    const LAYOUT_VERSION = 34; 
+    const LAYOUT_VERSION = 35; 
     
     // FULL METRIC CATALOG
     const FUND_METRICS = {
@@ -269,7 +269,7 @@
             'bookValue': 'Book/Share',
             'tangibleBookValue': 'Tang. Book/Share',
             'ebitPerShare': 'EBIT/Share',
-            'fcfPerShare': 'FCF/Share' // Handled as fcfPerShareTTM in quarterly
+            'fcfPerShare': 'FCF/Share' 
         },
         'Balance Sheet': {
             'currentRatio': 'Current Ratio',
@@ -283,7 +283,7 @@
         'Efficiency': {
             'inventoryTurnover': 'Inv. Turnover',
             'receivablesTurnover': 'Rec. Turnover',
-            'assetTurnover': 'Asset Turnover', // Often TTM only
+            'assetTurnover': 'Asset Turnover', 
             'sgaToSale': 'SG&A/Sale'
         }
     };
@@ -326,9 +326,39 @@
     window.setWidgetTf = function(id, val, e) { e.stopPropagation(); const cfg = findConfig(id); if(cfg) { cfg.timeframe = val; saveState(); renderAll(); } };
     window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); const el = document.getElementById(`tf-morph-${id}`); if(el) el.classList.add('expanded'); };
     
-    // FUND CHART ACTIONS
-    window.setFundMetric = function(id, val) { const cfg = findConfig(id); if(cfg) { cfg.fundMetric = val; saveState(); updateFundChart(cfg); } };
-    window.toggleFundPeriod = function(id) { const cfg = findConfig(id); if(cfg) { cfg.fundPeriod = (cfg.fundPeriod === 'quarterly' ? 'annual' : 'quarterly'); saveState(); renderAll(); } };
+    // FUND CHART ACTIONS - FIX: UPDATE ACTIVE WIDGET INSTANCE DIRECTLY
+    window.setFundMetric = function(id, val) { 
+        const cfg = findConfig(id); 
+        if(cfg) { 
+            cfg.fundMetric = val; 
+            
+            // UPDATE ACTIVE WIDGET INSTANCE
+            const w = state.activeWidgets.find(x => x.id === id);
+            if(w) w.fundMetric = val;
+            
+            saveState(); 
+            updateFundChart(cfg); 
+        } 
+    };
+    
+    window.toggleFundPeriod = function(id) { 
+        const cfg = findConfig(id); 
+        if(cfg) { 
+            const newVal = (cfg.fundPeriod === 'quarterly' ? 'annual' : 'quarterly');
+            cfg.fundPeriod = newVal; 
+            
+            // UPDATE ACTIVE WIDGET INSTANCE
+            const w = state.activeWidgets.find(x => x.id === id);
+            if(w) w.fundPeriod = newVal;
+            
+            // Update button Text
+            const btn = document.getElementById(`fp-btn-${id}`);
+            if(btn) btn.innerText = (newVal === 'quarterly' ? 'Q' : 'Y');
+
+            saveState(); 
+            updateFundChart(cfg);
+        } 
+    };
 
     window.setChartLayout = function(mode) { state.layoutMode = mode; const [r, c] = mode.split('x').map(Number); const total = r * c; if(total > state.chartsConfig.length) { for(let i=state.chartsConfig.length; i<total; i++) state.chartsConfig.push({ id: `m${i}`, type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: null }); } else { state.chartsConfig = state.chartsConfig.slice(0, total); } saveState(); renderAll(); };
     window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); };
@@ -446,9 +476,9 @@
                 fundSelector += `</optgroup>`;
             }
             fundSelector += `</select>`;
-            // Toggle for Q/Y
+            
             const pdLabel = cfg.fundPeriod === 'quarterly' ? 'Q' : 'Y';
-            fundSelector += `<div class="freq-btn" onclick="toggleFundPeriod('${cfg.id}')">${pdLabel}</div>`;
+            fundSelector += `<div id="fp-btn-${cfg.id}" class="freq-btn" onclick="toggleFundPeriod('${cfg.id}')">${pdLabel}</div>`;
         }
 
         const headerHtml = `
