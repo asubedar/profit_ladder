@@ -582,15 +582,21 @@
     }
 
     async function updateSentimentChart(w) {
-        const k = await getKeys(); if(!k) return;
+        const k = await getKeys(); 
+        const fhToken = await getFinnhubKey(); // FETCH FROM DB, NOT DOM
+        
+        if(!k || !fhToken) {
+            log("Missing API Keys for Sentiment Chart", "error");
+            return;
+        }
         
         // 1. Fetch Monthly Candles
         const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
         const cUrl = `https://data.alpaca.markets/v2/stocks/${w.ticker}/bars?timeframe=1Month&start=${start}&end=${end}&limit=500&adjustment=split&sort=desc`;
         
-        // 2. Fetch Insider Sentiment
+        // 2. Fetch Insider Sentiment (Using the fetched token)
         const today = new Date().toISOString().split('T')[0];
-        const sUrl = `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${w.ticker}&from=2020-01-01&to=${today}&token=${document.getElementById('inpFinnhubKey').value.trim()}`;
+        const sUrl = `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${w.ticker}&from=2020-01-01&to=${today}&token=${fhToken}`;
 
         try {
             const [cRes, sRes] = await Promise.all([
@@ -638,6 +644,9 @@
                     w.candleSeries.setMarkers(markers);
                 }
                 w.chart.timeScale().fitContent();
+            } else {
+                if(sRes.status === 401) log("Finnhub 401: Check API Key", "error");
+                if(sRes.status === 429) log("Finnhub 429: Rate Limit", "error");
             }
         } catch(e) { log(e.message); }
     }
@@ -874,6 +883,17 @@
     function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
     function parseBars(b){const o=[],v=[];b.forEach(x=>{const t=new Date(x.t).getTime()/1000;o.push({time:t,open:x.o,high:x.h,low:x.l,close:x.c});v.push({time:t,value:x.v,color:(x.c>=x.o?'#26a69a':'#ef5350')});});return{ohlc:o,vol:v};}
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
+    async function getFinnhubKey() {
+        try {
+            const db = await openDB();
+            const tx = db.transaction("Settings", "readonly");
+            const req = tx.objectStore("Settings").get("FINNHUB_API_KEY");
+            return new Promise(r => {
+                req.onsuccess = () => r(req.result ? req.result.value : null);
+                req.onerror = () => r(null);
+            });
+        } catch(e) { return null; }
+    }
     function getLinkClass(g){if(g==='A')return'link-blue';if(g==='B')return'link-orange';if(g==='C')return'link-green';if(g==='D')return'link-purple';if(g==='E')return'link-red';return'';}
     async function refreshPortfolioTape(){const k=await getKeys();if(!k)return;try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",4);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol);t.forEach(s=>state.newsSymbols.add(s));if(t.length){const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",i);renderTape();}}}catch(e){}}
     async function refreshScreenerTape(){const k=await getKeys();if(!k)return;fetchScreener(k,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();});fetchScreener(k,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();});fetchActives(k,'volume','activeVol',"ACTIVE (VOL)");fetchActives(k,'trades','activeTrd',"ACTIVE (TRD)");if(!state.tapeData.activeVol)fetchFallbackIndices(k);}
