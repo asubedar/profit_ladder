@@ -465,7 +465,6 @@
         updateTapeIndividual();
     }
     
-    // --- FINANCIALS LOGIC ---
     async function initFinancials(cfg) {
         state.activeWidgets.push({ ...cfg }); 
         
@@ -491,21 +490,21 @@
         const low = m['52WeekLow'];
         const high = m['52WeekHigh'];
         
-        // INSTANT ARROW POSITION (USING STORE)
+        // Try to set initial position from store, otherwise default to 50%
         let pctRange = 50; 
         const stored = state.quoteStore[cfg.ticker] || state.quoteStore[cfg.ticker.toUpperCase()];
         if (stored && stored.latestTrade && stored.latestTrade.p) {
              const price = stored.latestTrade.p;
              if(high > low) {
                 pctRange = ((price - low) / (high - low)) * 100;
-                if(pctRange < 0) pctRange = 0; if(pctRange > 100) pctRange = 100;
+                pctRange = Math.max(0, Math.min(100, pctRange));
              }
         }
 
         const html = `
             <div class="range-container">
                 <div class="range-labels"><span>L: ${low}</span><span>52W RANGE</span><span>H: ${high}</span></div>
-                <div class="range-track">
+                <div id="rng-track-${cfg.id}" class="range-track" data-high="${high}" data-low="${low}">
                     <div class="range-fill" style="width: 100%; background: linear-gradient(90deg, #ef5350, #2962ff, #26a69a);"></div>
                     <div id="rng-arrow-${cfg.id}" class="range-arrow" style="left: ${pctRange}%"></div>
                 </div>
@@ -603,21 +602,19 @@
             const res = await fetch(u, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
             
-            // 1. UPDATE CENTRAL STORE FIRST
+            // 1. UPDATE CENTRAL STORE
             symbols.forEach(sym => {
                 const d = json[sym] || json[sym.toUpperCase()];
                 if(d) state.quoteStore[sym] = d;
             });
 
-            // 2. UPDATE ACTIVE WIDGETS FROM STORE
+            // 2. UPDATE ACTIVE WIDGETS
             widgets.forEach(w => {
                 const data = state.quoteStore[w.ticker] || state.quoteStore[w.ticker.toUpperCase()];
                 if(!data) return;
                 
-                // Common Quote Update
                 updateQuoteDisplay(w.id, data);
                 
-                // Chart Specific Update
                 if(w.type === 'chart') {
                     const d = data.dailyBar;
                     const mb = data.minuteBar;
@@ -625,13 +622,19 @@
                     else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v); }
                 }
                 
-                // Financials Arrow Update (if needed)
+                // FIX: LIVE ARROW UPDATE
                 if(w.type === 'financials') {
+                   const track = document.getElementById(`rng-track-${w.id}`);
                    const arrow = document.getElementById(`rng-arrow-${w.id}`);
-                   if(arrow && data.latestTrade) {
-                       // We can't easily recalc range here without the Finnhub high/low data easily accessible
-                       // But since initFinancials handles init, we are good. 
-                       // Advanced: We could store the 52w high/low in the widget obj to animate the arrow in realtime.
+                   if(track && arrow && data.latestTrade) {
+                       const h = parseFloat(track.dataset.high);
+                       const l = parseFloat(track.dataset.low);
+                       const p = data.latestTrade.p;
+                       if(h > l) {
+                           let pct = ((p - l) / (h - l)) * 100;
+                           pct = Math.max(0, Math.min(100, pct));
+                           arrow.style.left = `${pct}%`;
+                       }
                    }
                 }
             });
