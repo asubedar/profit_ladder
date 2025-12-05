@@ -516,10 +516,20 @@
                 <div class="fin-title">Valuation</div>
                 <div class="fin-grid">
                     <div class="fin-item"><span class="fin-label">Mkt Cap</span><span class="fin-val" style="color:#ffa726">${fmtBig(m.marketCapitalization)}</span></div>
-                    <div class="fin-item"><span class="fin-label">P/E (TTM)</span><span class="fin-val">${fmt(m.peTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">P/B</span><span class="fin-val">${fmt(m.pb)}</span></div>
-                    <div class="fin-item"><span class="fin-label">P/S</span><span class="fin-val">${fmt(m.psTTM)}</span></div>
                     <div class="fin-item"><span class="fin-label">Ent. Val</span><span class="fin-val">${fmtBig(m.enterpriseValue)}</span></div>
+                    <div class="fin-item"><span class="fin-label">P/E (TTM)</span><span class="fin-val">${fmt(m.peTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Fwd P/E</span><span class="fin-val">${fmt(m.forwardPE)}</span></div>
+                    <div class="fin-item"><span class="fin-label">PEG</span><span class="fin-val">${fmt(m.pegTTM)}</span></div>
+                    <div class="fin-item"><span class="fin-label">P/S</span><span class="fin-val">${fmt(m.psTTM)}</span></div>
+                </div>
+            </div>
+
+            <div class="fin-section">
+                <div class="fin-title">Momentum (Rel. S&P500)</div>
+                <div class="fin-grid">
+                    <div class="fin-item"><span class="fin-label">vs SPY 4W</span><span class="fin-val ${color(m['priceRelativeToS&P5004Week'])}">${fmtPct(m['priceRelativeToS&P5004Week'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">vs SPY 13W</span><span class="fin-val ${color(m['priceRelativeToS&P50013Week'])}">${fmtPct(m['priceRelativeToS&P50013Week'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">vs SPY 26W</span><span class="fin-val ${color(m['priceRelativeToS&P50026Week'])}">${fmtPct(m['priceRelativeToS&P50026Week'])}</span></div>
                     <div class="fin-item"><span class="fin-label">Beta</span><span class="fin-val">${fmt(m.beta)}</span></div>
                 </div>
             </div>
@@ -540,6 +550,7 @@
                     <div class="fin-item"><span class="fin-label">Gr. Margin</span><span class="fin-val">${fmtPct(m.grossMarginTTM)}</span></div>
                     <div class="fin-item"><span class="fin-label">Oper. Mrg</span><span class="fin-val">${fmtPct(m.operatingMarginTTM)}</span></div>
                     <div class="fin-item"><span class="fin-label">Div Yield</span><span class="fin-val" style="color:#26a69a">${fmtPct(m.dividendYieldIndicatedAnnual)}</span></div>
+                    <div class="fin-item"><span class="fin-label">Payout</span><span class="fin-val">${fmt(m.payoutRatioTTM)}%</span></div>
                     <div class="fin-item"><span class="fin-label">Debt/Eq</span><span class="fin-val">${fmt(m['totalDebt/totalEquityQuarterly'])}</span></div>
                     <div class="fin-item"><span class="fin-label">Cur. Ratio</span><span class="fin-val">${fmt(m.currentRatio)}</span></div>
                 </div>
