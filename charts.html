@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Fund. Trends)</title>
+    <title>Pro Charting (Full Fundamentals)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -63,7 +63,7 @@
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
         .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
-        /* DROPDOWNS IN HEADER */
+        /* DROPDOWNS */
         .metric-select { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #d1d4dc; font-size: 11px; height: 24px; border-radius: 3px; outline: none; max-width: 100px; cursor: pointer; }
         .freq-btn { width: 24px; height: 24px; border: 1px solid #444; background: #1e222d; color: #d1d4dc; font-size: 10px; font-weight: bold; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .freq-btn:hover { background: #2962ff; color: white; border-color: #2962ff; }
@@ -238,20 +238,53 @@
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
     // --- CONFIG & CONSTANTS ---
-    const LAYOUT_VERSION = 33; 
+    const LAYOUT_VERSION = 34; 
     
+    // FULL METRIC CATALOG
     const FUND_METRICS = {
         'Valuation': {
-            'pe': 'P/E', 'ps': 'P/S', 'pb': 'P/B', 'evEbitda': 'EV/EBITDA'
+            'pe': 'P/E Ratio',
+            'ps': 'P/S Ratio',
+            'pb': 'P/B Ratio',
+            'evEbitda': 'EV/EBITDA',
+            'evRevenue': 'EV/Revenue',
+            'ev': 'Ent. Value',
+            'pfcf': 'P/FCF',
+            'ptbv': 'Price/Tang.Book'
         },
         'Profitability': {
-            'grossMargin': 'Gross Margin', 'operatingMargin': 'Oper. Margin', 'netMargin': 'Net Margin', 'roe': 'ROE', 'roa': 'ROA'
+            'grossMargin': 'Gross Margin %',
+            'operatingMargin': 'Oper. Margin %',
+            'netMargin': 'Net Margin %',
+            'pretaxMargin': 'Pretax Margin %',
+            'fcfMargin': 'FCF Margin %',
+            'roe': 'ROE %',
+            'roa': 'ROA %',
+            'roic': 'ROIC %',
+            'rotc': 'ROTC %'
         },
         'Per Share': {
-            'eps': 'EPS', 'salesPerShare': 'Sales/Share', 'bookValue': 'Book/Share', 'fcfPerShareTTM': 'FCF/Share'
+            'eps': 'EPS',
+            'salesPerShare': 'Sales/Share',
+            'bookValue': 'Book/Share',
+            'tangibleBookValue': 'Tang. Book/Share',
+            'ebitPerShare': 'EBIT/Share',
+            'fcfPerShare': 'FCF/Share' // Handled as fcfPerShareTTM in quarterly
         },
-        'Health': {
-            'currentRatio': 'Current Ratio', 'quickRatio': 'Quick Ratio', 'totalDebtToEquity': 'Debt/Eq'
+        'Balance Sheet': {
+            'currentRatio': 'Current Ratio',
+            'quickRatio': 'Quick Ratio',
+            'cashRatio': 'Cash Ratio',
+            'totalDebtToEquity': 'Debt/Equity',
+            'totalDebtToTotalCapital': 'Debt/Total Cap',
+            'longtermDebtTotalEquity': 'LT Debt/Equity',
+            'netDebtToTotalEquity': 'Net Debt/Equity'
+        },
+        'Efficiency': {
+            'inventoryTurnover': 'Inv. Turnover',
+            'receivablesTurnover': 'Rec. Turnover',
+            'assetTurnover': 'Asset Turnover', // Often TTM only
+            'sgaToSale': 'SG&A/Sale'
         }
     };
 
@@ -273,12 +306,10 @@
     window.switchWidgetType = function(id) { 
         const cfg = findConfig(id); 
         if(cfg) { 
-            // Cycle: chart -> tape -> financials -> fund-chart -> chart
             if (cfg.type === 'chart') cfg.type = 'tape';
             else if (cfg.type === 'tape') cfg.type = 'financials';
             else if (cfg.type === 'financials') {
                 cfg.type = 'fund-chart';
-                // Set defaults if missing
                 if(!cfg.fundPeriod) cfg.fundPeriod = 'quarterly';
                 if(!cfg.fundMetric) cfg.fundMetric = 'eps';
             }
@@ -297,7 +328,7 @@
     
     // FUND CHART ACTIONS
     window.setFundMetric = function(id, val) { const cfg = findConfig(id); if(cfg) { cfg.fundMetric = val; saveState(); updateFundChart(cfg); } };
-    window.toggleFundPeriod = function(id) { const cfg = findConfig(id); if(cfg) { cfg.fundPeriod = (cfg.fundPeriod === 'quarterly' ? 'annual' : 'quarterly'); saveState(); renderAll(); } }; // Re-render needed to toggle button text
+    window.toggleFundPeriod = function(id) { const cfg = findConfig(id); if(cfg) { cfg.fundPeriod = (cfg.fundPeriod === 'quarterly' ? 'annual' : 'quarterly'); saveState(); renderAll(); } };
 
     window.setChartLayout = function(mode) { state.layoutMode = mode; const [r, c] = mode.split('x').map(Number); const total = r * c; if(total > state.chartsConfig.length) { for(let i=state.chartsConfig.length; i<total; i++) state.chartsConfig.push({ id: `m${i}`, type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: null }); } else { state.chartsConfig = state.chartsConfig.slice(0, total); } saveState(); renderAll(); };
     window.setLeftSidebarLayout = function(n) { updateSidebarConfig('left', n); };
@@ -425,7 +456,8 @@
                 <div class="widget-controls-left">
                     <div class="type-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
                     
-                    ${cfg.type === 'fund-chart' ? '' : `<input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">`}
+                    <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
+                    
                     ${cfg.type === 'fund-chart' ? fundSelector : ''}
                     
                     ${cfg.type === 'chart' ? getTfHtml(cfg.id, cfg.timeframe) : ''}
@@ -455,7 +487,6 @@
 
         container.innerHTML = headerHtml + contentHtml;
 
-        // INSTANTLY RENDER QUOTE FROM STORE
         if(state.quoteStore[cfg.ticker]) setTimeout(() => updateQuoteDisplay(cfg.id, state.quoteStore[cfg.ticker]), 0);
 
         if(cfg.type === 'chart') initChart(cfg);
@@ -529,7 +560,6 @@
             rightPriceScale: { borderColor: '#2a2e39' }
         });
         
-        // Use Histogram for discrete periods
         const series = chart.addHistogramSeries({ color: '#2962ff' });
         
         const wrapper = document.getElementById(`content-${cfg.id}`);
@@ -543,30 +573,28 @@
     }
 
     async function updateFundChart(cfg) {
-        // Find the active widget object
         const w = state.activeWidgets.find(x => x.id === cfg.id);
         if(!w) return;
         
         const data = await fetchFinancials(w.ticker);
         if(!data || !data.series) return;
         
-        // Pick Annual vs Quarterly
         const rawSeries = data.series[w.fundPeriod];
         if(!rawSeries) return;
         
-        // Pick Metric
-        const metricData = rawSeries[w.fundMetric];
-        if(!metricData) return;
+        // SMART LOOKUP: Check base key, then key+TTM
+        let metricData = rawSeries[w.fundMetric];
+        if (!metricData) metricData = rawSeries[w.fundMetric + 'TTM'];
+        if (!metricData) return;
         
-        // Transform for Lightweight Charts
         const chartData = metricData
             .filter(d => d.v !== null)
             .map(d => ({
                 time: d.period,
                 value: d.v,
-                color: d.v >= 0 ? '#26a69a' : '#ef5350' // Auto Color
+                color: d.v >= 0 ? '#26a69a' : '#ef5350'
             }))
-            .sort((a,b) => new Date(a.time) - new Date(b.time)); // Sort Old -> New
+            .sort((a,b) => new Date(a.time) - new Date(b.time));
             
         w.series.setData(chartData);
         w.chart.timeScale().fitContent();
@@ -726,7 +754,6 @@
                     else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v); }
                 }
                 
-                // FIX: LIVE ARROW UPDATE FOR FINANCIALS
                 if(w.type === 'financials') {
                    const track = document.getElementById(`rng-track-${w.id}`);
                    const arrow = document.getElementById(`rng-arrow-${w.id}`);
