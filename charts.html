@@ -139,10 +139,17 @@
         .fin-section { margin-bottom: 15px; border-bottom: 1px solid #2a2e39; padding-bottom: 10px; }
         .fin-section:last-child { border-bottom: none; }
         .fin-title { font-size: 10px; font-weight: bold; color: #2962ff; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
-        .fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; }
+        /*.fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; }
         .fin-item { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; }
         .fin-label { color: #787b86; }
-        .fin-val { color: #d1d4dc; font-weight: bold; font-family: 'Monaco', monospace; }
+        .fin-val { color: #d1d4dc; font-weight: bold; font-family: 'Monaco', monospace; }*/
+        /* Update .fin-grid to handle dense data */
+        .fin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; }
+        /* Allow 2 columns for wider items if needed */
+        .fin-grid.wide { grid-template-columns: 1fr 1fr; } 
+        .fin-item { display: flex; flex-direction: column; justify-content: flex-start; } /* Stack label/value for density */
+        .fin-label { color: #787b86; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fin-val { color: #d1d4dc; font-weight: bold; font-family: 'Monaco', monospace; font-size: 11px; }
 
         /* 52 WEEK RANGE BAR */
         .range-container { margin: 10px 0 15px 0; }
