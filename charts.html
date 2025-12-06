@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Insider Sentiment)</title>
+    <title>Pro Charting (Type Selector)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -61,12 +61,28 @@
         .widget-header { height: 34px; min-height: 34px; background-color: var(--panel-color); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 6px; gap: 4px; flex-shrink: 0; z-index: 30; white-space: nowrap; overflow: visible; }
         .widget-controls-left { display: flex; flex-direction: row; gap: 4px; align-items: center; flex-shrink: 0; }
         .mini-input { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #fff; width: 55px; font-size: 11px; text-transform: uppercase; border-radius: 3px; padding: 3px 0; font-weight: bold; text-align: center; height: 24px; box-sizing: border-box; }
-        .link-btn, .type-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
+        .link-btn { width: 24px; min-width: 24px; height: 24px; border-radius: 3px; cursor: pointer; border: 1px solid #444; background: rgba(42, 46, 57, 0.9); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #777; flex-shrink: 0; }
         
         /* DROPDOWNS */
         .metric-select { background: rgba(42, 46, 57, 0.9); border: 1px solid #444; color: #d1d4dc; font-size: 11px; height: 24px; border-radius: 3px; outline: none; max-width: 100px; cursor: pointer; }
         .freq-btn { width: 24px; height: 24px; border: 1px solid #444; background: #1e222d; color: #d1d4dc; font-size: 10px; font-weight: bold; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .freq-btn:hover { background: #2962ff; color: white; border-color: #2962ff; }
+
+        /* MORPH CONTAINERS (TIMEFRAME & TYPE) */
+        .tf-morph-container, .type-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; position: relative; }
+        
+        .tf-single, .type-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 25px; text-align: center; display: flex; align-items: center; justify-content: center; height: 100%; }
+        
+        .tf-options-row, .type-options-row { display: none; flex-direction: row; }
+        
+        /* Expanded State */
+        .tf-morph-container.expanded, .type-morph-container.expanded { position: absolute; z-index: 100; width: auto; top: 0; left: 0; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .tf-morph-container.expanded .tf-single, .type-morph-container.expanded .type-single { display: none; }
+        .tf-morph-container.expanded .tf-options-row, .type-morph-container.expanded .type-options-row { display: flex; }
+        
+        .tf-btn, .type-btn-opt { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; background: #1e222d; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+        .tf-btn:hover, .tf-btn.active, .type-btn-opt:hover, .type-btn-opt.active { background: #2962ff; color: white; }
+        .type-btn-opt:last-child, .tf-btn:last-child { border-right: none; }
 
         /* L1 QUOTES (Overlay) */
         .l1-overlay { position: absolute; top: 6px; right: 60px; z-index: 25; display: flex; gap: 4px; align-items: center; font-family: 'Roboto', sans-serif; pointer-events: none; }
@@ -91,16 +107,6 @@
         .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
         .tape-row:hover { background-color: #1e222d; }
         .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
-
-        /* TIMEFRAME */
-        .tf-morph-container { display: flex; align-items: center; background: rgba(42, 46, 57, 0.9); border: 1px solid #444; border-radius: 3px; height: 24px; overflow: hidden; transition: all 0.2s ease-out; position: relative; }
-        .tf-single { padding: 0 6px; font-size: 11px; font-weight: bold; color: #d1d4dc; cursor: pointer; line-height: 20px; min-width: 25px; text-align: center; display: block; }
-        .tf-options-row { display: none; flex-direction: row; }
-        .tf-morph-container.expanded { position: absolute; z-index: 100; width: auto; top: 0; left: 0; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-        .tf-morph-container.expanded .tf-single { display: none; }
-        .tf-morph-container.expanded .tf-options-row { display: flex; }
-        .tf-btn { border-right: 1px solid #444; padding: 0 8px; cursor: pointer; color: #d1d4dc; font-size: 11px; line-height: 22px; font-weight: bold; background: #1e222d; white-space: nowrap; }
-        .tf-btn:hover, .tf-btn.active { background: #2962ff; color: white; }
 
         /* LINKS & UTILS */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
@@ -136,50 +142,20 @@
 
         /* FINANCIALS WIDGET STYLES (RESPONSIVE UPDATE) */
         .fin-container { padding: 12px; overflow-y: auto; height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        
         .fin-section { margin-bottom: 16px; border-bottom: 1px solid #2a2e39; padding-bottom: 12px; }
         .fin-section:last-child { border-bottom: none; margin-bottom: 0; }
-        
         .fin-title { font-size: 11px; font-weight: 700; color: #2962ff; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px; opacity: 0.9; }
-        
-        /* THE RESPONSIVE MAGIC */
-        .fin-grid { 
-            display: grid; 
-            /* Auto-fit columns: minimum 95px wide, otherwise expand to fill space */
-            grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); 
-            gap: 8px 12px; 
-        }
-        
+        .fin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); gap: 8px 12px; }
         .fin-item { display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; }
-        
-        .fin-label { 
-            color: #787b86; 
-            font-size: 10px; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            margin-bottom: 2px;
-        }
-        
-        .fin-val { 
-            color: #e1e1e1; 
-            font-weight: 600; 
-            font-family: 'Monaco', 'Consolas', monospace; 
-            font-size: 12px; /* Slightly larger for readability */
-            letter-spacing: -0.5px;
-        }
+        .fin-label { color: #787b86; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .fin-val { color: #e1e1e1; font-weight: 600; font-family: 'Monaco', 'Consolas', monospace; font-size: 12px; letter-spacing: -0.5px; }
 
         /* 52 WEEK RANGE BAR (Adaptive) */
         .range-container { margin: 5px 0 20px 0; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px solid #2a2e39; }
         .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: #787b86; margin-bottom: 6px; font-weight: 600; }
         .range-track { height: 6px; background: #131722; border-radius: 3px; position: relative; width: 100%; margin: 0; border: 1px solid #2a2e39; }
         .range-fill { height: 100%; background: linear-gradient(90deg, #ef5350 0%, #2962ff 50%, #26a69a 100%); border-radius: 3px; position: absolute; left: 0; opacity: 0.8; }
-        .range-arrow { 
-            position: absolute; top: -5px; width: 0; height: 0; 
-            border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #fff; 
-            transform: translateX(-50%); z-index: 2; transition: left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); 
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
-        }
+        .range-arrow { position: absolute; top: -5px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #fff; transform: translateX(-50%); z-index: 2; transition: left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
         .range-dates { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 6px; }
     </style>
 </head>
@@ -268,7 +244,7 @@
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
     // --- CONFIG & CONSTANTS ---
-    const LAYOUT_VERSION = 36; // Updated Version for Sentiment Widget
+    const LAYOUT_VERSION = 37; 
     
     // FULL METRIC CATALOG
     const FUND_METRICS = {
@@ -303,30 +279,35 @@
     };
 
     // --- GLOBAL ACTIONS ---
-    window.switchWidgetType = function(id) { 
+    window.setWidgetType = function(id, type) { 
         const cfg = findConfig(id); 
         if(cfg) { 
-            // Cycle: chart -> tape -> financials -> fund-chart -> sentiment -> chart
-            if (cfg.type === 'chart') cfg.type = 'tape';
-            else if (cfg.type === 'tape') cfg.type = 'financials';
-            else if (cfg.type === 'financials') {
+            cfg.type = type;
+            if (cfg.type === 'financials') {
                 cfg.type = 'fund-chart';
                 if(!cfg.fundPeriod) cfg.fundPeriod = 'quarterly';
                 if(!cfg.fundMetric) cfg.fundMetric = 'eps';
             }
-            else if (cfg.type === 'fund-chart') cfg.type = 'sentiment'; // New Sentiment Type
-            else cfg.type = 'chart';
+            if (cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min';
             
-            if(cfg.type === 'chart' && !cfg.timeframe) cfg.timeframe = '5Min'; 
             saveState(); 
             renderAll(); 
         } 
+    };
+    
+    // NEW TOGGLE FUNCTION FOR TYPE SELECTOR
+    window.toggleTypeMorph = function(id, e) { 
+        e.stopPropagation(); 
+        document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded'));
+        document.querySelectorAll('.type-morph-container').forEach(el => el.classList.remove('expanded')); 
+        const el = document.getElementById(`type-morph-${id}`); 
+        if(el) el.classList.add('expanded'); 
     };
 
     window.cycleLink = function(id) { const groups = [null, 'A', 'B', 'C', 'D', 'E']; const cfg = findConfig(id); if(cfg) { cfg.linkGroup = groups[(groups.indexOf(cfg.linkGroup) + 1) % groups.length]; saveState(); renderAll(); } };
     window.updateWidgetTicker = function(id, input, e) { if(e.key === 'Enter') { const cfg = findConfig(id); if(cfg) { const val = input.value.toUpperCase(); cfg.ticker = val; syncLinkedWidgets(cfg.linkGroup, val); saveState(); renderAll(); input.blur(); } } };
     window.setWidgetTf = function(id, val, e) { e.stopPropagation(); const cfg = findConfig(id); if(cfg) { cfg.timeframe = val; saveState(); renderAll(); } };
-    window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); const el = document.getElementById(`tf-morph-${id}`); if(el) el.classList.add('expanded'); };
+    window.toggleTfMorph = function(id, e) { e.stopPropagation(); document.querySelectorAll('.type-morph-container').forEach(el => el.classList.remove('expanded')); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); const el = document.getElementById(`tf-morph-${id}`); if(el) el.classList.add('expanded'); };
     
     // FUND CHART ACTIONS
     window.setFundMetric = function(id, val) { const cfg = findConfig(id); if(cfg) { cfg.fundMetric = val; const w = state.activeWidgets.find(x => x.id === id); if(w) w.fundMetric = val; saveState(); updateFundChart(cfg); } };
@@ -354,6 +335,18 @@
             req.onsuccess = (event) => resolve(event.target.result);
             req.onerror = (event) => reject(event);
         });
+    }
+    
+    async function getFinnhubKey() {
+        try {
+            const db = await openDB();
+            const tx = db.transaction("Settings", "readonly");
+            const req = tx.objectStore("Settings").get("FINNHUB_API_KEY");
+            return new Promise(r => {
+                req.onsuccess = () => r(req.result ? req.result.value : null);
+                req.onerror = () => r(null);
+            });
+        } catch(e) { return null; }
     }
     
     window.nuclearReset = function() { if(confirm("Full Reset?")) { indexedDB.deleteDatabase("ProfitLadderDB").onsuccess = () => window.location.reload(); } };
@@ -402,7 +395,11 @@
             state.newsInterval = setInterval(refreshNewsTape, 120000);
 
             document.getElementById('layoutDropdown').addEventListener('click', e => { e.currentTarget.classList.toggle('open'); e.stopPropagation(); });
-            document.addEventListener('click', () => { document.getElementById('layoutDropdown').classList.remove('open'); document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); });
+            document.addEventListener('click', () => { 
+                document.getElementById('layoutDropdown').classList.remove('open'); 
+                document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded')); 
+                document.querySelectorAll('.type-morph-container').forEach(el => el.classList.remove('expanded'));
+            });
             document.getElementById('leftToggle').addEventListener('click', () => toggleSidebar('left'));
             document.getElementById('rightToggle').addEventListener('click', () => toggleSidebar('right'));
         } catch(e) {
@@ -431,10 +428,11 @@
     function initWidget(container, cfg) {
         const linkClass = getLinkClass(cfg.linkGroup);
         let iconClass = 'fa-chart-bar';
-        if(cfg.type === 'tape') iconClass = 'fa-list-ol';
-        if(cfg.type === 'financials') iconClass = 'fa-file-invoice-dollar';
-        if(cfg.type === 'fund-chart') iconClass = 'fa-chart-area';
-        if(cfg.type === 'sentiment') iconClass = 'fa-user-secret'; // Insider Sentiment Icon
+        let typeName = 'Chart';
+        if(cfg.type === 'tape') { iconClass = 'fa-list-ol'; typeName = 'Tape'; }
+        if(cfg.type === 'financials') { iconClass = 'fa-file-invoice-dollar'; typeName = 'Fin'; }
+        if(cfg.type === 'fund-chart') { iconClass = 'fa-chart-area'; typeName = 'Fund.'; }
+        if(cfg.type === 'sentiment') { iconClass = 'fa-user-secret'; typeName = 'Sent.'; }
 
         // GENERATE FUND CHART SELECTOR OPTIONS
         let fundSelector = '';
@@ -456,7 +454,16 @@
         const headerHtml = `
             <div class="widget-header">
                 <div class="widget-controls-left">
-                    <div class="type-btn" onclick="switchWidgetType('${cfg.id}')" title="Switch Type"><i class="fas ${iconClass}"></i></div>
+                    <div class="type-morph-container" id="type-morph-${cfg.id}">
+                        <div class="type-single" onclick="toggleTypeMorph('${cfg.id}', event)"><i class="fas ${iconClass}"></i></div>
+                        <div class="type-options-row">
+                            <div class="type-btn-opt" onclick="setWidgetType('${cfg.id}', 'chart')"><i class="fas fa-chart-bar"></i> Chart</div>
+                            <div class="type-btn-opt" onclick="setWidgetType('${cfg.id}', 'tape')"><i class="fas fa-list-ol"></i> Tape</div>
+                            <div class="type-btn-opt" onclick="setWidgetType('${cfg.id}', 'financials')"><i class="fas fa-file-invoice-dollar"></i> Fin</div>
+                            <div class="type-btn-opt" onclick="setWidgetType('${cfg.id}', 'fund-chart')"><i class="fas fa-chart-area"></i> Trends</div>
+                            <div class="type-btn-opt" onclick="setWidgetType('${cfg.id}', 'sentiment')"><i class="fas fa-user-secret"></i> Sent.</div>
+                        </div>
+                    </div>
                     
                     <input type="text" class="mini-input" value="${cfg.ticker}" onkeydown="updateWidgetTicker('${cfg.id}', this, event)">
                     
@@ -533,6 +540,10 @@
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
+        chart.subscribeCrosshairMove(p => {
+            const c = p.seriesData.get(candleSeries); const v = p.seriesData.get(volSeries);
+            if (c) document.getElementById(`lg-${cfg.id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span> ${v?`V:${formatNum(v.value)}`:''}`;
+        });
         chart.timeScale().subscribeVisibleLogicalRangeChange(range => { if(range && range.from < 10 && !obj.isLoading) loadOlderData(obj); });
         await loadChartData(obj);
         updateChartsRealtime();
@@ -578,7 +589,6 @@
         w.chart.timeScale().fitContent();
     }
 
-    // --- INSIDER SENTIMENT LOGIC ---
     async function initSentimentChart(cfg) {
         const container = document.getElementById(`canvas-${cfg.id}`);
         await new Promise(r => setTimeout(r, 50));
@@ -587,10 +597,9 @@
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
             timeScale: { borderColor: '#2a2e39' },
-            rightPriceScale: { scaleMargins: { top: 0.05, bottom: 0.35 } } // Price area
+            rightPriceScale: { scaleMargins: { top: 0.05, bottom: 0.35 } } 
         });
         
-        // Sentiment Panel (Bottom 30%)
         const sentSeries = chart.addHistogramSeries({ 
             color: '#26a69a', 
             priceFormat: { type: 'volume' }, 
@@ -598,7 +607,6 @@
         });
         chart.priceScale('sent').applyOptions({ scaleMargins: { top: 0.70, bottom: 0 } });
 
-        // Price Series (Top 70%)
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
         const wrapper = document.getElementById(`content-${cfg.id}`);
@@ -613,18 +621,16 @@
 
     async function updateSentimentChart(w) {
         const k = await getKeys(); 
-        const fhToken = await getFinnhubKey(); // FETCH FROM DB, NOT DOM
+        const fhToken = await getFinnhubKey();
         
         if(!k || !fhToken) {
             log("Missing API Keys for Sentiment Chart", "error");
             return;
         }
         
-        // 1. Fetch Monthly Candles
         const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
         const cUrl = `https://data.alpaca.markets/v2/stocks/${w.ticker}/bars?timeframe=1Month&start=${start}&end=${end}&limit=500&adjustment=split&sort=desc`;
         
-        // 2. Fetch Insider Sentiment (Using the fetched token)
         const today = new Date().toISOString().split('T')[0];
         const sUrl = `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${w.ticker}&from=2020-01-01&to=${today}&token=${fhToken}`;
 
@@ -638,16 +644,13 @@
                 const cJson = await cRes.json();
                 const sJson = await sRes.json();
                 
-                // Plot Candles
                 if(cJson.bars) {
                     const candles = parseBars(cJson.bars.reverse());
                     w.candleSeries.setData(candles.ohlc);
                 }
                 
-                // Plot Sentiment
                 if(sJson.data) {
                     const sentData = sJson.data.map(d => {
-                        // Approximate timestamp to 1st of month to match monthly candles
                         const time = new Date(d.year, d.month - 1, 1).getTime() / 1000; 
                         return {
                             time: time,
@@ -658,10 +661,9 @@
                     
                     w.sentSeries.setData(sentData);
                     
-                    // ADD SIGNALS (Markers)
                     const markers = [];
                     sentData.forEach(d => {
-                        if (d.value > 20) { // MSPR > 20 is the "Buy Signal"
+                        if (d.value > 20) {
                             markers.push({
                                 time: d.time,
                                 position: 'belowBar',
@@ -694,18 +696,16 @@
         
         const m = data.metric;
         
-        // --- FORMATTERS ---
         const fmt = (n, p=2) => (n !== null && n !== undefined) ? n.toFixed(p) : '-';
         const fmtPct = (n) => (n !== null && n !== undefined) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '-';
         const color = (n) => n > 0 ? 'color-up' : (n < 0 ? 'color-down' : '');
         const fmtBig = (n) => {
             if (!n) return '-';
-            if (n > 1e9) return (n/1e9).toFixed(2) + 'B'; // Adjusted for standard Billions
-            if (n > 1e6) return (n/1e6).toFixed(2) + 'M';
-            if (n > 1000) return (n/1000).toFixed(2) + 'k';
-            return n.toFixed(2);
+            if (n > 1000000) return (n/1000000).toFixed(2) + 'T'; 
+            if (n > 1000) return (n/1000).toFixed(2) + 'B';
+            return n.toFixed(2) + 'M';
         };
-        const fmtCap = (n) => { // Finnhub Market Cap is in Millions
+        const fmtCap = (n) => {
             if (!n) return '-';
             const val = n * 1000000;
             if (val > 1e12) return (val/1e12).toFixed(2) + 'T';
@@ -716,7 +716,6 @@
         const low = m['52WeekLow'];
         const high = m['52WeekHigh'];
         
-        // 52W Arrow Logic
         let pctRange = 50; 
         const stored = state.quoteStore[cfg.ticker] || state.quoteStore[cfg.ticker.toUpperCase()];
         if (stored && stored.latestTrade && stored.latestTrade.p) {
@@ -731,7 +730,7 @@
             <div class="range-container">
                 <div class="range-labels"><span>L: ${low}</span><span>52W RANGE</span><span>H: ${high}</span></div>
                 <div id="rng-track-${cfg.id}" class="range-track" data-high="${high}" data-low="${low}">
-                    <div class="range-fill" style="width: 100%;"></div>
+                    <div class="range-fill" style="width: 100%; background: linear-gradient(90deg, #ef5350, #2962ff, #26a69a);"></div>
                     <div id="rng-arrow-${cfg.id}" class="range-arrow" style="left: ${pctRange}%"></div>
                 </div>
                 <div class="range-dates"><span>${m['52WeekLowDate']||'-'}</span><span>${m['52WeekHighDate']||'-'}</span></div>
@@ -789,6 +788,7 @@
                     <div class="fin-item"><span class="fin-label">Current Ratio</span><span class="fin-val">${fmt(m.currentRatio)}</span></div>
                     <div class="fin-item"><span class="fin-label">Quick Ratio</span><span class="fin-val">${fmt(m.quickRatioQuarterly)}</span></div>
                     <div class="fin-item"><span class="fin-label">Debt/Eq</span><span class="fin-val">${fmt(m['totalDebt/totalEquityQuarterly'])}</span></div>
+                    <div class="fin-item"><span class="fin-label">LT Debt/Eq</span><span class="fin-val">${fmt(m['longTermDebt/equityQuarterly'])}</span></div>
                     <div class="fin-item"><span class="fin-label">Int. Cov</span><span class="fin-val">${fmt(m.netInterestCoverageTTM)}</span></div>
                     <div class="fin-item"><span class="fin-label">Inv Turn</span><span class="fin-val">${fmt(m.inventoryTurnoverTTM)}</span></div>
                     <div class="fin-item"><span class="fin-label">Asset Turn</span><span class="fin-val">${fmt(m.assetTurnoverTTM)}</span></div>
@@ -945,17 +945,6 @@
     function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
     function parseBars(b){const o=[],v=[];b.forEach(x=>{const t=new Date(x.t).getTime()/1000;o.push({time:t,open:x.o,high:x.h,low:x.l,close:x.c});v.push({time:t,value:x.v,color:(x.c>=x.o?'#26a69a':'#ef5350')});});return{ohlc:o,vol:v};}
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
-    async function getFinnhubKey() {
-        try {
-            const db = await openDB();
-            const tx = db.transaction("Settings", "readonly");
-            const req = tx.objectStore("Settings").get("FINNHUB_API_KEY");
-            return new Promise(r => {
-                req.onsuccess = () => r(req.result ? req.result.value : null);
-                req.onerror = () => r(null);
-            });
-        } catch(e) { return null; }
-    }
     function getLinkClass(g){if(g==='A')return'link-blue';if(g==='B')return'link-orange';if(g==='C')return'link-green';if(g==='D')return'link-purple';if(g==='E')return'link-red';return'';}
     async function refreshPortfolioTape(){const k=await getKeys();if(!k)return;try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",4);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol);t.forEach(s=>state.newsSymbols.add(s));if(t.length){const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",i);renderTape();}}}catch(e){}}
     async function refreshScreenerTape(){const k=await getKeys();if(!k)return;fetchScreener(k,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();});fetchScreener(k,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();});fetchActives(k,'volume','activeVol',"ACTIVE (VOL)");fetchActives(k,'trades','activeTrd',"ACTIVE (TRD)");if(!state.tapeData.activeVol)fetchFallbackIndices(k);}
