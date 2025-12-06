@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Charting (Type Selector)</title>
+    <title>Pro Charting (Final Integrated)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
         :root {
@@ -244,7 +244,7 @@
     function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
     // --- CONFIG & CONSTANTS ---
-    const LAYOUT_VERSION = 37; 
+    const LAYOUT_VERSION = 39; 
     
     // FULL METRIC CATALOG
     const FUND_METRICS = {
@@ -283,8 +283,8 @@
         const cfg = findConfig(id); 
         if(cfg) { 
             cfg.type = type;
-            if (cfg.type === 'financials') {
-                cfg.type = 'fund-chart';
+            // Only set defaults if switching TO fund-chart and they aren't set
+            if (cfg.type === 'fund-chart') {
                 if(!cfg.fundPeriod) cfg.fundPeriod = 'quarterly';
                 if(!cfg.fundMetric) cfg.fundMetric = 'eps';
             }
@@ -295,7 +295,6 @@
         } 
     };
     
-    // NEW TOGGLE FUNCTION FOR TYPE SELECTOR
     window.toggleTypeMorph = function(id, e) { 
         e.stopPropagation(); 
         document.querySelectorAll('.tf-morph-container').forEach(el => el.classList.remove('expanded'));
@@ -454,6 +453,7 @@
         const headerHtml = `
             <div class="widget-header">
                 <div class="widget-controls-left">
+                    <!-- NEW TYPE MORPH SELECTOR -->
                     <div class="type-morph-container" id="type-morph-${cfg.id}">
                         <div class="type-single" onclick="toggleTypeMorph('${cfg.id}', event)"><i class="fas ${iconClass}"></i></div>
                         <div class="type-options-row">
