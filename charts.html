@@ -99,8 +99,11 @@
         /* CONTENT */
         .widget-content { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; background: #131722; overflow: hidden; }
         .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
+        
+        /* UPDATED LEGEND STYLES FOR TIGHTER FIT */
         .chart-legend { position: absolute; top: 8px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; white-space: nowrap; }
-        .legend-row { display: flex; gap: 10px; margin-bottom: 2px; align-items: center; }
+        .legend-row { display: flex; gap: 6px; margin-bottom: 2px; align-items: center; } /* Gap reduced to 6px */
+        .legend-item { display: flex; align-items: center; gap: 2px; } /* New class to bind Label+Value tightly */
 
         .tape-content { flex: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; margin: 0; padding: 0; }
         .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
@@ -559,7 +562,6 @@
             const el = document.getElementById(`lg-${cfg.id}`);
             
             if (c && el) {
-                // Requested format: 12/5 13:00
                 const d = new Date(p.time * 1000);
                 const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
                 
@@ -567,27 +569,31 @@
                 const volVal = v ? v.value : 0;
                 const dolVol = volVal * c.close;
                 const w = obj.width || 400; // fallback width
-
-                let html = `<span style="color:#d1d4dc; margin-right:8px; font-weight:bold;">${dateStr}</span>`;
-
-                if (w < 250) {
-                    // Very Small: Date + Close only
-                    html += `C:<span style="color:${color}">${c.close.toFixed(2)}</span>`;
-                } else if (w < 450) {
-                    // Medium: Date + Close + Vol (Hide OH L and $V)
-                    html += `C:<span style="color:${color}">${c.close.toFixed(2)}</span> `;
-                    html += `V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>`;
-                } else {
-                    // Full: Everything
-                    html += `O:<span style="color:${color}">${c.open.toFixed(2)}</span> `;
-                    html += `H:<span style="color:${color}">${c.high.toFixed(2)}</span> `;
-                    html += `L:<span style="color:${color}">${c.low.toFixed(2)}</span> `;
-                    html += `C:<span style="color:${color}">${c.close.toFixed(2)}</span> `;
-                    html += `V:<span style="color:#d1d4dc">${formatNum(volVal)}</span> `;
-                    html += `$V:<span style="color:#2962ff">${formatNum(dolVol)}</span>`;
+                
+                // Use array + map for structure
+                let items = [];
+                // Date
+                items.push(`<span style="color:#d1d4dc; font-weight:bold;">${dateStr}</span>`);
+                
+                if (w >= 450) {
+                    items.push(`O:<span style="color:${color}">${c.open.toFixed(2)}</span>`);
+                    items.push(`H:<span style="color:${color}">${c.high.toFixed(2)}</span>`);
+                    items.push(`L:<span style="color:${color}">${c.low.toFixed(2)}</span>`);
                 }
-
-                el.innerHTML = html;
+                
+                // Always show Close
+                items.push(`C:<span style="color:${color}">${c.close.toFixed(2)}</span>`);
+                
+                if (w >= 250) {
+                     items.push(`V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>`);
+                }
+                
+                if (w >= 450) {
+                     items.push(`$V:<span style="color:#2962ff">${formatNum(dolVol)}</span>`);
+                }
+                
+                // Wrap in structured divs
+                el.innerHTML = items.map(item => `<div class="legend-item">${item}</div>`).join('');
             }
         });
         
