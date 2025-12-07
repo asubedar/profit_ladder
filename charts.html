@@ -244,7 +244,7 @@
         const div = document.createElement('div'); div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
         div.innerText = `> ${msg}`; logger.appendChild(div); logger.scrollTop = logger.scrollHeight;
     }
-    function formatNum(num) { if(!num) return '0'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
+    function formatNum(num) { if(!num) return '0'; if(num>=1e9) return (num/1e9).toFixed(2)+'B'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
 
     // --- CONFIG & CONSTANTS ---
     const LAYOUT_VERSION = 39; 
