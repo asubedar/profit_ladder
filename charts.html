@@ -572,10 +572,13 @@
                 
                 // Use array + map for structure
                 let items = [];
-                // Date
-                items.push(`<span style="color:#d1d4dc; font-weight:bold;">${dateStr}</span>`);
+                // Date logic: Only show if width >= 520px to prioritize OHLCV$V on medium screens
+                if (w >= 520) {
+                    items.push(`<span style="color:#d1d4dc; font-weight:bold;">${dateStr}</span>`);
+                }
                 
-                if (w >= 450) {
+                // Show OHLC if width >= 320px (fits 3x3 grids / medium screens)
+                if (w >= 320) {
                     items.push(`O:<span style="color:${color}">${c.open.toFixed(2)}</span>`);
                     items.push(`H:<span style="color:${color}">${c.high.toFixed(2)}</span>`);
                     items.push(`L:<span style="color:${color}">${c.low.toFixed(2)}</span>`);
@@ -584,11 +587,13 @@
                 // Always show Close
                 items.push(`C:<span style="color:${color}">${c.close.toFixed(2)}</span>`);
                 
+                // Always show Volume if possible (250px+)
                 if (w >= 250) {
                      items.push(`V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>`);
                 }
                 
-                if (w >= 450) {
+                // Show $Volume if width >= 320px
+                if (w >= 320) {
                      items.push(`$V:<span style="color:#2962ff">${formatNum(dolVol)}</span>`);
                 }
                 
