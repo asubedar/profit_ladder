@@ -482,7 +482,10 @@
         
         let contentHtml = '';
         if (cfg.type === 'chart') {
-            contentHtml = `<div class="widget-content" id="content-${cfg.id}"><div id="canvas-${cfg.id}" class="chart-canvas-fill"></div></div>`;
+            contentHtml = `<div class="widget-content" id="content-${cfg.id}">
+                <div class="chart-legend"><div class="legend-row" id="lg-${cfg.id}"></div></div>
+                <div id="canvas-${cfg.id}" class="chart-canvas-fill"></div>
+            </div>`;
         } else if (cfg.type === 'tape') {
             contentHtml = `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div></div>`;
         } else if (cfg.type === 'financials') {
@@ -540,10 +543,33 @@
 
         const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
+        
+        // --- UPDATED CROSSHAIR LOGIC ---
         chart.subscribeCrosshairMove(p => {
-            const c = p.seriesData.get(candleSeries); const v = p.seriesData.get(volSeries);
-            if (c) document.getElementById(`lg-${cfg.id}`).innerHTML = `O:${c.open.toFixed(2)} H:${c.high.toFixed(2)} L:${c.low.toFixed(2)} C:<span class="${c.close>=c.open?'color-up':'color-down'}">${c.close.toFixed(2)}</span> ${v?`V:${formatNum(v.value)}`:''}`;
+            const c = p.seriesData.get(candleSeries);
+            const v = p.seriesData.get(volSeries);
+            const el = document.getElementById(`lg-${cfg.id}`);
+            
+            if (c && el) {
+                const dateStr = new Date(p.time * 1000).toLocaleString([], {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                const color = c.close >= c.open ? '#26a69a' : '#ef5350';
+                const volVal = v ? v.value : 0;
+                const dolVol = volVal * c.close; // Approx dollar volume
+
+                el.innerHTML = `
+                    <span style="color:#d1d4dc; margin-right:8px; font-weight:bold;">${dateStr}</span>
+                    O:<span style="color:${color}">${c.open.toFixed(2)}</span>
+                    H:<span style="color:${color}">${c.high.toFixed(2)}</span>
+                    L:<span style="color:${color}">${c.low.toFixed(2)}</span>
+                    C:<span style="color:${color}">${c.close.toFixed(2)}</span>
+                    V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>
+                    $V:<span style="color:#2962ff">${formatNum(dolVol)}</span>
+                `;
+            }
         });
+        
         chart.timeScale().subscribeVisibleLogicalRangeChange(range => { if(range && range.from < 10 && !obj.isLoading) loadOlderData(obj); });
         await loadChartData(obj);
         updateChartsRealtime();
