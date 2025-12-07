@@ -99,8 +99,8 @@
         /* CONTENT */
         .widget-content { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; background: #131722; overflow: hidden; }
         .chart-canvas-fill { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
-        .chart-legend { position: absolute; top: 8px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; }
-        .legend-row { display: flex; gap: 10px; margin-bottom: 2px; }
+        .chart-legend { position: absolute; top: 8px; left: 8px; z-index: 20; font-size: 11px; font-family: monospace; pointer-events: none; white-space: nowrap; }
+        .legend-row { display: flex; gap: 10px; margin-bottom: 2px; align-items: center; }
 
         .tape-content { flex: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; margin: 0; padding: 0; }
         .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
@@ -538,35 +538,56 @@
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
         const wrapper = document.getElementById(`content-${cfg.id}`);
-        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(wrapper);
+        // Add width tracking to widget config for adaptive labels
+        const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false, width: wrapper.clientWidth };
+        
+        new ResizeObserver(e => { 
+            if (e.length && e[0].contentRect) {
+                obj.width = e[0].contentRect.width; // Update width for crosshair logic
+                chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
+            }
+        }).observe(wrapper);
+        
         setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
 
-        const obj = { ...cfg, chart, candleSeries, volSeries, lastPrice: 0, earliestTime: null, isLoading: false };
         state.activeWidgets.push(obj);
         
-        // --- UPDATED CROSSHAIR LOGIC ---
+        // --- UPDATED ADAPTIVE CROSSHAIR LOGIC ---
         chart.subscribeCrosshairMove(p => {
             const c = p.seriesData.get(candleSeries);
             const v = p.seriesData.get(volSeries);
             const el = document.getElementById(`lg-${cfg.id}`);
             
             if (c && el) {
-                const dateStr = new Date(p.time * 1000).toLocaleString([], {
-                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
+                // Requested format: 12/5 13:00
+                const d = new Date(p.time * 1000);
+                const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                
                 const color = c.close >= c.open ? '#26a69a' : '#ef5350';
                 const volVal = v ? v.value : 0;
-                const dolVol = volVal * c.close; // Approx dollar volume
+                const dolVol = volVal * c.close;
+                const w = obj.width || 400; // fallback width
 
-                el.innerHTML = `
-                    <span style="color:#d1d4dc; margin-right:8px; font-weight:bold;">${dateStr}</span>
-                    O:<span style="color:${color}">${c.open.toFixed(2)}</span>
-                    H:<span style="color:${color}">${c.high.toFixed(2)}</span>
-                    L:<span style="color:${color}">${c.low.toFixed(2)}</span>
-                    C:<span style="color:${color}">${c.close.toFixed(2)}</span>
-                    V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>
-                    $V:<span style="color:#2962ff">${formatNum(dolVol)}</span>
-                `;
+                let html = `<span style="color:#d1d4dc; margin-right:8px; font-weight:bold;">${dateStr}</span>`;
+
+                if (w < 250) {
+                    // Very Small: Date + Close only
+                    html += `C:<span style="color:${color}">${c.close.toFixed(2)}</span>`;
+                } else if (w < 450) {
+                    // Medium: Date + Close + Vol (Hide OH L and $V)
+                    html += `C:<span style="color:${color}">${c.close.toFixed(2)}</span> `;
+                    html += `V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>`;
+                } else {
+                    // Full: Everything
+                    html += `O:<span style="color:${color}">${c.open.toFixed(2)}</span> `;
+                    html += `H:<span style="color:${color}">${c.high.toFixed(2)}</span> `;
+                    html += `L:<span style="color:${color}">${c.low.toFixed(2)}</span> `;
+                    html += `C:<span style="color:${color}">${c.close.toFixed(2)}</span> `;
+                    html += `V:<span style="color:#d1d4dc">${formatNum(volVal)}</span> `;
+                    html += `$V:<span style="color:#2962ff">${formatNum(dolVol)}</span>`;
+                }
+
+                el.innerHTML = html;
             }
         });
         
