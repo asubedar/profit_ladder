@@ -580,7 +580,8 @@
                     const d = new Date(time * 1000);
                     // 0=Year, 1=Month, 2=DayOfMonth. If < 3, usually implies a date change/major tick.
                     if (tickMarkType < 3) {
-                        return d.toLocaleDateString();
+                        // User requested mm/dd to remove year clutter
+                        return `${d.getMonth() + 1}/${d.getDate()}`;
                     }
                     // Otherwise time
                     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
