@@ -594,6 +594,10 @@
             localization: {
                 timeFormatter: (t) => {
                     const d = new Date(t * 1000);
+                    // Check if timeframe is daily or higher
+                    if (['1D', '1W', '1M'].includes(cfg.timeframe)) {
+                        return d.toLocaleDateString();
+                    }
                     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                 }
             }
