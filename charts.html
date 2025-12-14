@@ -643,7 +643,18 @@
             
             if (c && el) {
                 const d = new Date(p.time * 1000);
-                const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                
+                // NEW: Check if timeframe is daily or higher (1D, 1W, 1M)
+                const isDailyPlus = ['1D', '1W', '1M'].includes(cfg.timeframe);
+                let dateStr;
+                
+                if (isDailyPlus) {
+                    // For Daily+, just show the Date (e.g. 12/5/2025)
+                    dateStr = d.toLocaleDateString();
+                } else {
+                    // For Intraday, show Date + Time (e.g. 12/5 13:00)
+                    dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                }
                 
                 const color = c.close >= c.open ? '#26a69a' : '#ef5350';
                 const volVal = v ? v.value : 0;
