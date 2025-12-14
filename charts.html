@@ -569,10 +569,27 @@
         const chart = LightweightCharts.createChart(container, {
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-            timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39', minBarSpacing: 0.005 },
+            
+            // --- FIX FOR AXIS TIME (FORCE LOCAL TIME ON TICKS) ---
+            timeScale: { 
+                timeVisible: true, 
+                secondsVisible: false, 
+                borderColor: '#2a2e39', 
+                minBarSpacing: 0.005,
+                tickMarkFormatter: (time, tickMarkType, locale) => {
+                    const d = new Date(time * 1000);
+                    // 0=Year, 1=Month, 2=DayOfMonth. If < 3, usually implies a date change/major tick.
+                    if (tickMarkType < 3) {
+                        return d.toLocaleDateString();
+                    }
+                    // Otherwise time
+                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                }
+            },
+            
             crosshair: { mode: 0 },
             rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.25 } },
-            // ADDED: Localization configuration to force local time on the X-Axis ticks
+            // Keep this for the floating crosshair label
             localization: {
                 timeFormatter: (t) => {
                     const d = new Date(t * 1000);
@@ -963,19 +980,6 @@
                         tempCumVol = 0;
                         tempCumPV = 0;
                     }
-                    
-                    // Add CURRENT candle contribution
-                    // Note: 'vol' here is the accumulated volume of the *current* candle so far
-                    // This creates a minor inaccuracy if we simply add it to 'lastCumVol' which might be the *previous* candle's end
-                    // However, update() replaces the current candle.
-                    // Correct logic: VWAP = (Prior_Session_PV + (Current_Candle_Vol * Current_Candle_VWAP)) / (Prior_Session_Vol + Current_Candle_Vol)
-                    
-                    // We need 'Prior_Session_Vol' (Volume up to start of this candle)
-                    // But we only have 'lastCumVol' which is updated at loadChartData (end of loaded history)
-                    // If we are strictly appending, 'lastCumVol' needs to be updated when a candle closes.
-                    // Managing candle close events in realtime without a stream is hard.
-                    // APPROXIMATION: For the realtime tip, just plotting the interval VWAP might be less jarring than a broken cumulative line.
-                    // BUT, to keep the purple line consistent, let's try to project.
                     
                     const currentSessionVwap = (tempCumPV + (vol * intervalVwap)) / (tempCumVol + vol);
                     w.vwapSeries.update({ time: time, value: currentSessionVwap });
