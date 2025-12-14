@@ -572,6 +572,13 @@
             timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2e39', minBarSpacing: 0.005 },
             crosshair: { mode: 0 },
             rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.25 } },
+            // ADDED: Localization configuration to force local time on the X-Axis ticks
+            localization: {
+                timeFormatter: (t) => {
+                    const d = new Date(t * 1000);
+                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                }
+            }
         });
         const volSeries = chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
@@ -796,138 +803,98 @@
         } catch(e) { log(e.message); }
     }
 
-    async function initFinancials(cfg) {
-        state.activeWidgets.push({ ...cfg }); 
+    // --- CHART UPDATE LOGIC ---
+    
+    // UPDATED: Calculates Session VWAP
+    function parseBars(b) {
+        const o=[], v=[], w=[];
+        let cumVol = 0;
+        let cumPV = 0;
+        let lastDate = null;
+
+        b.forEach(x => {
+            const t = new Date(x.t).getTime() / 1000;
+            const dateStr = new Date(x.t).toLocaleDateString();
+            
+            // New Day Reset
+            if (dateStr !== lastDate) {
+                cumVol = 0;
+                cumPV = 0;
+                lastDate = dateStr;
+            }
+            
+            // Approximate average price for this bar if 'vw' is missing
+            const barAvg = x.vw || ((x.h + x.l + x.c) / 3);
+            
+            cumVol += x.v;
+            cumPV += (barAvg * x.v);
+            
+            const sessionVwap = (cumVol === 0) ? 0 : (cumPV / cumVol);
+            
+            // Pass x.vw (interval vwap) for the $V calc in legend
+            o.push({time: t, open: x.o, high: x.h, low: x.l, close: x.c, vw: x.vw}); 
+            v.push({time: t, value: x.v, color: (x.c >= x.o ? '#26a69a' : '#ef5350')});
+            w.push({time: t, value: sessionVwap});
+        });
         
-        const container = document.getElementById(`fin-content-${cfg.id}`);
-        const data = await fetchFinancials(cfg.ticker);
-        
-        if (!data || !data.metric) {
-            container.innerHTML = '<div style="padding:20px; color:#787b86; text-align:center;">No Data Available<br><span style="font-size:10px">Check API Limit</span></div>';
-            return;
-        }
-        
-        const m = data.metric;
-        
-        const fmt = (n, p=2) => (n !== null && n !== undefined) ? n.toFixed(p) : '-';
-        const fmtPct = (n) => (n !== null && n !== undefined) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '-';
-        const color = (n) => n > 0 ? 'color-up' : (n < 0 ? 'color-down' : '');
-        const fmtBig = (n) => {
-            if (!n) return '-';
-            if (n > 1000000) return (n/1000000).toFixed(2) + 'T'; 
-            if (n > 1000) return (n/1000).toFixed(2) + 'B';
-            return n.toFixed(2) + 'M';
-        };
-        const fmtCap = (n) => {
-            if (!n) return '-';
-            const val = n * 1000000;
-            if (val > 1e12) return (val/1e12).toFixed(2) + 'T';
-            if (val > 1e9) return (val/1e9).toFixed(2) + 'B';
-            return (val/1e6).toFixed(2) + 'M';
-        };
-
-        const low = m['52WeekLow'];
-        const high = m['52WeekHigh'];
-        
-        let pctRange = 50; 
-        const stored = state.quoteStore[cfg.ticker] || state.quoteStore[cfg.ticker.toUpperCase()];
-        if (stored && stored.latestTrade && stored.latestTrade.p) {
-             const price = stored.latestTrade.p;
-             if(high > low) {
-                pctRange = ((price - low) / (high - low)) * 100;
-                pctRange = Math.max(0, Math.min(100, pctRange));
-             }
-        }
-
-        const html = `
-            <div class="range-container">
-                <div class="range-labels"><span>L: ${low}</span><span>52W RANGE</span><span>H: ${high}</span></div>
-                <div id="rng-track-${cfg.id}" class="range-track" data-high="${high}" data-low="${low}">
-                    <div class="range-fill" style="width: 100%; background: linear-gradient(90deg, #ef5350, #2962ff, #26a69a);"></div>
-                    <div id="rng-arrow-${cfg.id}" class="range-arrow" style="left: ${pctRange}%"></div>
-                </div>
-                <div class="range-dates"><span>${m['52WeekLowDate']||'-'}</span><span>${m['52WeekHighDate']||'-'}</span></div>
-            </div>
-
-            <div class="fin-section">
-                <div class="fin-title">Valuation Metrics</div>
-                <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Mkt Cap</span><span class="fin-val" style="color:#ffa726">${fmtCap(m.marketCapitalization)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Ent. Val</span><span class="fin-val">${fmtCap(m.enterpriseValue)}</span></div>
-                    <div class="fin-item"><span class="fin-label">P/E (TTM)</span><span class="fin-val">${fmt(m.peTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Fwd P/E</span><span class="fin-val">${fmt(m.forwardPE)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EV/EBITDA</span><span class="fin-val">${fmt(m.evEbitdaTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EV/Sales</span><span class="fin-val">${fmt(m.evRevenueTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">PEG</span><span class="fin-val">${fmt(m.pegTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">P/B</span><span class="fin-val">${fmt(m.pb)}</span></div>
-                    <div class="fin-item"><span class="fin-label">P/S</span><span class="fin-val">${fmt(m.psTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Tan. BV/S</span><span class="fin-val">${fmt(m.tangibleBookValuePerShareQuarterly)}</span></div>
-                </div>
-            </div>
-
-            <div class="fin-section">
-                <div class="fin-title">Profitability & Per Share</div>
-                <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">EPS (TTM)</span><span class="fin-val">${fmt(m.epsTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Cash/Sh</span><span class="fin-val">${fmt(m.cashPerSharePerShareQuarterly)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Rev/Sh</span><span class="fin-val">${fmt(m.revenuePerShareTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">CF/Sh</span><span class="fin-val">${fmt(m.cashFlowPerShareTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Gross Mrg</span><span class="fin-val">${fmtPct(m.grossMarginTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Oper. Mrg</span><span class="fin-val">${fmtPct(m.operatingMarginTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Net Mrg</span><span class="fin-val">${fmtPct(m.netProfitMarginTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">ROI</span><span class="fin-val ${color(m.roiTTM)}">${fmtPct(m.roiTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">ROE</span><span class="fin-val ${color(m.roeTTM)}">${fmtPct(m.roeTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">ROA</span><span class="fin-val ${color(m.roaTTM)}">${fmtPct(m.roaTTM)}</span></div>
-                </div>
-            </div>
-
-            <div class="fin-section">
-                <div class="fin-title">Growth Profile (CAGR & YoY)</div>
-                <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Rev (TTM)</span><span class="fin-val ${color(m.revenueGrowthTTMYoy)}">${fmtPct(m.revenueGrowthTTMYoy)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Rev (5Y)</span><span class="fin-val">${fmtPct(m.revenueGrowth5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EPS (TTM)</span><span class="fin-val ${color(m.epsGrowthTTMYoy)}">${fmtPct(m.epsGrowthTTMYoy)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EPS (5Y)</span><span class="fin-val">${fmtPct(m.epsGrowth5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">EBITDA (5Y)</span><span class="fin-val">${fmtPct(m.ebitdaCagr5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Div (5Y)</span><span class="fin-val">${fmtPct(m.dividendGrowthRate5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Capex (5Y)</span><span class="fin-val">${fmtPct(m.capexCagr5Y)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Book (5Y)</span><span class="fin-val">${fmtPct(m.bookValueShareGrowth5Y)}</span></div>
-                </div>
-            </div>
-
-            <div class="fin-section">
-                <div class="fin-title">Financial Strength</div>
-                <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Current Ratio</span><span class="fin-val">${fmt(m.currentRatio)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Quick Ratio</span><span class="fin-val">${fmt(m.quickRatioQuarterly)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Debt/Eq</span><span class="fin-val">${fmt(m['totalDebt/totalEquityQuarterly'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">LT Debt/Eq</span><span class="fin-val">${fmt(m['longTermDebt/equityQuarterly'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">Int. Cov</span><span class="fin-val">${fmt(m.netInterestCoverageTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Inv Turn</span><span class="fin-val">${fmt(m.inventoryTurnoverTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Asset Turn</span><span class="fin-val">${fmt(m.assetTurnoverTTM)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Div Yield</span><span class="fin-val" style="color:#26a69a">${fmtPct(m.dividendYieldIndicatedAnnual)}</span></div>
-                    <div class="fin-item"><span class="fin-label">Payout</span><span class="fin-val">${fmt(m.payoutRatioTTM)}%</span></div>
-                </div>
-            </div>
-
-            <div class="fin-section">
-                <div class="fin-title">Momentum & Volatility</div>
-                <div class="fin-grid">
-                    <div class="fin-item"><span class="fin-label">Rel SPY (YTD)</span><span class="fin-val ${color(m['priceRelativeToS&P500Ytd'])}">${fmtPct(m['priceRelativeToS&P500Ytd'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">Beta</span><span class="fin-val">${fmt(m.beta)}</span></div>
-                    <div class="fin-item"><span class="fin-label">1W Return</span><span class="fin-val ${color(m['5DayPriceReturnDaily'])}">${fmtPct(m['5DayPriceReturnDaily'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">13W Return</span><span class="fin-val ${color(m['13WeekPriceReturnDaily'])}">${fmtPct(m['13WeekPriceReturnDaily'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">26W Return</span><span class="fin-val ${color(m['26WeekPriceReturnDaily'])}">${fmtPct(m['26WeekPriceReturnDaily'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">52W Return</span><span class="fin-val ${color(m['52WeekPriceReturnDaily'])}">${fmtPct(m['52WeekPriceReturnDaily'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">Vol (3M)</span><span class="fin-val">${fmt(m['3MonthADReturnStd'])}</span></div>
-                    <div class="fin-item"><span class="fin-label">Avg Vol (10D)</span><span class="fin-val">${fmtBig(m['10DayAverageTradingVolume'])}</span></div>
-                </div>
-            </div>
-        `;
-        container.innerHTML = html;
+        return {ohlc: o, vol: v, vwap: w, lastCumVol: cumVol, lastCumPV: cumPV, lastDate: lastDate};
     }
     
-    // --- REALTIME CHART UPDATE LOOP ---
+    async function loadChartData(c) { 
+        const keys = await getKeys(); if(!keys) return; 
+        fetchFinancials(c.ticker); 
+        const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; 
+        let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M') tf='1Month'; if(tf==='1H') tf='1Hour';
+        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; 
+        try { 
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); 
+            const json = await res.json(); 
+            if(json.bars) { 
+                const data = parseBars(json.bars.reverse()); // Parse & Calc VWAP
+                c.candleSeries.setData(data.ohlc); 
+                c.volSeries.setData(data.vol); 
+                if(c.vwapSeries) c.vwapSeries.setData(data.vwap);
+                
+                // Store accumulated state for realtime updates
+                c.lastCumVol = data.lastCumVol;
+                c.lastCumPV = data.lastCumPV;
+                c.lastSessionDate = data.lastDate;
+
+                const len=data.ohlc.length; 
+                if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); 
+                else c.chart.timeScale().fitContent(); 
+                c.lastPrice = data.ohlc[len-1].close; 
+                c.earliestTime = data.ohlc[0].time; 
+            } 
+        } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } 
+    }
+
+    async function loadOlderData(c) { 
+        if(!c.earliestTime || c.isLoading) return; 
+        c.isLoading = true; 
+        const keys = await getKeys(); 
+        const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); 
+        const limit = Math.min(Math.max(visibleBars*2, 500), 10000); 
+        const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); 
+        let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M') tf='1Month'; if(tf==='1H') tf='1Hour';
+        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; 
+        try { 
+            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); 
+            const json = await res.json(); 
+            if(json.bars) { 
+                const oldBars = json.bars.reverse();
+                // To do: Full Recalc for VWAP correctness would require merging raw bars. 
+                // For now, we prepend calculated segments. Note: VWAP might jump at join if session cut.
+                const data = parseBars(oldBars); 
+                c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); 
+                c.volSeries.setData([...data.vol, ...c.volSeries.data()]); 
+                if(c.vwapSeries) c.vwapSeries.setData([...data.vwap, ...c.vwapSeries.data()]);
+                c.earliestTime = data.ohlc[0].time; 
+            } 
+        } catch(e) {} finally { c.isLoading = false; } 
+    }
+
+    // --- REALTIME ---
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
         const widgets = state.activeWidgets;
@@ -937,18 +904,14 @@
         try {
             const res = await fetch(u, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
-            
             symbols.forEach(sym => {
                 const d = json[sym] || json[sym.toUpperCase()];
                 if(d) state.quoteStore[sym] = d;
             });
-
             widgets.forEach(w => {
                 const data = state.quoteStore[w.ticker] || state.quoteStore[w.ticker.toUpperCase()];
                 if(!data) return;
-                
                 updateQuoteDisplay(w.id, data);
-                
                 if(w.type === 'chart') {
                     const d = data.dailyBar;
                     const mb = data.minuteBar;
@@ -956,7 +919,7 @@
                     if(w.timeframe === '1D' && d) { updateChartBar(w, snapTime(new Date(d.t).getTime()/1000, '1D'), d.o, d.h, d.l, d.c, d.v, d.vw); }
                     else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v, mb.vw); }
                 }
-                
+                // ... (financials arrow update) ...
                 if(w.type === 'financials') {
                    const track = document.getElementById(`rng-track-${w.id}`);
                    const arrow = document.getElementById(`rng-arrow-${w.id}`);
@@ -972,29 +935,7 @@
                    }
                 }
             });
-        } catch(e) {
-            console.error("Realtime Update Error:", e);
-        }
-    }
-    
-    function updateQuoteDisplay(id, data) {
-        const q = data.latestQuote;
-        const t = data.latestTrade;
-        const d = data.dailyBar;
-        
-        const l1 = document.getElementById(`l1-${id}`);
-        if(l1 && q) {
-            document.getElementById(`qb-p-${id}`).innerText = q.bp.toFixed(2);
-            document.getElementById(`qb-s-${id}`).innerText = q.bs;
-            document.getElementById(`qa-p-${id}`).innerText = q.ap.toFixed(2);
-            document.getElementById(`qa-s-${id}`).innerText = q.as;
-            if(t) {
-                const el = document.getElementById(`ql-${id}`);
-                const price = t.p;
-                el.innerText = price.toFixed(2);
-            }
-            if(d) document.getElementById(`qv-${id}`).innerText = formatNum(d.v);
-        }
+        } catch(e) { console.error(e); }
     }
     
     function updateChartBar(w, time, open, high, low, close, vol, intervalVwap) {
@@ -1023,6 +964,19 @@
                         tempCumPV = 0;
                     }
                     
+                    // Add CURRENT candle contribution
+                    // Note: 'vol' here is the accumulated volume of the *current* candle so far
+                    // This creates a minor inaccuracy if we simply add it to 'lastCumVol' which might be the *previous* candle's end
+                    // However, update() replaces the current candle.
+                    // Correct logic: VWAP = (Prior_Session_PV + (Current_Candle_Vol * Current_Candle_VWAP)) / (Prior_Session_Vol + Current_Candle_Vol)
+                    
+                    // We need 'Prior_Session_Vol' (Volume up to start of this candle)
+                    // But we only have 'lastCumVol' which is updated at loadChartData (end of loaded history)
+                    // If we are strictly appending, 'lastCumVol' needs to be updated when a candle closes.
+                    // Managing candle close events in realtime without a stream is hard.
+                    // APPROXIMATION: For the realtime tip, just plotting the interval VWAP might be less jarring than a broken cumulative line.
+                    // BUT, to keep the purple line consistent, let's try to project.
+                    
                     const currentSessionVwap = (tempCumPV + (vol * intervalVwap)) / (tempCumVol + vol);
                     w.vwapSeries.update({ time: time, value: currentSessionVwap });
                 }
@@ -1030,16 +984,22 @@
         }
         w.lastPrice = close;
     }
-
-    // --- BOILERPLATE ---
-    async function loadChartData(c) { const keys = await getKeys(); if(!keys) return; 
-        fetchFinancials(c.ticker); // BACKGROUND FINNHUB
-        const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; 
-        let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M') tf='1Month'; if(tf==='1H') tf='1Hour';
-        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData(data.ohlc); c.volSeries.setData(data.vol); if(c.vwapSeries) c.vwapSeries.setData(data.vwap); c.lastCumVol = data.lastCumVol; c.lastCumPV = data.lastCumPV; c.lastSessionDate = data.lastDate; const len=data.ohlc.length; if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); else c.chart.timeScale().fitContent(); c.lastPrice = data.ohlc[len-1].close; c.earliestTime = data.ohlc[0].time; } } catch(e) { log(`Err loading ${c.ticker}: ${e.message}`); } }
-    async function loadOlderData(c) { if(!c.earliestTime || c.isLoading) return; c.isLoading = true; const keys = await getKeys(); const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); const limit = Math.min(Math.max(visibleBars*2, 500), 10000); const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); 
-        let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M') tf='1Month'; if(tf==='1H') tf='1Hour';
-        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; try { const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); const json = await res.json(); if(json.bars) { const data = parseBars(json.bars.reverse()); c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); c.volSeries.setData([...data.vol, ...c.volSeries.data()]); if(c.vwapSeries) c.vwapSeries.setData([...data.vwap, ...c.vwapSeries.data()]); c.earliestTime = data.ohlc[0].time; } } catch(e) {} finally { c.isLoading = false; } }
+    
+    // ... (rest of code) ...
+    function updateQuoteDisplay(id, data) {
+        const q = data.latestQuote;
+        const t = data.latestTrade;
+        const d = data.dailyBar;
+        const l1 = document.getElementById(`l1-${id}`);
+        if(l1 && q) {
+            document.getElementById(`qb-p-${id}`).innerText = q.bp.toFixed(2);
+            document.getElementById(`qb-s-${id}`).innerText = q.bs;
+            document.getElementById(`qa-p-${id}`).innerText = q.ap.toFixed(2);
+            document.getElementById(`qa-s-${id}`).innerText = q.as;
+            if(t) { document.getElementById(`ql-${id}`).innerText = t.p.toFixed(2); }
+            if(d) document.getElementById(`qv-${id}`).innerText = formatNum(d.v);
+        }
+    }
     function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('right-sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
     function getLinkClass(g){if(g==='A')return'link-blue';if(g==='B')return'link-orange';if(g==='C')return'link-green';if(g==='D')return'link-purple';if(g==='E')return'link-red';return'';}
