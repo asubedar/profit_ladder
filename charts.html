@@ -106,10 +106,14 @@
         .legend-item { display: flex; align-items: center; gap: 0px; } 
 
         .tape-content { flex: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; margin: 0; padding: 0; }
-        .tape-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
-        .tape-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; }
+        /* UPDATED TAPE GRID FOR 4 COLUMNS */
+        .tape-header-row { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
+        .tape-row { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; align-items: center; }
         .tape-row:hover { background-color: #1e222d; }
-        .tape-time { color: #787b86; } .tape-price { font-weight: bold; text-align: right; } .tape-size { text-align: right; color: #d1d4dc; }
+        .tape-time { color: #787b86; } 
+        .tape-price { font-weight: bold; text-align: right; } 
+        .tape-size { text-align: right; color: #d1d4dc; }
+        .tape-venue { text-align: right; font-size: 10px; color: #787b86; }
 
         /* LINKS & UTILS */
         .link-blue { background-color: #2962ff; border-color: #2962ff; color: white; }
@@ -493,7 +497,6 @@
         const headerHtml = `
             <div class="widget-header">
                 <div class="widget-controls-left">
-                    <!-- NEW TYPE MORPH SELECTOR -->
                     <div class="type-morph-container" id="type-morph-${cfg.id}">
                         <div class="type-single" onclick="toggleTypeMorph('${cfg.id}', event)"><i class="fas ${iconClass}"></i></div>
                         <div class="type-options-row">
@@ -527,7 +530,8 @@
                 <div id="canvas-${cfg.id}" class="chart-canvas-fill"></div>
             </div>`;
         } else if (cfg.type === 'tape') {
-            contentHtml = `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span>PRICE</span><span>SIZE</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div></div>`;
+            // UPDATED HEADER ROW TO INCLUDE EXCH
+            contentHtml = `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span style="text-align: right;">PRICE</span><span style="text-align: right;">SIZE</span><span style="text-align: right;">EXCH</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div></div>`;
         } else if (cfg.type === 'financials') {
             contentHtml = `<div class="widget-content"><div id="fin-content-${cfg.id}" class="fin-container"><span style="color:#666; font-size:11px;">Loading Metrics...</span></div></div>`;
         } else if (cfg.type === 'fund-chart' || cfg.type === 'sentiment') {
@@ -578,23 +582,18 @@
                 minBarSpacing: 0.005,
                 tickMarkFormatter: (time, tickMarkType, locale) => {
                     const d = new Date(time * 1000);
-                    // 0=Year, 1=Month, 2=DayOfMonth. If < 3, usually implies a date change/major tick.
                     if (tickMarkType < 3) {
-                        // User requested mm/dd to remove year clutter
                         return `${d.getMonth() + 1}/${d.getDate()}`;
                     }
-                    // Otherwise time
                     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                 }
             },
             
             crosshair: { mode: 0 },
             rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.25 } },
-            // Keep this for the floating crosshair label
             localization: {
                 timeFormatter: (t) => {
                     const d = new Date(t * 1000);
-                    // Check if timeframe is daily or higher
                     if (['1D', '1W', '1M'].includes(cfg.timeframe)) {
                         return d.toLocaleDateString();
                     }
@@ -610,8 +609,6 @@
         const vwapSeries = chart.addLineSeries({ color: '#b042f5', lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false });
 
         const wrapper = document.getElementById(`content-${cfg.id}`);
-        // Add width tracking to widget config for adaptive labels
-        // Added accumulated state for realtime VWAP calculation
         const obj = { 
             ...cfg, 
             chart, 
@@ -622,7 +619,6 @@
             earliestTime: null, 
             isLoading: false, 
             width: wrapper.clientWidth,
-            // Session VWAP state
             lastCumVol: 0,
             lastCumPV: 0,
             lastSessionDate: null
@@ -630,7 +626,7 @@
         
         new ResizeObserver(e => { 
             if (e.length && e[0].contentRect) {
-                obj.width = e[0].contentRect.width; // Update width for crosshair logic
+                obj.width = e[0].contentRect.width; 
                 chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
             }
         }).observe(wrapper);
@@ -639,7 +635,6 @@
 
         state.activeWidgets.push(obj);
         
-        // --- UPDATED ADAPTIVE CROSSHAIR LOGIC ---
         chart.subscribeCrosshairMove(p => {
             const c = p.seriesData.get(candleSeries);
             const v = p.seriesData.get(volSeries);
@@ -648,61 +643,43 @@
             
             if (c && el) {
                 const d = new Date(p.time * 1000);
-                
-                // NEW: Check if timeframe is daily or higher (1D, 1W, 1M)
                 const isDailyPlus = ['1D', '1W', '1M'].includes(cfg.timeframe);
                 let dateStr;
                 
                 if (isDailyPlus) {
-                    // For Daily+, just show the Date (e.g. 12/5/2025)
                     dateStr = d.toLocaleDateString();
                 } else {
-                    // For Intraday, show Date + Time (e.g. 12/5 13:00)
                     dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
                 }
                 
                 const color = c.close >= c.open ? '#26a69a' : '#ef5350';
                 const volVal = v ? v.value : 0;
                 
-                // USE VWAP IF AVAILABLE, FALLBACK TO CLOSE
-                const calcPrice = (c.vw || c.close); // c.vw comes from parseBars now
+                const calcPrice = (c.vw || c.close); 
                 const dolVol = volVal * calcPrice;
                 
-                const w = obj.width || 400; // fallback width
-                
-                // Use array + map for structure
+                const w = obj.width || 400; 
                 let items = [];
-                // Date logic: Only show if width >= 520px to prioritize OHLCV$V on medium screens
+                
                 if (w >= 520) {
                     items.push(`<span style="color:#d1d4dc; font-weight:bold;">${dateStr}</span>`);
                 }
-                
-                // Show OHLC if width >= 320px
                 if (w >= 320) {
                     items.push(`O:<span style="color:${color}">${c.open.toFixed(2)}</span>`);
                     items.push(`H:<span style="color:${color}">${c.high.toFixed(2)}</span>`);
                     items.push(`L:<span style="color:${color}">${c.low.toFixed(2)}</span>`);
                 }
-                
-                // Always show Close
                 items.push(`C:<span style="color:${color}">${c.close.toFixed(2)}</span>`);
-                
-                // Always show Volume if possible (250px+)
                 if (w >= 250) {
                      items.push(`V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>`);
                 }
-                
-                // Show $Volume if width >= 320px
                 if (w >= 320) {
                      items.push(`$V:<span style="color:#2962ff">${formatNum(dolVol)}</span>`);
                 }
-
-                // Show VWAP if width >= 450px and available
                 if (w >= 450 && vw && vw.value) {
                     items.push(`VWAP:<span style="color:#b042f5">${vw.value.toFixed(2)}</span>`);
                 }
                 
-                // Wrap in structured divs
                 el.innerHTML = items.map(item => `<div class="legend-item">${item}</div>`).join('');
             }
         });
@@ -718,12 +695,16 @@
         updateTapeIndividual();
     }
 
-    // MOVED UP to fix ReferenceError
+    // UPDATED TAPE PARSING LOGIC
     async function updateTapeIndividual() {
         if(!state.isLeftOpen && !state.isRightOpen && !state.chartsConfig.some(x=>x.type==='tape')) return;
         const k=await getKeys(); if(!k) return;
         const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
         const tapeWidgets = state.activeWidgets.filter(w => w.type === 'tape');
+        
+        // Map Alpaca exchange codes to readable names
+        const exMap = { 'A':'AMEX', 'B':'BSE', 'C':'NSX', 'D':'ADF', 'I':'ISE', 'J':'EDGA', 'K':'EDGX', 'M':'CHX', 'N':'NYSE', 'P':'ARCA', 'Q':'NASD', 'S':'CTS', 'T':'TRF', 'V':'IEX', 'X':'PHLX', 'Y':'BYX', 'Z':'BZX' };
+
         await Promise.all(tapeWidgets.map(async w => {
             const list = document.getElementById(`tape-list-${w.id}`);
             if(!list || list.offsetParent === null) return;
@@ -744,7 +725,17 @@
                         const c = t.p >= prevPrice ? 't-up' : 't-down';
                         const bg = t.s >= 100 ? 't-large' : '';
                         const tm = new Date(t.t).toLocaleTimeString([],{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-                        h += `<div class="tape-row ${bg}"><span class="tape-time">${tm}</span><span class="tape-price ${c}">${t.p.toFixed(2)}</span><span class="tape-size">${t.s}</span></div>`;
+                        
+                        // Grab the exchange code
+                        const exch = exMap[t.x] || t.x || '-';
+                        
+                        // Added new venue column to the output
+                        h += `<div class="tape-row ${bg}">
+                                <span class="tape-time">${tm}</span>
+                                <span class="tape-price ${c}">${t.p.toFixed(2)}</span>
+                                <span class="tape-size">${t.s}</span>
+                                <span class="tape-venue">${exch}</span>
+                              </div>`;
                     }
                     list.innerHTML = h;
                 }
@@ -829,50 +820,12 @@
                         return { time: time, value: d.mspr, color: d.mspr > 0 ? '#26a69a' : '#ef5350' };
                     }).sort((a,b) => a.time - b.time);
                     w.sentSeries.setData(sentData);
-                    // ... markers ...
                 }
                 w.chart.timeScale().fitContent();
             }
         } catch(e) { log(e.message); }
     }
 
-    // --- CHART UPDATE LOGIC ---
-    
-    // UPDATED: Calculates Session VWAP
-    function parseBars(b) {
-        const o=[], v=[], w=[];
-        let cumVol = 0;
-        let cumPV = 0;
-        let lastDate = null;
-
-        b.forEach(x => {
-            const t = new Date(x.t).getTime() / 1000;
-            const dateStr = new Date(x.t).toLocaleDateString();
-            
-            // New Day Reset
-            if (dateStr !== lastDate) {
-                cumVol = 0;
-                cumPV = 0;
-                lastDate = dateStr;
-            }
-            
-            // Approximate average price for this bar if 'vw' is missing
-            const barAvg = x.vw || ((x.h + x.l + x.c) / 3);
-            
-            cumVol += x.v;
-            cumPV += (barAvg * x.v);
-            
-            const sessionVwap = (cumVol === 0) ? 0 : (cumPV / cumVol);
-            
-            // Pass x.vw (interval vwap) for the $V calc in legend
-            o.push({time: t, open: x.o, high: x.h, low: x.l, close: x.c, vw: x.vw}); 
-            v.push({time: t, value: x.v, color: (x.c >= x.o ? '#26a69a' : '#ef5350')});
-            w.push({time: t, value: sessionVwap});
-        });
-        
-        return {ohlc: o, vol: v, vwap: w, lastCumVol: cumVol, lastCumPV: cumPV, lastDate: lastDate};
-    }
-    
     async function loadChartData(c) { 
         const keys = await getKeys(); if(!keys) return; 
         fetchFinancials(c.ticker); 
@@ -883,12 +836,11 @@
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); 
             const json = await res.json(); 
             if(json.bars) { 
-                const data = parseBars(json.bars.reverse()); // Parse & Calc VWAP
+                const data = parseBars(json.bars.reverse()); 
                 c.candleSeries.setData(data.ohlc); 
                 c.volSeries.setData(data.vol); 
                 if(c.vwapSeries) c.vwapSeries.setData(data.vwap);
                 
-                // Store accumulated state for realtime updates
                 c.lastCumVol = data.lastCumVol;
                 c.lastCumPV = data.lastCumPV;
                 c.lastSessionDate = data.lastDate;
@@ -916,8 +868,6 @@
             const json = await res.json(); 
             if(json.bars) { 
                 const oldBars = json.bars.reverse();
-                // To do: Full Recalc for VWAP correctness would require merging raw bars. 
-                // For now, we prepend calculated segments. Note: VWAP might jump at join if session cut.
                 const data = parseBars(oldBars); 
                 c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); 
                 c.volSeries.setData([...data.vol, ...c.volSeries.data()]); 
@@ -948,11 +898,9 @@
                 if(w.type === 'chart') {
                     const d = data.dailyBar;
                     const mb = data.minuteBar;
-                    // For realtime update, we need to pass the raw values to updateChartBar
                     if(w.timeframe === '1D' && d) { updateChartBar(w, snapTime(new Date(d.t).getTime()/1000, '1D'), d.o, d.h, d.l, d.c, d.v, d.vw); }
                     else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v, mb.vw); }
                 }
-                // ... (financials arrow update) ...
                 if(w.type === 'financials') {
                    const track = document.getElementById(`rng-track-${w.id}`);
                    const arrow = document.getElementById(`rng-arrow-${w.id}`);
@@ -980,19 +928,14 @@
         if (vol !== undefined) {
             w.volSeries.update({ time: time, value: vol, color: close >= open ? '#26a69a' : '#ef5350' });
             
-            // REALTIME SESSION VWAP CALCULATION
             if (w.vwapSeries && intervalVwap) {
-                // Determine if this is a new day or new candle or update
                 const dateStr = new Date(time * 1000).toLocaleDateString();
                 
-                // If we don't have accumulation state, we can't accurately plot realtime cumulative VWAP
-                // Fallback: If we have state, use it.
                 if (w.lastSessionDate) {
                     let tempCumVol = w.lastCumVol;
                     let tempCumPV = w.lastCumPV;
                     
                     if (dateStr !== w.lastSessionDate) {
-                        // New day detected in realtime
                         tempCumVol = 0;
                         tempCumPV = 0;
                     }
@@ -1005,7 +948,6 @@
         w.lastPrice = close;
     }
     
-    // ... (rest of code) ...
     function updateQuoteDisplay(id, data) {
         const q = data.latestQuote;
         const t = data.latestTrade;
