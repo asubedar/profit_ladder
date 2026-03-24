@@ -106,7 +106,7 @@
         .legend-item { display: flex; align-items: center; gap: 0px; } 
 
         .tape-content { flex: 1; overflow-y: auto; font-family: 'Monaco', monospace; font-size: 12px; background: #131722; margin: 0; padding: 0; }
-        /* UPDATED TAPE GRID FOR 4 COLUMNS */
+        /* TAPE GRID FOR 4 COLUMNS */
         .tape-header-row { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; padding: 4px 8px; border-bottom: 1px solid #2a2e39; background: #161a25; font-size: 10px; color: #787b86; flex-shrink: 0; }
         .tape-row { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; padding: 3px 8px; border-bottom: 1px solid #1e222d; cursor: default; align-items: center; }
         .tape-row:hover { background-color: #1e222d; }
@@ -253,7 +253,7 @@
     // Moved helper functions up to ensure hoisting
     function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
     
-    // UPDATED: Calculates Session VWAP
+    // Calculates Session VWAP
     function parseBars(b) {
         const o=[], v=[], w=[];
         let cumVol = 0;
@@ -515,11 +515,13 @@
                     ${cfg.type === 'chart' ? getTfHtml(cfg.id, cfg.timeframe) : ''}
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
-                ${(cfg.type !== 'tape') ? `<div class="l1-overlay" id="l1-${cfg.id}">
+                
+                <!-- REMOVED THE !== 'tape' CONDITION HERE: Overlay now renders on ALL widgets -->
+                <div class="l1-overlay" id="l1-${cfg.id}">
                     <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
                     <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
                     <div class="l1-btn l1-ask"><span class="l1-price" id="qa-p-${cfg.id}">0.00</span><span class="l1-size" id="qa-s-${cfg.id}">0</span></div>
-                </div>` : ''}
+                </div>
             </div>
         `;
         
@@ -530,7 +532,6 @@
                 <div id="canvas-${cfg.id}" class="chart-canvas-fill"></div>
             </div>`;
         } else if (cfg.type === 'tape') {
-            // UPDATED HEADER ROW TO INCLUDE EXCH
             contentHtml = `<div class="widget-content"><div class="tape-header-row"><span>TIME</span><span style="text-align: right;">PRICE</span><span style="text-align: right;">SIZE</span><span style="text-align: right;">EXCH</span></div><div id="tape-list-${cfg.id}" class="tape-content"></div></div>`;
         } else if (cfg.type === 'financials') {
             contentHtml = `<div class="widget-content"><div id="fin-content-${cfg.id}" class="fin-container"><span style="color:#666; font-size:11px;">Loading Metrics...</span></div></div>`;
@@ -574,7 +575,6 @@
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
             
-            // --- FIX FOR AXIS TIME (FORCE LOCAL TIME ON TICKS) ---
             timeScale: { 
                 timeVisible: true, 
                 secondsVisible: false, 
@@ -605,7 +605,6 @@
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
-        // ADD VWAP SERIES
         const vwapSeries = chart.addLineSeries({ color: '#b042f5', lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false });
 
         const wrapper = document.getElementById(`content-${cfg.id}`);
@@ -695,14 +694,12 @@
         updateTapeIndividual();
     }
 
-    // UPDATED TAPE PARSING LOGIC
     async function updateTapeIndividual() {
         if(!state.isLeftOpen && !state.isRightOpen && !state.chartsConfig.some(x=>x.type==='tape')) return;
         const k=await getKeys(); if(!k) return;
         const start = new Date(Date.now() - 86400000 * 3).toISOString(); 
         const tapeWidgets = state.activeWidgets.filter(w => w.type === 'tape');
         
-        // Map Alpaca exchange codes to readable names
         const exMap = { 'A':'AMEX', 'B':'BSE', 'C':'NSX', 'D':'ADF', 'I':'ISE', 'J':'EDGA', 'K':'EDGX', 'M':'CHX', 'N':'NYSE', 'P':'ARCA', 'Q':'NASD', 'S':'CTS', 'T':'TRF', 'V':'IEX', 'X':'PHLX', 'Y':'BYX', 'Z':'BZX' };
 
         await Promise.all(tapeWidgets.map(async w => {
@@ -726,10 +723,8 @@
                         const bg = t.s >= 100 ? 't-large' : '';
                         const tm = new Date(t.t).toLocaleTimeString([],{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
                         
-                        // Grab the exchange code
                         const exch = exMap[t.x] || t.x || '-';
                         
-                        // Added new venue column to the output
                         h += `<div class="tape-row ${bg}">
                                 <span class="tape-time">${tm}</span>
                                 <span class="tape-price ${c}">${t.p.toFixed(2)}</span>
@@ -743,7 +738,6 @@
         }));
     }
     
-    // ... (Fund/Sent charts remain same) ...
     async function initFundChart(cfg) {
         const container = document.getElementById(`canvas-${cfg.id}`);
         await new Promise(r => setTimeout(r, 50));
