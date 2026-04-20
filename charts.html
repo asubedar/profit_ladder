@@ -652,6 +652,16 @@
         const vwapSeries = chart.addLineSeries({ color: '#b042f5', lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false });
 
         const wrapper = document.getElementById(`content-${cfg.id}`);
+        
+        const ro = new ResizeObserver(e => { 
+            if (e.length && e[0].contentRect) {
+                // Must have fallback for obj scope if not initialized yet
+                if (typeof obj !== 'undefined') obj.width = e[0].contentRect.width; 
+                chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
+            }
+        });
+        ro.observe(wrapper);
+
         const obj = { 
             ...cfg, 
             chart, 
@@ -664,15 +674,9 @@
             width: wrapper.clientWidth,
             lastCumVol: 0,
             lastCumPV: 0,
-            lastSessionDate: null
+            lastSessionDate: null,
+            ro // Store observer for garbage collection
         };
-        
-        new ResizeObserver(e => { 
-            if (e.length && e[0].contentRect) {
-                obj.width = e[0].contentRect.width; 
-                chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); 
-            }
-        }).observe(wrapper);
         
         setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
 
@@ -813,9 +817,12 @@
         });
         const series = chart.addHistogramSeries({ color: '#2962ff' });
         const wrapper = document.getElementById(`content-${cfg.id}`);
-        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(wrapper);
+        
+        const ro = new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); });
+        ro.observe(wrapper);
+        
         setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
-        const obj = { ...cfg, chart, series, type: 'fund-chart' };
+        const obj = { ...cfg, chart, series, type: 'fund-chart', ro };
         state.activeWidgets.push(obj);
         updateFundChart(obj);
     }
@@ -848,9 +855,12 @@
         chart.priceScale('sent').applyOptions({ scaleMargins: { top: 0.70, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         const wrapper = document.getElementById(`content-${cfg.id}`);
-        new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); }).observe(wrapper);
+        
+        const ro = new ResizeObserver(e => { if (e.length && e[0].contentRect) chart.applyOptions({ width: e[0].contentRect.width, height: e[0].contentRect.height }); });
+        ro.observe(wrapper);
+        
         setTimeout(() => { if(wrapper.clientWidth > 0) chart.applyOptions({ width: wrapper.clientWidth, height: wrapper.clientHeight }); }, 200);
-        const obj = { ...cfg, chart, candleSeries, sentSeries, type: 'sentiment' };
+        const obj = { ...cfg, chart, candleSeries, sentSeries, type: 'sentiment', ro };
         state.activeWidgets.push(obj);
         updateSentimentChart(obj);
     }
