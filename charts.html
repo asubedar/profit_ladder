@@ -890,10 +890,32 @@
                 if(!data) return;
                 updateQuoteDisplay(w.id, data);
                 if(w.type === 'chart') {
-                    const d = data.dailyBar;
-                    const mb = data.minuteBar;
-                    if(w.timeframe === '1D' && d) { updateChartBar(w, snapTime(new Date(d.t).getTime()/1000, '1D'), d.o, d.h, d.l, d.c, d.v, d.vw); }
-                    else if(w.timeframe && w.timeframe.includes('Min') && mb) { updateChartBar(w, snapTime(new Date(mb.t).getTime()/1000, w.timeframe), mb.o, mb.h, mb.l, mb.c, mb.v, mb.vw); }
+                    const t = data.latestTrade;
+                    if (t) {
+                        // Get the snapped time for the current bar based on the widget's timeframe
+                        const tfTime = snapTime(Math.floor(Date.now() / 1000), w.timeframe);
+                        
+                        const currentData = w.candleSeries.data();
+                        const lastBar = currentData.length > 0 ? currentData[currentData.length - 1] : null;
+                        
+                        let newO = t.p, newH = t.p, newL = t.p, newC = t.p;
+                        
+                        if (lastBar && lastBar.time === tfTime) {
+                            // Update the existing incomplete bar with the latest tick
+                            newO = lastBar.open;
+                            newH = Math.max(lastBar.high, t.p);
+                            newL = Math.min(lastBar.low, t.p);
+                        } else if (lastBar) {
+                            // Start a fresh bar, defaulting the open to the previous close
+                            newO = lastBar.close; 
+                            newH = Math.max(newO, t.p);
+                            newL = Math.min(newO, t.p);
+                        }
+                        
+                        // Pass undefined for volume/vwap so we don't accidentally overwrite 
+                        // the accumulated volume data during micro-ticks
+                        updateChartBar(w, tfTime, newO, newH, newL, newC, undefined, undefined);
+                    }
                 }
                 if(w.type === 'financials') {
                    const track = document.getElementById(`rng-track-${w.id}`);
