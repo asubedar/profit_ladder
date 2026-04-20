@@ -563,7 +563,7 @@
     }
 
     function getTfHtml(id, tf) {
-        const mapTF = { '1Min':'1m', '5Min':'5m', '15Min':'15m', '1H':'1H', '4H':'4H', '1D':'1D', '1W':'1W', '1M':'1M' };
+        const mapTF = { '1Min':'1m', '5Min':'5m', '15Min':'15m', '1H':'1H', '4H':'4H', '1D':'1D', '1W':'1W', '1M':'M' };
         return `
             <div class="tf-morph-container" id="tf-morph-${id}">
                 <div class="tf-single" onclick="toggleTfMorph('${id}', event)">${mapTF[tf] || tf}</div>
