@@ -250,17 +250,18 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e9) return (num/1e9).toFixed(2)+'B'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
     
-    // Moved helper functions up to ensure hoisting
+    // UPDATED: Extremely robust snap logic that handles 1m/5m/15m/1M 
+    // AND properly aligns US Equities market hours
     function snapTime(t, f) {
-        if(f==='1Min') return Math.floor(t/60)*60;
-        if(f==='5Min') return Math.floor(t/300)*300;
-        if(f==='15Min') return Math.floor(t/900)*900;
-        if(f==='1H') return Math.floor(t/3600)*3600;
-        if(f==='4H') return Math.floor(t/14400)*14400;
+        if(f==='1Min' || f==='1m') return Math.floor(t/60)*60;
+        if(f==='5Min' || f==='5m') return Math.floor(t/300)*300;
+        if(f==='15Min' || f==='15m') return Math.floor(t/900)*900;
+        if(f==='1H' || f==='1h') return Math.floor((t - 1800)/3600)*3600 + 1800; // Market opens on the half hour (09:30)
+        if(f==='4H' || f==='4h') return Math.floor(t/14400)*14400; // Fallback math, realigned in real-time loop below
         
         const d = new Date(t * 1000);
-        if(f==='1D') { d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
-        if(f==='1W') { d.setUTCDate(d.getUTCDate() - d.getUTCDay() + 1); d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
+        if(f==='1D' || f==='1d') { d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
+        if(f==='1W' || f==='1w') { d.setUTCDate(d.getUTCDate() - d.getUTCDay() + 1); d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
         if(f==='1M') { d.setUTCDate(1); d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
         return t;
     }
@@ -528,7 +529,6 @@
                     <div class="link-btn ${linkClass}" onclick="cycleLink('${cfg.id}')" title="Link Group"><i class="fas fa-link"></i></div>
                 </div>
                 
-                <!-- REMOVED THE !== 'tape' CONDITION HERE: Overlay now renders on ALL widgets -->
                 <div class="l1-overlay" id="l1-${cfg.id}">
                     <div class="l1-btn l1-bid"><span class="l1-price" id="qb-p-${cfg.id}">0.00</span><span class="l1-size" id="qb-s-${cfg.id}">0</span></div>
                     <div class="l1-center"><span class="last-price" id="ql-${cfg.id}">0.00</span><span class="day-vol" id="qv-${cfg.id}">0</span></div>
@@ -913,11 +913,19 @@
                         
                         let tfTime;
                         if (lastBar && tradeTime >= lastBar.time && tradeTime < lastBar.time + dur) {
-                            // Lock to the existing bar's timestamp to perfectly match Alpaca's alignment
+                            // Perfectly inside the current bar's timeframe
                             tfTime = lastBar.time;
                         } else {
-                            // We crossed into a new bar, snap it
                             tfTime = snapTime(tradeTime, w.timeframe);
+                            
+                            // SAFETY CATCH: LightweightCharts will crash or severely glitch (tiny duplicate bars) 
+                            // if we attempt to plot a time that is mathematically older than the last bar.
+                            // Because Alpaca's 4H bars anchor strictly to market open (09:30 EST) instead of 
+                            // standard UTC boundaries, standard modulo math can fall behind the actual bar.
+                            if (lastBar && tfTime <= lastBar.time) {
+                                // If the math snapped it backwards, force it forward perfectly relative to Alpaca
+                                tfTime = lastBar.time + dur;
+                            }
                         }
                         
                         let newO = t.p, newH = t.p, newL = t.p, newC = t.p;
@@ -934,8 +942,6 @@
                             newL = Math.min(newO, t.p);
                         }
                         
-                        // Pass undefined for volume/vwap so we don't accidentally overwrite 
-                        // the accumulated volume data during micro-ticks
                         updateChartBar(w, tfTime, newO, newH, newL, newC, undefined, undefined);
                     }
                 }
