@@ -251,7 +251,19 @@
     function formatNum(num) { if(!num) return '0'; if(num>=1e9) return (num/1e9).toFixed(2)+'B'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
     
     // Moved helper functions up to ensure hoisting
-    function snapTime(t,f){if(f==='1Min')return Math.floor(t/60)*60;if(f==='5Min')return Math.floor(t/300)*300;if(f==='15Min')return Math.floor(t/900)*900;if(f==='1H')return Math.floor(t/3600)*3600;return t;}
+    function snapTime(t, f) {
+        if(f==='1Min') return Math.floor(t/60)*60;
+        if(f==='5Min') return Math.floor(t/300)*300;
+        if(f==='15Min') return Math.floor(t/900)*900;
+        if(f==='1H') return Math.floor(t/3600)*3600;
+        if(f==='4H') return Math.floor(t/14400)*14400;
+        
+        const d = new Date(t * 1000);
+        if(f==='1D') { d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
+        if(f==='1W') { d.setUTCDate(d.getUTCDate() - d.getUTCDay() + 1); d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
+        if(f==='1M') { d.setUTCDate(1); d.setUTCHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
+        return t;
+    }
     
     // Calculates Session VWAP
     function parseBars(b) {
@@ -892,11 +904,21 @@
                 if(w.type === 'chart') {
                     const t = data.latestTrade;
                     if (t) {
-                        // Get the snapped time for the current bar based on the widget's timeframe
-                        const tfTime = snapTime(Math.floor(Date.now() / 1000), w.timeframe);
-                        
+                        const tradeTime = new Date(t.t).getTime() / 1000;
                         const currentData = w.candleSeries.data();
                         const lastBar = currentData.length > 0 ? currentData[currentData.length - 1] : null;
+                        
+                        const durations = { '1Min': 60, '5Min': 300, '15Min': 900, '1H': 3600, '4H': 14400, '1D': 86400, '1W': 604800, '1M': 2592000 };
+                        const dur = durations[w.timeframe] || 60;
+                        
+                        let tfTime;
+                        if (lastBar && tradeTime >= lastBar.time && tradeTime < lastBar.time + dur) {
+                            // Lock to the existing bar's timestamp to perfectly match Alpaca's alignment
+                            tfTime = lastBar.time;
+                        } else {
+                            // We crossed into a new bar, snap it
+                            tfTime = snapTime(tradeTime, w.timeframe);
+                        }
                         
                         let newO = t.p, newH = t.p, newL = t.p, newC = t.p;
                         
