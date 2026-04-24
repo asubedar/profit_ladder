@@ -473,7 +473,12 @@
         state.positions = {};
         p.forEach(pos => {
             const sym = pos.symbol || pos.tickerSymbol; // Backwards compatible with legacy tape
-            state.positions[sym] = { qty: pos.qty, avgPrice: pos.avgPrice };
+            const q = parseFloat(pos.qty);
+            const a = parseFloat(pos.avgPrice);
+            // Only load valid positions to prevent legacy/corrupted data from crashing the UI
+            if (sym && !isNaN(q) && !isNaN(a)) {
+                state.positions[sym] = { qty: q, avgPrice: a };
+            }
         });
     }
     
@@ -491,10 +496,14 @@
         let h = `<table style="width:100%; text-align:left; font-size:12px; border-collapse:collapse;">
                     <tr style="border-bottom:1px solid #2a2e39; color:#787b86;"><th>Symbol</th><th>Qty</th><th>Avg Price</th><th></th></tr>`;
         for (const [sym, p] of Object.entries(state.positions)) {
+            // Safety fallbacks for rendering
+            const safeQty = (p.qty !== undefined && !isNaN(p.qty)) ? p.qty : 0;
+            const safePrice = (p.avgPrice !== undefined && !isNaN(p.avgPrice)) ? p.avgPrice.toFixed(2) : '0.00';
+            
             h += `<tr style="border-bottom:1px solid #1e222d;">
                     <td style="padding:8px 0; font-weight:bold; color:#d1d4dc;">${sym}</td>
-                    <td>${p.qty}</td>
-                    <td>$${p.avgPrice.toFixed(2)}</td>
+                    <td>${safeQty}</td>
+                    <td>$${safePrice}</td>
                     <td style="text-align:right;"><button class="btn-danger" style="padding:2px 6px; font-size:10px;" onclick="removePosition('${sym}')">Remove</button></td>
                   </tr>`;
         }
@@ -539,28 +548,30 @@
                 
                 if (hasPos) {
                     const p = state.positions[w.ticker];
-                    w.entryLine = w.candleSeries.createPriceLine({
-                        price: p.avgPrice,
-                        color: p.qty > 0 ? '#26a69a' : '#ef5350',
-                        lineWidth: 2,
-                        lineStyle: 2,
-                        axisLabelVisible: true,
-                        title: ''
-                    });
-                    
-                    // Force the left axis to re-render with the new formula
-                    w.pnlSeries.applyOptions({
-                        priceFormat: {
-                            type: 'custom',
-                            formatter: price => {
-                                const pnl = (price - p.avgPrice) * p.qty;
-                                const absPnl = Math.abs(pnl);
-                                if (absPnl >= 1e6) return (pnl >= 0 ? '+' : '') + (pnl / 1e6).toFixed(1) + 'M';
-                                if (absPnl >= 1e3) return (pnl >= 0 ? '+' : '') + (pnl / 1e3).toFixed(1) + 'k';
-                                return (pnl >= 0 ? '+' : '') + Math.round(pnl).toString();
+                    if (p && !isNaN(p.avgPrice) && !isNaN(p.qty)) {
+                        w.entryLine = w.candleSeries.createPriceLine({
+                            price: p.avgPrice,
+                            color: p.qty > 0 ? '#26a69a' : '#ef5350',
+                            lineWidth: 2,
+                            lineStyle: 2,
+                            axisLabelVisible: true,
+                            title: ''
+                        });
+                        
+                        // Force the left axis to re-render with the new formula
+                        w.pnlSeries.applyOptions({
+                            priceFormat: {
+                                type: 'custom',
+                                formatter: price => {
+                                    const pnl = (price - p.avgPrice) * p.qty;
+                                    const absPnl = Math.abs(pnl);
+                                    if (absPnl >= 1e6) return (pnl >= 0 ? '+' : '') + (pnl / 1e6).toFixed(1) + 'M';
+                                    if (absPnl >= 1e3) return (pnl >= 0 ? '+' : '') + (pnl / 1e3).toFixed(1) + 'k';
+                                    return (pnl >= 0 ? '+' : '') + Math.round(pnl).toString();
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
             }
         });
