@@ -39,7 +39,7 @@
         /* NEWS */
         .news-strip { background-color: #131722; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; overflow: hidden; white-space: nowrap; position: relative; font-family: 'Roboto', sans-serif; font-size: 12px; z-index: 190; }
         .news-label { background: #2962ff; color: white; font-weight: bold; padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 11px; z-index: 2; box-shadow: 5px 0 10px #131722; }
-        .news-track { display: flex; gap: 40px; animation: tickerScroll 120s linear infinite; padding-left: 20px; align-items: center; height: 100%; }
+        .news-track { display: flex; gap: 40px; animation: tickerScroll 400s linear infinite; padding-left: 20px; align-items: center; height: 100%; }
         .news-item { display: flex; align-items: center; gap: 8px; color: #d1d4dc; text-decoration: none; cursor: pointer; }
         .news-sym { color: #ff9800; font-weight: bold; font-size: 10px; border: 1px solid #ff9800; padding: 1px 4px; border-radius: 3px; }
         .news-time { color: #787b86; font-size: 10px; }
@@ -781,7 +781,13 @@
             }
         });
         
-        const volSeries = chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
+        const volSeries = chart.addHistogramSeries({ 
+            color: '#26a69a', 
+            priceFormat: { type: 'volume' }, 
+            priceScaleId: 'vol',
+            lastValueVisible: false,
+            priceLineVisible: false
+        });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 }, visible: false });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         
@@ -982,7 +988,13 @@
             timeScale: { borderColor: '#2a2e39' },
             rightPriceScale: { scaleMargins: { top: 0.05, bottom: 0.35 } } 
         });
-        const sentSeries = chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'sent' });
+        const sentSeries = chart.addHistogramSeries({ 
+            color: '#26a69a', 
+            priceFormat: { type: 'volume' }, 
+            priceScaleId: 'sent',
+            lastValueVisible: false,
+            priceLineVisible: false
+        });
         chart.priceScale('sent').applyOptions({ scaleMargins: { top: 0.70, bottom: 0 }, visible: false });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         const wrapper = document.getElementById(`content-${cfg.id}`);
