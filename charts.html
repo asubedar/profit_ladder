@@ -545,7 +545,7 @@
                         lineWidth: 2,
                         lineStyle: 2,
                         axisLabelVisible: true,
-                        title: `Avg (${p.qty})`
+                        title: ''
                     });
                     
                     // Force the left axis to re-render with the new formula
@@ -554,7 +554,7 @@
                             type: 'custom',
                             formatter: price => {
                                 const pnl = (price - p.avgPrice) * p.qty;
-                                return (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+                                return (pnl >= 0 ? '+' : '') + pnl.toFixed(2);
                             }
                         }
                     });
@@ -793,7 +793,7 @@
                     const p = state.positions[cfg.ticker];
                     if (!p) return '';
                     const pnl = (price - p.avgPrice) * p.qty;
-                    return (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+                    return (pnl >= 0 ? '+' : '') + pnl.toFixed(2);
                 }
             }
         });
@@ -822,7 +822,7 @@
             obj.entryLine = candleSeries.createPriceLine({
                 price: p.avgPrice,
                 color: p.qty > 0 ? '#26a69a' : '#ef5350',
-                lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: `Avg (${p.qty})`
+                lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: ''
             });
         }
         
