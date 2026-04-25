@@ -662,6 +662,7 @@
         state.activeWidgets.forEach(w => {
             if (w.type === 'chart') {
                 const hasPos = !!state.positions[w.ticker];
+                w.chart.priceScale('left').applyOptions({ visible: hasPos });
                 
                 if (w.entryLine) { w.candleSeries.removePriceLine(w.entryLine); w.entryLine = null; }
                 
@@ -675,6 +676,20 @@
                             lineStyle: 2,
                             axisLabelVisible: true,
                             title: ''
+                        });
+                        
+                        // Force the left axis to re-render with the new formula
+                        w.pnlSeries.applyOptions({
+                            priceFormat: {
+                                type: 'custom',
+                                formatter: price => {
+                                    const pnl = (price - p.avgPrice) * p.qty;
+                                    const absPnl = Math.abs(pnl);
+                                    if (absPnl >= 1e6) return (pnl >= 0 ? '+' : '') + (pnl / 1e6).toFixed(1) + 'M';
+                                    if (absPnl >= 1e3) return (pnl >= 0 ? '+' : '') + (pnl / 1e3).toFixed(1) + 'k';
+                                    return (pnl >= 0 ? '+' : '') + Math.round(pnl).toString();
+                                }
+                            }
                         });
                     }
                 }
@@ -874,6 +889,13 @@
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
             
+            // Activate the Left Scale for P&L syncing
+            leftPriceScale: { 
+                visible: !!state.positions[cfg.ticker], 
+                borderColor: '#2a2e39',
+                scaleMargins: { top: 0.1, bottom: 0.25 }
+            },
+            
             timeScale: { 
                 timeVisible: true, 
                 secondsVisible: false, 
@@ -907,6 +929,25 @@
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 }, visible: false });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
+        // PNL Ghost Series (Anchored to Left Scale)
+        const pnlSeries = chart.addCandlestickSeries({
+            priceScaleId: 'left',
+            upColor: 'transparent', downColor: 'transparent', wickUpColor: 'transparent', wickDownColor: 'transparent', borderVisible: false,
+            lastValueVisible: true, priceLineVisible: true, priceLineColor: '#2962ff',
+            priceFormat: {
+                type: 'custom',
+                formatter: price => {
+                    const p = state.positions[cfg.ticker];
+                    if (!p) return '';
+                    const pnl = (price - p.avgPrice) * p.qty;
+                    const absPnl = Math.abs(pnl);
+                    if (absPnl >= 1e6) return (pnl >= 0 ? '+' : '') + (pnl / 1e6).toFixed(1) + 'M';
+                    if (absPnl >= 1e3) return (pnl >= 0 ? '+' : '') + (pnl / 1e3).toFixed(1) + 'k';
+                    return (pnl >= 0 ? '+' : '') + Math.round(pnl).toString();
+                }
+            }
+        });
+
         const vwapSeries = chart.addLineSeries({ color: '#b042f5', lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false });
 
         const wrapper = document.getElementById(`content-${cfg.id}`);
@@ -920,7 +961,7 @@
         ro.observe(wrapper);
 
         const obj = { 
-            ...cfg, chart, candleSeries, volSeries, vwapSeries, entryLine: null,
+            ...cfg, chart, candleSeries, volSeries, vwapSeries, pnlSeries, entryLine: null,
             lastPrice: 0, earliestTime: null, isLoading: false, width: wrapper.clientWidth,
             lastCumVol: 0, lastCumPV: 0, lastSessionDate: null, ro
         };
@@ -1159,6 +1200,7 @@
         
         if(data) { 
             c.candleSeries.setData(data.ohlc); 
+            c.pnlSeries.setData(data.ohlc); // Feed exact mirror data to PNL Series
             c.volSeries.setData(data.vol); 
             if(c.vwapSeries) c.vwapSeries.setData(data.vwap);
             
@@ -1191,6 +1233,7 @@
                 const oldBars = json.bars.reverse();
                 const data = parseBars(oldBars); 
                 c.candleSeries.setData(data.ohlc.concat(c.candleSeries.data())); 
+                c.pnlSeries.setData(data.ohlc.concat(c.pnlSeries.data())); 
                 c.volSeries.setData(data.vol.concat(c.volSeries.data())); 
                 if(c.vwapSeries) c.vwapSeries.setData(data.vwap.concat(c.vwapSeries.data()));
                 c.earliestTime = data.ohlc[0].time; 
@@ -1273,6 +1316,7 @@
         
         const bar = { time: time, open: open, high: high, low: low, close: close, vw: intervalVwap }; 
         w.candleSeries.update(bar);
+        w.pnlSeries.update(bar); // Update the P&L shadow series simultaneously
         
         if (vol !== undefined) {
             w.volSeries.update({ time: time, value: vol, color: close >= open ? '#26a69a' : '#ef5350' });
