@@ -201,7 +201,7 @@
                     <div class="dropdown-item" onclick="setRightSidebarLayout(3)">3 Widgets</div>
                 </div>
             </div>
-            <!-- NEW PORTFOLIO BUTTON -->
+            <!-- PORTFOLIO BUTTON -->
             <button class="icon-btn" id="positionsBtn" title="Manage Positions"><i class="fas fa-briefcase"></i></button>
             <button class="icon-btn" id="refreshBtn" title="Force Refresh"><i class="fas fa-sync-alt"></i></button>
             <button class="icon-btn" id="debugToggle" title="System Logs"><i class="fas fa-bug"></i></button>
@@ -240,7 +240,7 @@
     </div>
 </div>
 
-<!-- NEW POSITIONS MODAL -->
+<!-- POSITIONS MODAL -->
 <div id="positionsModal" class="modal-overlay">
     <div class="modal-content" style="width: 450px;">
         <h3 style="margin:0 0 15px 0; color:#d1d4dc;">Manage Positions</h3>
@@ -248,7 +248,7 @@
             <input type="text" id="posSym" class="form-input" placeholder="Ticker (AAPL)" style="width: 30%;">
             <input type="number" id="posQty" class="form-input" placeholder="Qty (Shares)" style="width: 30%;">
             <input type="number" id="posPrice" class="form-input" placeholder="Avg Price" style="width: 40%;">
-            <button class="btn-p" onclick="addPosition()">Add</button>
+            <button class="btn-p" onclick="addPosition()">Save</button>
         </div>
         <div id="positionsList" style="max-height: 250px; overflow-y: auto; border: 1px solid #2a2e39; border-radius: 4px; padding: 10px; background: #131722; margin-bottom: 15px;">
             <!-- Rendered by JS -->
@@ -271,8 +271,6 @@
     }
     function formatNum(num) { if(!num) return '0'; if(num>=1e9) return (num/1e9).toFixed(2)+'B'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
     
-    // UPDATED: Extremely robust snap logic that handles 1m/5m/15m/1M 
-    // AND properly aligns US Equities market hours
     function snapTime(t, f) {
         if(f==='1Min' || f==='1m') return Math.floor(t/60)*60;
         if(f==='5Min' || f==='5m') return Math.floor(t/300)*300;
@@ -313,7 +311,6 @@
             
             const sessionVwap = (cumVol === 0) ? 0 : (cumPV / cumVol);
             
-            // Pass x.vw (interval vwap) for the $V calc in legend
             o.push({time: t, open: x.o, high: x.h, low: x.l, close: x.c}); 
             v.push({time: t, value: x.v, color: (x.c >= x.o ? '#26a69a' : '#ef5350')});
             w.push({time: t, value: sessionVwap});
@@ -354,8 +351,10 @@
         refreshInterval: null, screenerInterval: null, tapeInterval: null, newsInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
         newsSymbols: new Set(),
-        positions: {} // NEW: Holds user's active trades { 'AAPL': { qty: 100, avgPrice: 150 } }
+        positions: {} // Holds user's active trades { 'AAPL': { qty: 100, avgPrice: 150 } }
     };
+    
+    let editingSymbol = null; // Tracks if we are editing an existing position via the UI
 
     // --- CENTRALIZED DATA STORE ---
     const MarketData = {
@@ -371,7 +370,7 @@
                 const keys = await getKeys(); if(!keys) return null;
                 const end = new Date().toISOString(); 
                 
-                // OPTIMIZATION #1: Dynamic lookback to prevent 500,000+ bar payloads
+                // Dynamic lookback to prevent 500,000+ bar payloads
                 const timeframesDays = { '1Min': 2, '1m': 2, '5Min': 5, '5m': 5, '15Min': 14, '15m': 14, '1H': 60, '1h': 60, '4H': 120, '4h': 120, '1D': 730, '1d': 730, '1W': 1825, '1w': 1825, '1M': 3650, 'M': 3650 };
                 const daysBack = timeframesDays[timeframe] || 30;
                 const start = new Date(Date.now() - (daysBack * 86400000)).toISOString();
@@ -481,7 +480,6 @@
             const sym = pos.symbol || pos.tickerSymbol; // Backwards compatible with legacy tape
             const q = parseFloat(pos.qty);
             const a = parseFloat(pos.avgPrice);
-            // Only load valid positions to prevent legacy/corrupted data from crashing the UI
             if (sym && !isNaN(q) && !isNaN(a)) {
                 state.positions[sym] = { qty: q, avgPrice: a };
             }
@@ -490,7 +488,15 @@
     
     window.togglePositionsModal = function(show) {
         document.getElementById('positionsModal').style.display = show ? 'flex' : 'none';
-        if (show) renderPositionsList();
+        if (show) {
+            editingSymbol = null;
+            document.getElementById('posSym').disabled = false;
+            document.getElementById('posSym').style.opacity = '1';
+            document.getElementById('posSym').value = '';
+            document.getElementById('posQty').value = '';
+            document.getElementById('posPrice').value = '';
+            renderPositionsList();
+        }
     };
     
     function renderPositionsList() {
@@ -500,9 +506,8 @@
             return;
         }
         let h = `<table style="width:100%; text-align:left; font-size:12px; border-collapse:collapse;">
-                    <tr style="border-bottom:1px solid #2a2e39; color:#787b86;"><th>Symbol</th><th>Qty</th><th>Avg Price</th><th></th></tr>`;
+                    <tr style="border-bottom:1px solid #2a2e39; color:#787b86;"><th>Symbol</th><th>Qty</th><th>Avg Price</th><th style="text-align:right;">Actions</th></tr>`;
         for (const [sym, p] of Object.entries(state.positions)) {
-            // Safety fallbacks for rendering
             const safeQty = (p.qty !== undefined && !isNaN(p.qty)) ? p.qty : 0;
             const safePrice = (p.avgPrice !== undefined && !isNaN(p.avgPrice)) ? p.avgPrice.toFixed(2) : '0.00';
             
@@ -510,28 +515,67 @@
                     <td style="padding:8px 0; font-weight:bold; color:#d1d4dc;">${sym}</td>
                     <td>${safeQty}</td>
                     <td>$${safePrice}</td>
-                    <td style="text-align:right;"><button class="btn-danger" style="padding:2px 6px; font-size:10px;" onclick="removePosition('${sym}')">Remove</button></td>
+                    <td style="text-align:right; white-space:nowrap;">
+                        <button class="icon-btn" style="display:inline-flex; width:24px;height:24px;font-size:11px;margin-right:4px;" onclick="editPosition('${sym}')" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn" style="display:inline-flex; width:24px;height:24px;font-size:11px;color:#ef5350;" onclick="removePosition('${sym}')" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                    </td>
                   </tr>`;
         }
         h += `</table>`;
         list.innerHTML = h;
     }
     
+    window.editPosition = function(sym) {
+        const p = state.positions[sym];
+        if (!p) return;
+        
+        document.getElementById('posSym').value = sym;
+        document.getElementById('posQty').value = p.qty;
+        document.getElementById('posPrice').value = p.avgPrice;
+        
+        editingSymbol = sym;
+        document.getElementById('posSym').disabled = true;
+        document.getElementById('posSym').style.opacity = '0.5';
+        document.getElementById('posQty').focus();
+    };
+    
     window.addPosition = async function() {
         const sym = document.getElementById('posSym').value.toUpperCase().trim();
         const qty = parseFloat(document.getElementById('posQty').value);
         const price = parseFloat(document.getElementById('posPrice').value);
-        if(!sym || isNaN(qty) || isNaN(price)) return alert("Please enter valid position details.");
         
+        if(!sym || isNaN(qty) || isNaN(price) || qty === 0) return alert("Please enter valid position details (Qty ≠ 0).");
+        
+        let newQty = qty;
+        let newAvg = price;
+
+        if (editingSymbol !== sym && state.positions[sym]) {
+            // Accumulating an existing position
+            const oldQty = state.positions[sym].qty;
+            const oldAvg = state.positions[sym].avgPrice;
+            newQty = oldQty + qty;
+            
+            if (newQty === 0) {
+                return removePosition(sym); // Zero shares = closed position
+            }
+            newAvg = ((oldQty * oldAvg) + (qty * price)) / newQty;
+        }
+
         const db = await openDB();
         const tx = db.transaction("Positions", "readwrite");
-        tx.objectStore("Positions").put({ symbol: sym, tickerSymbol: sym, qty: qty, avgPrice: price });
+        tx.objectStore("Positions").put({ symbol: sym, tickerSymbol: sym, qty: newQty, avgPrice: newAvg });
         
-        state.positions[sym] = { qty, avgPrice: price };
-        renderPositionsList();
+        state.positions[sym] = { qty: newQty, avgPrice: newAvg };
+        
+        // Reset form
         document.getElementById('posSym').value = '';
         document.getElementById('posQty').value = '';
         document.getElementById('posPrice').value = '';
+        document.getElementById('posSym').disabled = false;
+        document.getElementById('posSym').style.opacity = '1';
+        editingSymbol = null;
+        
+        renderPositionsList();
         applyPositionsToCharts(); 
     };
     
@@ -624,7 +668,6 @@
     function renderAll() {
         // GARBAGE COLLECTION
         state.activeWidgets.forEach(w => {
-            // OPTIMIZATION #4: Unsubscribe from chart events to prevent memory leaks
             if (w.crosshairUnsub) w.chart.unsubscribeCrosshairMove(w.crosshairUnsub);
             if (w.rangeUnsub) w.chart.timeScale().unsubscribeVisibleLogicalRangeChange(w.rangeUnsub);
             
@@ -636,7 +679,6 @@
         Object.keys(MarketData.trades).forEach(t => { if(!activeTickers.has(t)) delete MarketData.trades[t]; });
         Object.keys(MarketData.quotes).forEach(t => { if(!activeTickers.has(t)) delete MarketData.quotes[t]; });
         
-        // OPTIMIZATION #11: Clean up orphaned bar requests
         Object.keys(MarketData.barRequests).forEach(k => {
             if(!activeTickers.has(k.split('_')[0])) delete MarketData.barRequests[k];
         });
@@ -813,7 +855,6 @@
             lastCumVol: 0, lastCumPV: 0, lastSessionDate: null, ro
         };
         
-        // Add Price Line immediately if position exists
         if (state.positions[cfg.ticker]) {
             const p = state.positions[cfg.ticker];
             obj.entryLine = candleSeries.createPriceLine({
@@ -868,7 +909,6 @@
         chart.subscribeCrosshairMove(crosshairUnsub);
         obj.crosshairUnsub = crosshairUnsub; // Store for GC
         
-        // OPTIMIZATION #10: Debounce historical scrolling to prevent API spam
         let loadTimeout = null;
         const rangeUnsub = range => { 
             if(range && range.from < 10 && !obj.isLoading) {
@@ -877,7 +917,7 @@
             }
         };
         chart.timeScale().subscribeVisibleLogicalRangeChange(rangeUnsub);
-        obj.rangeUnsub = rangeUnsub; // Store for GC
+        obj.rangeUnsub = rangeUnsub; 
         
         await loadChartData(obj);
         updateChartsRealtime();
@@ -1016,7 +1056,6 @@
         const fhToken = await getFinnhubKey();
         if(!k || !fhToken) { log("Missing API Keys for Sentiment Chart", "error"); return; }
         
-        // Match optimization #1 lookback for sentiment too
         const start = new Date(Date.now() - (3650 * 86400000)).toISOString();
         const end = new Date().toISOString();
         
