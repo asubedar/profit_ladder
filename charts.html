@@ -33,6 +33,10 @@
         .ticker-track { display: flex; gap: 20px; animation: tickerScroll 90s linear infinite; align-items: center; height: 100%; }
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
+        
+        /* FIX: Added missing style for ticker sections */
+        .ticker-section { display: flex; align-items: center; margin-right: 20px; } 
+
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .section-label { color: #2962ff; font-weight: 900; font-size: 11px; letter-spacing: 1px; border: 1px solid #2962ff; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
 
@@ -432,6 +436,72 @@
     function findConfig(id) { return state.chartsConfig.find(x=>x.id===id) || state.leftWidgetsConfig.find(x=>x.id===id) || state.rightWidgetsConfig.find(x=>x.id===id); }
     function syncLinkedWidgets(group, ticker) { if(!group) return; [...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].forEach(c => { if(c.linkGroup === group) c.ticker = ticker; }); }
     function updateSidebarConfig(side, count) { const arr = (side==='left') ? state.leftWidgetsConfig : state.rightWidgetsConfig; const prefix = (side==='left') ? 'l' : 'r'; if(count === 0) { if(side==='left') state.leftWidgetsConfig=[]; else state.rightWidgetsConfig=[]; if(side==='left') state.isLeftOpen=false; else state.isRightOpen=false; } else { if(count > arr.length) { for(let i=arr.length; i<count; i++) arr.push({ id: `${prefix}${i}`, type: 'tape', ticker: 'AAPL', linkGroup: null }); } else if(count < arr.length) { if(side==='left') state.leftWidgetsConfig = arr.slice(0,count); else state.rightWidgetsConfig = arr.slice(0,count); } if(side==='left') state.isLeftOpen = true; else state.isRightOpen = true; } saveState(); renderAll(); }
+    
+    // --- RESTORED MISSING FUNCTIONS ---
+    
+    // Toggles sidebars open/closed
+    window.toggleSidebar = function(side) {
+        if (side === 'left') state.isLeftOpen = !state.isLeftOpen;
+        else state.isRightOpen = !state.isRightOpen;
+        saveState();
+        renderAll();
+    };
+
+    // Changes ticker on main chart via ticker tape click
+    window.changeTicker = function(sym) {
+        if (state.chartsConfig.length > 0) {
+            const mainChart = state.chartsConfig[0];
+            syncLinkedWidgets(mainChart.linkGroup, sym);
+            mainChart.ticker = sym;
+            saveState();
+            renderAll();
+        }
+    };
+
+    // Renders Financials Widget
+    async function initFinancials(cfg) {
+        const container = document.getElementById(`fin-content-${cfg.id}`);
+        container.innerHTML = '<span style="color:#666; font-size:11px;">Loading Financials...</span>';
+        
+        const data = await fetchFinancials(cfg.ticker);
+        
+        if (!data || !data.metric) {
+            container.innerHTML = '<span style="color:#666; font-size:11px;">No Financial Data Available</span>';
+            return;
+        }
+
+        const m = data.metric;
+        const fmt = (v, d=2) => (v !== undefined && !isNaN(v)) ? Number(v).toFixed(d) : '-';
+
+        let html = '';
+        
+        // Key Ratios Section
+        html += `<div class="fin-section"><div class="fin-title">Key Ratios</div><div class="fin-grid">`;
+        html += `<div class="fin-item"><span class="fin-label">P/E</span><span class="fin-val">${fmt(m.pe)}</span></div>`;
+        html += `<div class="fin-item"><span class="fin-label">P/S</span><span class="fin-val">${fmt(m.ps)}</span></div>`;
+        html += `<div class="fin-item"><span class="fin-label">ROE</span><span class="fin-val">${fmt(m.roe, 1)}%</span></div>`;
+        html += `<div class="fin-item"><span class="fin-label">Net Margin</span><span class="fin-val">${fmt(m.netMargin, 1)}%</span></div>`;
+        html += `</div></div>`;
+
+        // Balance Sheet Section
+        html += `<div class="fin-section"><div class="fin-title">Balance Sheet</div><div class="fin-grid">`;
+        html += `<div class="fin-item"><span class="fin-label">Debt/Eq</span><span class="fin-val">${fmt(m.totalDebtToEquity)}</span></div>`;
+        html += `<div class="fin-item"><span class="fin-label">Cur. Ratio</span><span class="fin-val">${fmt(m.currentRatio)}</span></div>`;
+        html += `<div class="fin-item"><span class="fin-label">Book Value</span><span class="fin-val">${fmt(m.bookValue)}</span></div>`;
+        html += `</div></div>`;
+
+        // 52 Week Range Section
+        html += `<div class="range-container">`;
+        html += `<div class="range-labels"><span>52-Week Range</span></div>`;
+        html += `<div class="range-track" id="rng-track-${cfg.id}" data-high="${m.high52Week}" data-low="${m.low52Week}">`;
+        html += `<div class="range-fill"></div><div class="range-arrow" id="rng-arrow-${cfg.id}"></div>`;
+        html += `</div>`;
+        html += `<div class="range-dates"><span id="rng-low-${cfg.id}">$${fmt(m.low52Week)}</span><span id="rng-high-${cfg.id}">$${fmt(m.high52Week)}</span></div>`;
+        html += `</div>`;
+
+        container.innerHTML = html;
+    }
+    // -------------------------------------------
     
     // --- DB ---
     function openDB() {
