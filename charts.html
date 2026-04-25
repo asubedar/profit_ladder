@@ -647,6 +647,7 @@
         
         renderPositionsList();
         applyPositionsToCharts(); 
+        refreshPortfolioTape(); // Instant update
     };
     
     window.removePosition = async function(sym) {
@@ -656,6 +657,7 @@
         delete state.positions[sym];
         renderPositionsList();
         applyPositionsToCharts(); 
+        refreshPortfolioTape(); // Instant update
     };
 
     function applyPositionsToCharts() {
@@ -1358,12 +1360,63 @@
     function updateSidebarVisibility() { const l=document.getElementById('left-sidebar-area'), r=document.getElementById('right-sidebar-area'), bl=document.getElementById('leftToggle'), br=document.getElementById('rightToggle'); if(state.isLeftOpen){l.classList.remove('collapsed');bl.classList.add('active');}else{l.classList.add('collapsed');bl.classList.remove('active');} if(state.isRightOpen){r.classList.remove('collapsed');br.classList.add('active');}else{r.classList.add('collapsed');br.classList.remove('active');} setTimeout(() => { state.activeWidgets.forEach(w => { if(w.type==='chart') w.chart.applyOptions({ width: document.getElementById(`content-${w.id}`).clientWidth }); }); }, 300); }
     async function getKeys() { if(typeof getApiKeys!=='function') return null; const k=await getApiKeys(); return (k.alpacaKey||k.k) ? {k:k.alpacaKey||k.k, s:k.alpacaSecret||k.s} : null; }
     function getLinkClass(g){if(g==='A')return'link-blue';if(g==='B')return'link-orange';if(g==='C')return'link-green';if(g==='D')return'link-purple';if(g==='E')return'link-red';return'';}
-    async function refreshPortfolioTape(){const k=await getKeys();if(!k)return;try{const db=await new Promise((r,j)=>{const q=indexedDB.open("ProfitLadderDB",4);q.onsuccess=e=>r(e.target.result);q.onerror=j;});const tx=db.transaction("Positions","readonly");const p=await new Promise(r=>{tx.objectStore("Positions").getAll().onsuccess=e=>r(e.target.result);});const t=p.map(x=>x.tickerSymbol || x.symbol);t.forEach(s=>state.newsSymbols.add(s));if(t.length){const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.portfolio=generateSectionHTML("PORTFOLIO",i);renderTape();}}}catch(e){}}
+    
+    async function refreshPortfolioTape() {
+        const k = await getKeys(); if(!k) return;
+        const t = Object.keys(state.positions); // Extract clean list directly from sanitized state
+        t.forEach(s => state.newsSymbols.add(s));
+        
+        if (t.length) {
+            try {
+                const r = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`, { headers: { "APCA-API-KEY-ID": k.k, "APCA-API-SECRET-KEY": k.s } });
+                if (r.ok) {
+                    const j = await r.json();
+                    const i = Object.entries(j).map(([s,d]) => parseSnapshot(d,s)).filter(Boolean);
+                    state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", i);
+                    renderTape();
+                }
+            } catch(e) {}
+        } else {
+            state.tapeData.portfolio = '';
+            renderTape();
+        }
+    }
+    
     async function refreshScreenerTape(){const k=await getKeys();if(!k)return;fetchScreener(k,'movers?top=10','gainers',"TOP GAINERS").then(h=>{state.tapeData.gainers=h;renderTape();});fetchScreener(k,'movers?top=10','losers',"TOP LOSERS").then(h=>{state.tapeData.losers=h;renderTape();});fetchActives(k,'volume','activeVol',"ACTIVE (VOL)");fetchActives(k,'trades','activeTrd',"ACTIVE (TRD)");if(!state.tapeData.activeVol)fetchFallbackIndices(k);}
     async function fetchScreener(k,e,n,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/${e}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return'';const j=await r.json();const i=(j[n]||[]).map(x=>({symbol:x.symbol,price:x.price,pct:x.percent_change}));i.forEach(x=>state.newsSymbols.add(x.symbol));return generateSectionHTML(t,i);}catch(e){return'';}}
     async function fetchActives(k,b,sk,t){try{const r=await fetch(`https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=${b}&top=10`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!r.ok)return;const j=await r.json();const l=j.most_actives||[];const s=l.map(i=>i.symbol);s.forEach(sym=>state.newsSymbols.add(sym));if(!s.length)return;const sr=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${s.join(',')}`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(sr.ok){const sj=await sr.json();const i=Object.entries(sj).map(([sy,d])=>parseSnapshot(d,sy));state.tapeData[sk]=generateSectionHTML(t,i);renderTape();}}catch(e){}}
     async function fetchFallbackIndices(k){try{const r=await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY,QQQ,IWM,DIA`,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(r.ok){const j=await r.json();const i=Object.entries(j).map(([s,d])=>parseSnapshot(d,s));state.tapeData.fallback=generateSectionHTML("INDICES",i);renderTape();}}catch(e){} }
-    async function refreshNewsTape(){const k=await getKeys();if(!k)return;let s=Array.from(state.newsSymbols);if(!s.length)s=['SPY','QQQ'];const r=s.slice(0,25).join(',');const u=`https://data.alpaca.markets/v1beta1/news?symbols=${r}&limit=50`;try{const rs=await fetch(u,{headers:{"APCA-API-KEY-ID":k.k,"APCA-API-SECRET-KEY":k.s}});if(!rs.ok)return;const j=await rs.json();if(j.news){let h='';j.news.forEach(n=>{const sym=(n.symbols&&n.symbols.length)?n.symbols[0]:'MKT';const t=new Date(n.updated_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});h+=`<a class="news-item" href="${n.url}" target="_blank"><span class="news-sym">${sym}</span><span>${n.headline}</span><span class="news-time">${t}</span></a>`;});document.getElementById('newsTrack').innerHTML=h+h;}}catch(e){}}
+    
+    async function refreshNewsTape() {
+        const k = await getKeys(); if(!k) return;
+        
+        // Priority #1: Push all active portfolio symbols to the very front
+        const portfolioSyms = Object.keys(state.positions);
+        const otherSyms = Array.from(state.newsSymbols).filter(sym => !state.positions[sym]);
+        
+        let s = [...portfolioSyms, ...otherSyms];
+        if (!s.length) s = ['SPY', 'QQQ'];
+        
+        // We capture the top 25, meaning portfolio holdings easily win Priority
+        const r = s.slice(0, 25).join(',');
+        const u = `https://data.alpaca.markets/v1beta1/news?symbols=${r}&limit=50`;
+        
+        try {
+            const rs = await fetch(u, { headers: { "APCA-API-KEY-ID": k.k, "APCA-API-SECRET-KEY": k.s } });
+            if (!rs.ok) return;
+            const j = await rs.json();
+            if (j.news) {
+                let h = '';
+                j.news.forEach(n => {
+                    const sym = (n.symbols && n.symbols.length) ? n.symbols[0] : 'MKT';
+                    const t = new Date(n.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    h += `<a class="news-item" href="${n.url}" target="_blank"><span class="news-sym">${sym}</span><span>${n.headline}</span><span class="news-time">${t}</span></a>`;
+                });
+                document.getElementById('newsTrack').innerHTML = h + h;
+            }
+        } catch(e) {}
+    }
+    
     function renderTape() { const t=document.getElementById('tickerTrack'); let h=[state.tapeData.portfolio,state.tapeData.gainers,state.tapeData.losers,state.tapeData.activeVol,state.tapeData.activeTrd,state.tapeData.fallback].join(''); if(h.trim().length===0) h='<span style="color:#666;">Loading...</span>'; t.innerHTML=h+h; }
     function parseSnapshot(d,s) { if(!d||!d.latestTrade)return null; const p=d.latestTrade.p; const pr=d.prevDailyBar?d.prevDailyBar.c:p; return{symbol:s,price:p,pct:((p-pr)/pr)*100}; }
     function generateSectionHTML(t,i) { if(!i||i.length===0)return ''; let h=`<div class="ticker-section"><span class="section-label">${t}</span>`; i.forEach(x=>{ if(!x)return; const c=x.pct>=0?'color-up':'color-down'; const ic=x.pct>=0?'▲':'▼'; h+=`<div class="ticker-item" onclick="changeTicker('${x.symbol}')"><span class="t-sym">${x.symbol}</span><span class="t-price">${x.price.toFixed(2)}</span><span class="t-chg ${c}">${ic} ${Math.abs(x.pct).toFixed(2)}%</span></div>`; }); return h+'</div>'; }
