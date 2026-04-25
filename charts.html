@@ -314,7 +314,7 @@
             const sessionVwap = (cumVol === 0) ? 0 : (cumPV / cumVol);
             
             // Pass x.vw (interval vwap) for the $V calc in legend
-            o.push({time: t, open: x.o, high: x.h, low: x.l, close: x.c, vw: x.vw}); 
+            o.push({time: t, open: x.o, high: x.h, low: x.l, close: x.c}); 
             v.push({time: t, value: x.v, color: (x.c >= x.o ? '#26a69a' : '#ef5350')});
             w.push({time: t, value: sessionVwap});
         });
@@ -548,7 +548,6 @@
         state.activeWidgets.forEach(w => {
             if (w.type === 'chart') {
                 const hasPos = !!state.positions[w.ticker];
-                w.chart.priceScale('left').applyOptions({ visible: hasPos });
                 
                 if (w.entryLine) { w.candleSeries.removePriceLine(w.entryLine); w.entryLine = null; }
                 
@@ -562,20 +561,6 @@
                             lineStyle: 2,
                             axisLabelVisible: true,
                             title: ''
-                        });
-                        
-                        // Force the left axis to re-render with the new formula
-                        w.pnlSeries.applyOptions({
-                            priceFormat: {
-                                type: 'custom',
-                                formatter: price => {
-                                    const pnl = (price - p.avgPrice) * p.qty;
-                                    const absPnl = Math.abs(pnl);
-                                    if (absPnl >= 1e6) return (pnl >= 0 ? '+' : '') + (pnl / 1e6).toFixed(1) + 'M';
-                                    if (absPnl >= 1e3) return (pnl >= 0 ? '+' : '') + (pnl / 1e3).toFixed(1) + 'k';
-                                    return (pnl >= 0 ? '+' : '') + Math.round(pnl).toString();
-                                }
-                            }
                         });
                     }
                 }
@@ -602,7 +587,7 @@
             return data;
         } catch (e) { return null; }
     }
-    async function pruneFinancials() { const db = await openDB(); const tx = db.transaction("Financials", "readwrite"); const store = tx.objectStore("Financials"); const now = Date.now(); store.openCursor().onsuccess = (event) => { const cursor = event.target.result; if (cursor) { if (now - cursor.value.timestamp > 86400000) cursor.delete(); cursor.continue(); } }; }
+    async function pruneFinancials() { const db = await openDB(); const tx = db.transaction("Financials", "readwrite"); const store = tx.objectStore("Financials"); const now = Date.now(); store.openCursor().onsuccess = (event) => { const cursor = event.target.result; if (cursor) { if (now - cursor.value.timestamp > 14400000) cursor.delete(); cursor.continue(); } }; }
 
     // --- INIT ---
     async function init() {
@@ -616,7 +601,7 @@
             pruneFinancials();
             
             clearInterval(state.refreshInterval); clearInterval(state.screenerInterval); clearInterval(state.tapeInterval);
-            state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 3000);
+            state.refreshInterval = setInterval(() => { updateChartsRealtime(); refreshPortfolioTape(); }, 5000);
             state.screenerInterval = setInterval(refreshScreenerTape, 60000);
             state.tapeInterval = setInterval(updateTapeIndividual, 1000);
             state.newsInterval = setInterval(refreshNewsTape, 120000);
@@ -777,13 +762,6 @@
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
             
-            // Activate the Left Scale for P&L syncing
-            leftPriceScale: { 
-                visible: !!state.positions[cfg.ticker], 
-                borderColor: '#2a2e39',
-                scaleMargins: { top: 0.1, bottom: 0.25 }
-            },
-            
             timeScale: { 
                 timeVisible: true, 
                 secondsVisible: false, 
@@ -816,25 +794,6 @@
         });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 }, visible: false });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
-        
-        // PNL Ghost Series (Anchored to Left Scale)
-        const pnlSeries = chart.addCandlestickSeries({
-            priceScaleId: 'left',
-            upColor: 'transparent', downColor: 'transparent', wickUpColor: 'transparent', wickDownColor: 'transparent', borderVisible: false,
-            lastValueVisible: true, priceLineVisible: true, priceLineColor: '#2962ff',
-            priceFormat: {
-                type: 'custom',
-                formatter: price => {
-                    const p = state.positions[cfg.ticker];
-                    if (!p) return '';
-                    const pnl = (price - p.avgPrice) * p.qty;
-                    const absPnl = Math.abs(pnl);
-                    if (absPnl >= 1e6) return (pnl >= 0 ? '+' : '') + (pnl / 1e6).toFixed(1) + 'M';
-                    if (absPnl >= 1e3) return (pnl >= 0 ? '+' : '') + (pnl / 1e3).toFixed(1) + 'k';
-                    return (pnl >= 0 ? '+' : '') + Math.round(pnl).toString();
-                }
-            }
-        });
 
         const vwapSeries = chart.addLineSeries({ color: '#b042f5', lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false });
 
@@ -849,7 +808,7 @@
         ro.observe(wrapper);
 
         const obj = { 
-            ...cfg, chart, candleSeries, volSeries, vwapSeries, pnlSeries, entryLine: null,
+            ...cfg, chart, candleSeries, volSeries, vwapSeries, entryLine: null,
             lastPrice: 0, earliestTime: null, isLoading: false, width: wrapper.clientWidth,
             lastCumVol: 0, lastCumPV: 0, lastSessionDate: null, ro
         };
@@ -880,7 +839,7 @@
                 let dateStr = isDailyPlus ? d.toLocaleDateString() : `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
                 const color = c.close >= c.open ? '#26a69a' : '#ef5350';
                 const volVal = v ? v.value : 0;
-                const dolVol = volVal * (c.vw || c.close); 
+                const dolVol = volVal * c.close; 
                 const w = obj.width || 400; 
                 
                 let items = [];
@@ -894,6 +853,14 @@
                 if (w >= 250) items.push(`V:<span style="color:#d1d4dc">${formatNum(volVal)}</span>`);
                 if (w >= 320) items.push(`$V:<span style="color:#2962ff">${formatNum(dolVol)}</span>`);
                 if (w >= 450 && vw && vw.value) items.push(`VWAP:<span style="color:#b042f5">${vw.value.toFixed(2)}</span>`);
+                
+                const pos = state.positions[cfg.ticker];
+                if (pos && w >= 320) {
+                    const pnl = (c.close - pos.avgPrice) * pos.qty;
+                    const sign = pnl >= 0 ? '+' : '';
+                    const pnlColor = pnl >= 0 ? '#26a69a' : '#ef5350';
+                    items.push(`P&L:<span style="color:${pnlColor}">${sign}${formatNum(pnl)}</span>`);
+                }
                 
                 el.innerHTML = items.map(item => `<div class="legend-item">${item}</div>`).join('');
             }
@@ -958,23 +925,21 @@
                         const list = document.getElementById(`tape-list-${w.id}`);
                         if(!list || list.offsetParent === null) return;
                         
-                        let h = '';
-                        for(let i=0; i<masterList.length; i++) {
-                            const t = masterList[i];
+                        const rows = masterList.map((t, i) => {
                             const prevPrice = (i < masterList.length - 1) ? masterList[i+1].p : t.p;
                             const c = t.p >= prevPrice ? 't-up' : 't-down';
                             const bg = t.s >= 100 ? 't-large' : '';
                             const tm = new Date(t.t).toLocaleTimeString([],{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
                             const exch = exMap[t.x] || t.x || '-';
                             
-                            h += `<div class="tape-row ${bg}">
+                            return `<div class="tape-row ${bg}">
                                     <span class="tape-time">${tm}</span>
                                     <span class="tape-price ${c}">${t.p.toFixed(2)}</span>
                                     <span class="tape-size">${t.s}</span>
                                     <span class="tape-venue">${exch}</span>
                                   </div>`;
-                        }
-                        list.innerHTML = h;
+                        });
+                        list.innerHTML = rows.join('');
                     });
                 }
             } catch(e) { }
@@ -1080,13 +1045,11 @@
     }
 
     async function loadChartData(c) { 
-        // OPTIMIZATION #5: Removed unnecessary fetchFinancials(c.ticker) here
         c.isLoading = true;
         const data = await MarketData.getBars(c.ticker, c.timeframe);
         
         if(data) { 
             c.candleSeries.setData(data.ohlc); 
-            c.pnlSeries.setData(data.ohlc); // Feed exact mirror data to PNL Series
             c.volSeries.setData(data.vol); 
             if(c.vwapSeries) c.vwapSeries.setData(data.vwap);
             
@@ -1118,10 +1081,9 @@
             if(json.bars) { 
                 const oldBars = json.bars.reverse();
                 const data = parseBars(oldBars); 
-                c.candleSeries.setData([...data.ohlc, ...c.candleSeries.data()]); 
-                c.pnlSeries.setData([...data.ohlc, ...c.pnlSeries.data()]); 
-                c.volSeries.setData([...data.vol, ...c.volSeries.data()]); 
-                if(c.vwapSeries) c.vwapSeries.setData([...data.vwap, ...c.vwapSeries.data()]);
+                c.candleSeries.setData(data.ohlc.concat(c.candleSeries.data())); 
+                c.volSeries.setData(data.vol.concat(c.volSeries.data())); 
+                if(c.vwapSeries) c.vwapSeries.setData(data.vwap.concat(c.vwapSeries.data()));
                 c.earliestTime = data.ohlc[0].time; 
             } 
         } catch(e) {} finally { c.isLoading = false; } 
@@ -1202,7 +1164,6 @@
         
         const bar = { time: time, open: open, high: high, low: low, close: close, vw: intervalVwap }; 
         w.candleSeries.update(bar);
-        w.pnlSeries.update(bar); // Update the P&L shadow series simultaneously
         
         if (vol !== undefined) {
             w.volSeries.update({ time: time, value: vol, color: close >= open ? '#26a69a' : '#ef5350' });
