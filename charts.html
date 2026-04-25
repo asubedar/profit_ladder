@@ -369,7 +369,13 @@
             
             const p = (async () => {
                 const keys = await getKeys(); if(!keys) return null;
-                const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z"; 
+                const end = new Date().toISOString(); 
+                
+                // OPTIMIZATION #1: Dynamic lookback to prevent 500,000+ bar payloads
+                const timeframesDays = { '1Min': 2, '1m': 2, '5Min': 5, '5m': 5, '15Min': 14, '15m': 14, '1H': 60, '1h': 60, '4H': 120, '4h': 120, '1D': 730, '1d': 730, '1W': 1825, '1w': 1825, '1M': 3650, 'M': 3650 };
+                const daysBack = timeframesDays[timeframe] || 30;
+                const start = new Date(Date.now() - (daysBack * 86400000)).toISOString();
+
                 let tf = timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M' || tf==='M') tf='1Month'; if(tf==='1H') tf='1Hour';
                 const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; 
                 try {
@@ -633,6 +639,10 @@
     function renderAll() {
         // GARBAGE COLLECTION
         state.activeWidgets.forEach(w => {
+            // OPTIMIZATION #4: Unsubscribe from chart events to prevent memory leaks
+            if (w.crosshairUnsub) w.chart.unsubscribeCrosshairMove(w.crosshairUnsub);
+            if (w.rangeUnsub) w.chart.timeScale().unsubscribeVisibleLogicalRangeChange(w.rangeUnsub);
+            
             if (w.chart && typeof w.chart.remove === 'function') w.chart.remove();
             if (w.ro && typeof w.ro.disconnect === 'function') w.ro.disconnect();
         });
@@ -640,6 +650,11 @@
         const activeTickers = new Set([...state.chartsConfig, ...state.leftWidgetsConfig, ...state.rightWidgetsConfig].map(c => c.ticker));
         Object.keys(MarketData.trades).forEach(t => { if(!activeTickers.has(t)) delete MarketData.trades[t]; });
         Object.keys(MarketData.quotes).forEach(t => { if(!activeTickers.has(t)) delete MarketData.quotes[t]; });
+        
+        // OPTIMIZATION #11: Clean up orphaned bar requests
+        Object.keys(MarketData.barRequests).forEach(k => {
+            if(!activeTickers.has(k.split('_')[0])) delete MarketData.barRequests[k];
+        });
 
         state.activeWidgets = [];
         const main = document.getElementById('main-area'); main.innerHTML = '';
@@ -853,7 +868,7 @@
 
         state.activeWidgets.push(obj);
         
-        chart.subscribeCrosshairMove(p => {
+        const crosshairUnsub = p => {
             const c = p.seriesData.get(candleSeries);
             const v = p.seriesData.get(volSeries);
             const vw = p.seriesData.get(vwapSeries);
@@ -882,9 +897,21 @@
                 
                 el.innerHTML = items.map(item => `<div class="legend-item">${item}</div>`).join('');
             }
-        });
+        };
+        chart.subscribeCrosshairMove(crosshairUnsub);
+        obj.crosshairUnsub = crosshairUnsub; // Store for GC
         
-        chart.timeScale().subscribeVisibleLogicalRangeChange(range => { if(range && range.from < 10 && !obj.isLoading) loadOlderData(obj); });
+        // OPTIMIZATION #10: Debounce historical scrolling to prevent API spam
+        let loadTimeout = null;
+        const rangeUnsub = range => { 
+            if(range && range.from < 10 && !obj.isLoading) {
+                if (loadTimeout) clearTimeout(loadTimeout);
+                loadTimeout = setTimeout(() => { loadOlderData(obj); }, 300);
+            }
+        };
+        chart.timeScale().subscribeVisibleLogicalRangeChange(rangeUnsub);
+        obj.rangeUnsub = rangeUnsub; // Store for GC
+        
         await loadChartData(obj);
         updateChartsRealtime();
     }
@@ -1023,7 +1050,11 @@
         const k = await getKeys(); 
         const fhToken = await getFinnhubKey();
         if(!k || !fhToken) { log("Missing API Keys for Sentiment Chart", "error"); return; }
-        const end = new Date().toISOString(); const start = "2020-01-01T00:00:00Z";
+        
+        // Match optimization #1 lookback for sentiment too
+        const start = new Date(Date.now() - (3650 * 86400000)).toISOString();
+        const end = new Date().toISOString();
+        
         const cUrl = `https://data.alpaca.markets/v2/stocks/${w.ticker}/bars?timeframe=1Month&start=${start}&end=${end}&limit=500&adjustment=split&sort=desc`;
         const today = new Date().toISOString().split('T')[0];
         const sUrl = `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${w.ticker}&from=2020-01-01&to=${today}&token=${fhToken}`;
@@ -1049,7 +1080,7 @@
     }
 
     async function loadChartData(c) { 
-        fetchFinancials(c.ticker); 
+        // OPTIMIZATION #5: Removed unnecessary fetchFinancials(c.ticker) here
         c.isLoading = true;
         const data = await MarketData.getBars(c.ticker, c.timeframe);
         
