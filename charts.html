@@ -34,7 +34,6 @@
         .ticker-item { display: flex; align-items: center; gap: 6px; font-family: 'Monaco', monospace; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .t-sym { font-weight: bold; color: #d1d4dc; } .t-price { color: #d1d4dc; } .t-chg { font-weight: bold; }
         
-        /* FIX: Added missing style for ticker sections */
         .ticker-section { display: flex; align-items: center; margin-right: 20px; } 
 
         @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
@@ -205,7 +204,6 @@
                     <div class="dropdown-item" onclick="setRightSidebarLayout(3)">3 Widgets</div>
                 </div>
             </div>
-            <!-- PORTFOLIO BUTTON -->
             <button class="icon-btn" id="positionsBtn" title="Manage Positions"><i class="fas fa-briefcase"></i></button>
             <button class="icon-btn" id="refreshBtn" title="Force Refresh"><i class="fas fa-sync-alt"></i></button>
             <button class="icon-btn" id="debugToggle" title="System Logs"><i class="fas fa-bug"></i></button>
@@ -302,14 +300,12 @@
             const t = new Date(x.t).getTime() / 1000;
             const dateStr = new Date(x.t).toLocaleDateString();
             
-            // New Day Reset
             if (dateStr !== lastDate) {
                 cumVol = 0;
                 cumPV = 0;
                 lastDate = dateStr;
             }
             
-            // Approximate average price for this bar if 'vw' is missing
             const barAvg = x.vw || ((x.h + x.l + x.c) / 3);
             
             cumVol += x.v;
@@ -328,22 +324,11 @@
     // --- CONFIG & CONSTANTS ---
     const LAYOUT_VERSION = 39; 
     
-    // FULL METRIC CATALOG
     const FUND_METRICS = {
-        'Valuation': {
-            'pe': 'P/E Ratio', 'ps': 'P/S Ratio', 'pb': 'P/B Ratio', 'evEbitda': 'EV/EBITDA',
-            'evRevenue': 'EV/Revenue', 'ev': 'Ent. Value', 'pfcf': 'P/FCF', 'ptbv': 'Price/Tang.Book'
-        },
-        'Profitability': {
-            'grossMargin': 'Gross Margin %', 'operatingMargin': 'Oper. Margin %', 'netMargin': 'Net Margin %',
-            'pretaxMargin': 'Pretax Margin %', 'fcfMargin': 'FCF Margin %', 'roe': 'ROE %', 'roa': 'ROA %'
-        },
-        'Per Share': {
-            'eps': 'EPS', 'salesPerShare': 'Sales/Share', 'bookValue': 'Book/Share'
-        },
-        'Balance Sheet': {
-            'currentRatio': 'Current Ratio', 'quickRatio': 'Quick Ratio', 'totalDebtToEquity': 'Debt/Equity'
-        }
+        'Valuation': { 'pe': 'P/E Ratio', 'ps': 'P/S Ratio', 'pb': 'P/B Ratio', 'evEbitda': 'EV/EBITDA', 'evRevenue': 'EV/Revenue', 'ev': 'Ent. Value', 'pfcf': 'P/FCF', 'ptbv': 'Price/Tang.Book' },
+        'Profitability': { 'grossMargin': 'Gross Margin %', 'operatingMargin': 'Oper. Margin %', 'netMargin': 'Net Margin %', 'pretaxMargin': 'Pretax Margin %', 'fcfMargin': 'FCF Margin %', 'roe': 'ROE %', 'roa': 'ROA %' },
+        'Per Share': { 'eps': 'EPS', 'salesPerShare': 'Sales/Share', 'bookValue': 'Book/Share' },
+        'Balance Sheet': { 'currentRatio': 'Current Ratio', 'quickRatio': 'Quick Ratio', 'totalDebtToEquity': 'Debt/Equity' }
     };
 
     const state = {
@@ -360,7 +345,7 @@
         positions: {} // Holds user's active trades { 'AAPL': { qty: 100, avgPrice: 150 } }
     };
     
-    let editingSymbol = null; // Tracks if we are editing an existing position via the UI
+    let editingSymbol = null; 
 
     // --- CENTRALIZED DATA STORE ---
     const MarketData = {
@@ -376,7 +361,6 @@
                 const keys = await getKeys(); if(!keys) return null;
                 const end = new Date().toISOString(); 
                 
-                // FIX: Increased 1m/5m lookbacks to safely jump over 3-day holiday weekends
                 const timeframesDays = { '1Min': 5, '1m': 5, '5Min': 10, '5m': 10, '15Min': 14, '15m': 14, '1H': 60, '1h': 60, '4H': 120, '4h': 120, '1D': 730, '1d': 730, '1W': 1825, '1w': 1825, '1M': 3650, 'M': 3650 };
                 const daysBack = timeframesDays[timeframe] || 30;
                 const start = new Date(Date.now() - (daysBack * 86400000)).toISOString();
@@ -506,10 +490,18 @@
     function openDB() {
         return new Promise((resolve, reject) => {
             if (!window.indexedDB) return reject(new Error("IndexedDB is blocked by browser settings"));
-            const req = indexedDB.open("ProfitLadderDB", 4);
+            
+            // FIX: Bump DB Version to 5 to self-repair corrupted Tesla schema
+            const req = indexedDB.open("ProfitLadderDB", 5); 
             req.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains("Settings")) db.createObjectStore("Settings", { keyPath: "key" });
+                
+                // If upgrading from corrupted old version, wipe and rebuild cleanly
+                if (event.oldVersion < 5 && db.objectStoreNames.contains("Positions")) {
+                    db.deleteObjectStore("Positions");
+                }
+                
                 if (!db.objectStoreNames.contains("Positions")) db.createObjectStore("Positions", { keyPath: "symbol" });
                 if (!db.objectStoreNames.contains("Financials")) db.createObjectStore("Financials", { keyPath: "symbol" });
             };
@@ -530,7 +522,6 @@
         } catch(e) { return null; }
     }
     
-    // Safely bypasses blocked confirm() prompts
     window.nuclearReset = function() { 
         const btn = document.getElementById('btnFactoryReset');
         if (btn.innerText === "Factory Reset") {
@@ -595,9 +586,9 @@
             document.getElementById('posSym').value = '';
             document.getElementById('posQty').value = '';
             document.getElementById('posPrice').value = '';
-            document.getElementById('posError').innerText = ''; // Clear error message
+            document.getElementById('posError').innerText = ''; 
             renderPositionsList();
-            refreshPortfolioTape(); // Force an immediate live quote fetch for the dashboard
+            refreshPortfolioTape(); 
         }
     };
     
@@ -698,7 +689,6 @@
         
         try {
             const sym = document.getElementById('posSym').value.toUpperCase().trim();
-            // Handle European commas and hidden mobile keyboard spaces
             const rawQty = document.getElementById('posQty').value.replace(/,/g, '.').replace(/\s/g, '');
             const rawPrice = document.getElementById('posPrice').value.replace(/,/g, '.').replace(/\s/g, '');
             
@@ -714,13 +704,12 @@
             let newAvg = price;
 
             if (editingSymbol !== sym && state.positions[sym]) {
-                // Accumulating an existing position
                 const oldQty = state.positions[sym].qty;
                 const oldAvg = state.positions[sym].avgPrice;
                 newQty = oldQty + qty;
                 
                 if (newQty === 0) {
-                    await removePosition(sym); // Zero shares = closed position
+                    await removePosition(sym); 
                     return;
                 }
                 newAvg = ((oldQty * oldAvg) + (qty * price)) / newQty;
@@ -728,11 +717,12 @@
 
             const db = await openDB();
             const tx = db.transaction("Positions", "readwrite");
-            tx.objectStore("Positions").put({ symbol: sym, tickerSymbol: sym, qty: newQty, avgPrice: newAvg });
+            
+            // FIX: Added fallbacks (id, ticker) so any legacy corrupted key paths resolve cleanly
+            tx.objectStore("Positions").put({ symbol: sym, tickerSymbol: sym, ticker: sym, id: sym, qty: newQty, avgPrice: newAvg });
             
             state.positions[sym] = { qty: newQty, avgPrice: newAvg };
             
-            // Reset form
             document.getElementById('posSym').value = '';
             document.getElementById('posQty').value = '';
             document.getElementById('posPrice').value = '';
@@ -742,7 +732,7 @@
             
             renderPositionsList();
             applyPositionsToCharts(); 
-            refreshPortfolioTape(); // Instant update
+            refreshPortfolioTape(); 
         } catch(e) {
             errEl.innerText = "Save Error: " + (e.message || "Database access blocked");
         }
@@ -755,7 +745,7 @@
         delete state.positions[sym];
         renderPositionsList();
         applyPositionsToCharts(); 
-        refreshPortfolioTape(); // Instant update
+        refreshPortfolioTape(); 
     };
 
     function applyPositionsToCharts() {
@@ -778,7 +768,6 @@
                             title: ''
                         });
                         
-                        // Force the left axis to re-render with the new formula
                         w.pnlSeries.applyOptions({
                             priceFormat: {
                                 type: 'custom',
@@ -823,7 +812,7 @@
         log("Initializing...");
         try {
             await loadSavedState();
-            await loadPositions(); // Load positions into state
+            await loadPositions(); 
             if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
             renderAll();
             refreshPortfolioTape(); refreshScreenerTape(); refreshNewsTape();
@@ -851,7 +840,6 @@
 
     // --- RENDERERS ---
     function renderAll() {
-        // GARBAGE COLLECTION
         state.activeWidgets.forEach(w => {
             if (w.crosshairUnsub) w.chart.unsubscribeCrosshairMove(w.crosshairUnsub);
             if (w.rangeUnsub) w.chart.timeScale().unsubscribeVisibleLogicalRangeChange(w.rangeUnsub);
@@ -989,7 +977,6 @@
             layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
             
-            // Activate the Left Scale for P&L syncing
             leftPriceScale: { 
                 visible: !!state.positions[cfg.ticker], 
                 borderColor: '#2a2e39',
@@ -1019,17 +1006,16 @@
             }
         });
         
+        // FIX: Using an empty string removes the volume labels from all main axes!
         const volSeries = chart.addHistogramSeries({ 
             color: '#26a69a', 
             priceFormat: { type: 'volume' }, 
-            priceScaleId: 'vol',
-            lastValueVisible: false,
-            priceLineVisible: false
+            priceScaleId: ''
         });
-        chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 }, visible: false });
+        volSeries.priceScale().applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
+        
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
-        // PNL Ghost Series (Anchored to Left Scale)
         const pnlSeries = chart.addCandlestickSeries({
             priceScaleId: 'left',
             upColor: 'transparent', downColor: 'transparent', wickUpColor: 'transparent', wickDownColor: 'transparent', borderVisible: false,
@@ -1118,7 +1104,7 @@
             }
         };
         chart.subscribeCrosshairMove(crosshairUnsub);
-        obj.crosshairUnsub = crosshairUnsub; // Store for GC
+        obj.crosshairUnsub = crosshairUnsub; 
         
         let loadTimeout = null;
         const rangeUnsub = range => { 
@@ -1245,11 +1231,9 @@
         const sentSeries = chart.addHistogramSeries({ 
             color: '#26a69a', 
             priceFormat: { type: 'volume' }, 
-            priceScaleId: 'sent',
-            lastValueVisible: false,
-            priceLineVisible: false
+            priceScaleId: '' // FIX: Overlay fix for sentiment too
         });
-        chart.priceScale('sent').applyOptions({ scaleMargins: { top: 0.70, bottom: 0 }, visible: false });
+        sentSeries.priceScale().applyOptions({ scaleMargins: { top: 0.70, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         const wrapper = document.getElementById(`content-${cfg.id}`);
         
@@ -1300,7 +1284,7 @@
         
         if(data) { 
             c.candleSeries.setData(data.ohlc); 
-            c.pnlSeries.setData(data.ohlc); // Feed exact mirror data to PNL Series
+            c.pnlSeries.setData(data.ohlc); 
             c.volSeries.setData(data.vol); 
             if(c.vwapSeries) c.vwapSeries.setData(data.vwap);
             
@@ -1309,7 +1293,6 @@
             c.lastSessionDate = data.lastDate;
 
             const len=data.ohlc.length; 
-            // FIX: Widened the default zoom from 100 to 250 bars for a better initial view
             if(len>250) c.chart.timeScale().setVisibleLogicalRange({from:len-250,to:len}); 
             else c.chart.timeScale().fitContent(); 
             c.lastPrice = data.ohlc[len-1].close; 
@@ -1417,7 +1400,7 @@
         
         const bar = { time: time, open: open, high: high, low: low, close: close, vw: intervalVwap }; 
         w.candleSeries.update(bar);
-        w.pnlSeries.update(bar); // Update the P&L shadow series simultaneously
+        w.pnlSeries.update(bar); 
         
         if (vol !== undefined) {
             w.volSeries.update({ time: time, value: vol, color: close >= open ? '#26a69a' : '#ef5350' });
@@ -1462,7 +1445,7 @@
     
     async function refreshPortfolioTape() {
         const k = await getKeys(); if(!k) return;
-        const t = Object.keys(state.positions); // Extract clean list directly from sanitized state
+        const t = Object.keys(state.positions); 
         t.forEach(s => state.newsSymbols.add(s));
         
         if (t.length) {
@@ -1471,7 +1454,6 @@
                 if (r.ok) {
                     const j = await r.json();
                     
-                    // NEW: Populate MarketData.quotes so the dashboard has instant live prices
                     Object.keys(j).forEach(sym => {
                         MarketData.quotes[sym] = j[sym] || MarketData.quotes[sym];
                     });
@@ -1480,7 +1462,6 @@
                     state.tapeData.portfolio = generateSectionHTML("PORTFOLIO", i);
                     renderTape();
                     
-                    // NEW: Update live dashboard immediately if it's currently open
                     if (document.getElementById('positionsModal').style.display === 'flex') {
                         renderPositionsList();
                     }
@@ -1500,14 +1481,12 @@
     async function refreshNewsTape() {
         const k = await getKeys(); if(!k) return;
         
-        // Priority #1: Push all active portfolio symbols to the very front
         const portfolioSyms = Object.keys(state.positions);
         const otherSyms = Array.from(state.newsSymbols).filter(sym => !state.positions[sym]);
         
         let s = [...portfolioSyms, ...otherSyms];
         if (!s.length) s = ['SPY', 'QQQ'];
         
-        // We capture the top 25, meaning portfolio holdings easily win Priority
         const r = s.slice(0, 25).join(',');
         const u = `https://data.alpaca.markets/v1beta1/news?symbols=${r}&limit=50`;
         
