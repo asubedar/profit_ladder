@@ -374,8 +374,8 @@
                 const keys = await getKeys(); if(!keys) return null;
                 const end = new Date().toISOString(); 
                 
-                // Dynamic lookback to prevent 500,000+ bar payloads
-                const timeframesDays = { '1Min': 2, '1m': 2, '5Min': 5, '5m': 5, '15Min': 14, '15m': 14, '1H': 60, '1h': 60, '4H': 120, '4h': 120, '1D': 730, '1d': 730, '1W': 1825, '1w': 1825, '1M': 3650, 'M': 3650 };
+                // FIX: Increased 1m/5m lookbacks to safely jump over 3-day holiday weekends
+                const timeframesDays = { '1Min': 5, '1m': 5, '5Min': 10, '5m': 10, '15Min': 14, '15m': 14, '1H': 60, '1h': 60, '4H': 120, '4h': 120, '1D': 730, '1d': 730, '1W': 1825, '1w': 1825, '1M': 3650, 'M': 3650 };
                 const daysBack = timeframesDays[timeframe] || 30;
                 const start = new Date(Date.now() - (daysBack * 86400000)).toISOString();
 
@@ -1260,7 +1260,8 @@
             c.lastSessionDate = data.lastDate;
 
             const len=data.ohlc.length; 
-            if(len>100) c.chart.timeScale().setVisibleLogicalRange({from:len-100,to:len}); 
+            // FIX: Widened the default zoom from 100 to 250 bars for a better initial view
+            if(len>250) c.chart.timeScale().setVisibleLogicalRange({from:len-250,to:len}); 
             else c.chart.timeScale().fitContent(); 
             c.lastPrice = data.ohlc[len-1].close; 
             c.earliestTime = data.ohlc[0].time; 
