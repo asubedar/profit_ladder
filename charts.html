@@ -629,8 +629,12 @@
         if (bpEl) bpEl.innerText = '$' + fmt(tot.buyingPower || 0);
         
         let bdHtml = '';
-        if (b.questrade) bdHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:12px;"><span style="color:#787b86;">Questrade</span><span style="color:#d1d4dc;">Cash: $${fmt(b.questrade.cash||0)} &nbsp;|&nbsp; BP: $${fmt(b.questrade.buyingPower||0)}</span></div>`;
-        if (b.ibkr) bdHtml += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#787b86;">IBKR</span><span style="color:#d1d4dc;">Cash: $${fmt(b.ibkr.cash||0)} &nbsp;|&nbsp; BP: $${fmt(b.ibkr.buyingPower||0)}</span></div>`;
+        for (const [broker, bal] of Object.entries(b)) {
+            if (broker === 'total') continue;
+            // Format broker name nicely (e.g. "nbdb" -> "NBDB", "questrade" -> "Questrade")
+            const brokerName = broker.length <= 4 ? broker.toUpperCase() : broker.charAt(0).toUpperCase() + broker.slice(1);
+            bdHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:12px;"><span style="color:#787b86;">${brokerName}</span><span style="color:#d1d4dc;">Cash: $${fmt(bal.cash||0)} &nbsp;|&nbsp; BP: $${fmt(bal.buyingPower||0)}</span></div>`;
+        }
         
         if(!bdHtml) bdHtml = '<div style="font-size:12px; color:#787b86;">No account breakdown available. Sync required.</div>';
         const bdEl = document.getElementById('balancesBreakdown');
@@ -738,7 +742,7 @@
                     const subPnlPct = subCostBasis !== 0 ? (subPnl / Math.abs(subCostBasis)) * 100 : 0;
                     const subPnlColor = subPnl > 0 ? '#26a69a' : (subPnl < 0 ? '#ef5350' : '#787b86');
                     const subSign = subPnl > 0 ? '+' : '';
-                    const accName = acc.charAt(0).toUpperCase() + acc.slice(1);
+                    const accName = acc.length <= 4 ? acc.toUpperCase() : acc.charAt(0).toUpperCase() + acc.slice(1);
 
                     h += `<tr class="pos-bd-${sym}" style="display:none; background:#161a25; border-bottom:1px dashed #2a2e39;">
                             <td style="padding:4px 0 4px 24px; color:#787b86; font-size:11px;">↳ ${accName}</td>
@@ -887,14 +891,20 @@
                 newPositions = posData.total.map(p => {
                     const sym = (p.symbol || p.ticker || '').toUpperCase();
                     const breakdown = {};
-                    if (posData.questrade) {
-                        const qt = posData.questrade.find(x => (x.symbol || x.ticker || '').toUpperCase() === sym);
-                        if (qt) breakdown.questrade = { qty: parseFloat(qt.qty), avgPrice: parseFloat(qt.avgPrice || qt.price) };
-                    }
-                    if (posData.ibkr) {
-                        const ib = posData.ibkr.find(x => (x.symbol || x.ticker || '').toUpperCase() === sym);
-                        if (ib) breakdown.ibkr = { qty: parseFloat(ib.qty), avgPrice: parseFloat(ib.avgPrice || ib.price) };
-                    }
+                    
+                    // Dynamically scan ALL brokers provided by the server
+                    Object.keys(posData).forEach(brokerKey => {
+                        if (brokerKey !== 'total' && Array.isArray(posData[brokerKey])) {
+                            const brokerPos = posData[brokerKey].find(x => (x.symbol || x.ticker || '').toUpperCase() === sym);
+                            if (brokerPos) {
+                                breakdown[brokerKey] = { 
+                                    qty: parseFloat(brokerPos.qty), 
+                                    avgPrice: parseFloat(brokerPos.avgPrice || brokerPos.price) 
+                                };
+                            }
+                        }
+                    });
+                    
                     return { ...p, breakdown };
                 });
             } else if (Array.isArray(posData)) { 
