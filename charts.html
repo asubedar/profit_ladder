@@ -234,7 +234,7 @@
         <div class="form-group"><label class="form-label">Alpaca API Key ID</label><input type="text" id="inpApiKey" class="form-input"></div>
         <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
         <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input" placeholder="Optional (60 req/min limit)"></div>
-        <div class="form-group"><label class="form-label">Positions Sync URL</label><input type="text" id="inpSyncUrl" class="form-input" placeholder="https://your-server.com/positions.json"></div>
+        <div class="form-group"><label class="form-label">Sync Server Base URL</label><input type="text" id="inpSyncUrl" class="form-input" placeholder="https://api.yourdomain.com"></div>
         <div id="settingsError" style="color:#ef5350; font-size:12px; margin-bottom:15px; height:14px;"></div>
         <div class="modal-actions">
             <button class="btn-danger" id="btnFactoryReset" onclick="nuclearReset()">Factory Reset</button>
@@ -248,6 +248,19 @@
 <div id="positionsModal" class="modal-overlay">
     <div class="modal-content" style="width: 650px;">
         <h3 style="margin:0 0 15px 0; color:#d1d4dc;">Portfolio Dashboard</h3>
+        
+        <!-- NEW BALANCES BAR -->
+        <div id="balancesDisplay" style="display:flex; justify-content:space-between; margin-bottom: 15px; padding: 10px 15px; background: #161a25; border: 1px solid #2a2e39; border-radius: 4px;">
+            <div style="display:flex; flex-direction:column;">
+                <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Total Cash</span> 
+                <span id="valTotalCash" style="color:#26a69a; font-weight:bold; font-size:16px;">$0.00</span>
+            </div>
+            <div style="display:flex; flex-direction:column; text-align:right;">
+                <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Buying Power</span> 
+                <span id="valBuyingPower" style="color:#2962ff; font-weight:bold; font-size:16px;">$0.00</span>
+            </div>
+        </div>
+
         <div style="display:flex; gap:10px; margin-bottom: 5px;">
             <input type="text" id="posSym" class="form-input" placeholder="Ticker (AAPL)" style="width: 25%;">
             <input type="text" inputmode="decimal" id="posQty" class="form-input" placeholder="Qty" style="width: 25%;">
@@ -343,7 +356,8 @@
         refreshInterval: null, screenerInterval: null, tapeInterval: null, newsInterval: null,
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
         newsSymbols: new Set(),
-        positions: {}
+        positions: {},
+        balances: { cash: 0, buyingPower: 0 } // NEW: Tracks live balances in state
     };
     
     let editingSymbol = null; 
@@ -586,6 +600,12 @@
             document.getElementById('posQty').value = '';
             document.getElementById('posPrice').value = '';
             document.getElementById('posError').innerText = ''; 
+            
+            // Populate balances UI
+            const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('valTotalCash').innerText = '$' + fmt(state.balances.cash || 0);
+            document.getElementById('valBuyingPower').innerText = '$' + fmt(state.balances.buyingPower || 0);
+            
             renderPositionsList();
             refreshPortfolioTape(); 
         }
@@ -749,7 +769,7 @@
     window.syncPositionsFromUrl = async function(isSilent = false) {
         const errEl = document.getElementById('posError');
         if (!isSilent && errEl) {
-            errEl.innerText = 'Syncing from URL...';
+            errEl.innerText = 'Syncing from Server...';
             errEl.style.color = '#26a69a';
         }
         
@@ -757,30 +777,51 @@
             const db = await openDB();
             const tx = db.transaction("Settings", "readonly");
             const req = tx.objectStore("Settings").get("SYNC_URL");
-            const url = await new Promise(r => { req.onsuccess = () => r(req.result ? req.result.value : null); req.onerror = () => r(null); });
+            let baseUrl = await new Promise(r => { req.onsuccess = () => r(req.result ? req.result.value : null); req.onerror = () => r(null); });
             
-            if (!url) {
-                if (!isSilent) throw new Error("No Sync URL configured in Settings.");
+            if (!baseUrl) {
+                if (!isSilent) throw new Error("No Sync Base URL configured in Settings.");
                 return;
             }
             
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            const data = await res.json();
+            // Clean up base URL (strip trailing slashes)
+            baseUrl = baseUrl.trim().replace(/\/+$/, '');
+            
+            // Fetch both positions and balances concurrently
+            const [posRes, balRes] = await Promise.all([
+                fetch(`${baseUrl}/positions.json`).catch(e => ({ error: e })),
+                fetch(`${baseUrl}/balances.json`).catch(e => ({ error: e }))
+            ]);
+            
+            if (posRes.error || !posRes.ok) throw new Error(`HTTP error fetching positions`);
+            const posData = await posRes.json();
             
             let newPositions = [];
             
             // Prioritize the grouped "total" array from our Python server
-            if (data && data.total && Array.isArray(data.total)) {
-                newPositions = data.total;
+            if (posData && posData.total && Array.isArray(posData.total)) {
+                newPositions = posData.total;
+            } else if (Array.isArray(posData)) { 
+                newPositions = posData; 
+            } else if (typeof posData === 'object') { 
+                newPositions = Object.keys(posData).map(k => ({ symbol: k, ...posData[k] })); 
             }
-            // Fallback for flat arrays
-            else if (Array.isArray(data)) { 
-                newPositions = data; 
-            } 
-            // Fallback for old dictionary mappings
-            else if (typeof data === 'object') { 
-                newPositions = Object.keys(data).map(k => ({ symbol: k, ...data[k] })); 
+            
+            // Process balances if available
+            if (!balRes.error && balRes.ok) {
+                const balData = await balRes.json();
+                if (balData && balData.total) {
+                    state.balances = {
+                        cash: balData.total.cash || 0,
+                        buyingPower: balData.total.buyingPower || 0
+                    };
+                    // Update UI immediately if modal is open
+                    const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const cashEl = document.getElementById('valTotalCash');
+                    const bpEl = document.getElementById('valBuyingPower');
+                    if (cashEl) cashEl.innerText = '$' + fmt(state.balances.cash);
+                    if (bpEl) bpEl.innerText = '$' + fmt(state.balances.buyingPower);
+                }
             }
             
             const txPos = db.transaction("Positions", "readwrite");
