@@ -234,6 +234,7 @@
         <div class="form-group"><label class="form-label">Alpaca API Key ID</label><input type="text" id="inpApiKey" class="form-input"></div>
         <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
         <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input" placeholder="Optional (60 req/min limit)"></div>
+        <div class="form-group"><label class="form-label">Positions Sync URL</label><input type="text" id="inpSyncUrl" class="form-input" placeholder="https://your-server.com/positions.json"></div>
         <div id="settingsError" style="color:#ef5350; font-size:12px; margin-bottom:15px; height:14px;"></div>
         <div class="modal-actions">
             <button class="btn-danger" id="btnFactoryReset" onclick="nuclearReset()">Factory Reset</button>
@@ -257,7 +258,8 @@
         <div id="positionsList" style="max-height: 350px; overflow-y: auto; border: 1px solid #2a2e39; border-radius: 4px; padding: 10px; background: #131722; margin-bottom: 15px;">
             <!-- Rendered by JS -->
         </div>
-        <div class="modal-actions">
+        <div class="modal-actions" style="justify-content: space-between;">
+            <button class="btn-s" style="color:#2962ff; border-color:#2962ff;" onclick="syncPositionsFromUrl()"><i class="fas fa-cloud-download-alt"></i> Sync URL</button>
             <button class="btn-s" onclick="togglePositionsModal(false)">Close</button>
         </div>
     </div>
@@ -279,7 +281,7 @@
         if(f==='1Min' || f==='1m') return Math.floor(t/60)*60;
         if(f==='5Min' || f==='5m') return Math.floor(t/300)*300;
         if(f==='15Min' || f==='15m') return Math.floor(t/900)*900;
-        if(f==='1H' || f==='1h') return Math.floor((t - 1800)/3600)*3600 + 1800; 
+        if(f==='1H' || f==='1h') return Math.floor((t - 1800)/3600)*3600 + 1800; // Market opens on the half hour (09:30)
         if(f==='4H' || f==='4h') return Math.floor(t/14400)*14400; 
         
         const d = new Date(t * 1000);
@@ -527,13 +529,24 @@
         if(show) { 
             document.getElementById('settingsError').innerText = '';
             document.getElementById('btnFactoryReset').innerText = 'Factory Reset';
-            (async () => { const db = await openDB(); const tx = db.transaction("Settings","readonly"); const store = tx.objectStore("Settings"); const getVal = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : ''); }); const [k, s, f] = await Promise.all([getVal("APCA_API_KEY_ID"), getVal("APCA_API_SECRET_KEY"), getVal("FINNHUB_API_KEY")]); document.getElementById('inpApiKey').value = k; document.getElementById('inpApiSecret').value = s; document.getElementById('inpFinnhubKey').value = f; })(); 
+            (async () => { 
+                const db = await openDB(); 
+                const tx = db.transaction("Settings","readonly"); 
+                const store = tx.objectStore("Settings"); 
+                const getVal = (k) => new Promise(r => { const req = store.get(k); req.onsuccess = () => r(req.result ? req.result.value : ''); }); 
+                const [k, s, f, u] = await Promise.all([getVal("APCA_API_KEY_ID"), getVal("APCA_API_SECRET_KEY"), getVal("FINNHUB_API_KEY"), getVal("SYNC_URL")]); 
+                document.getElementById('inpApiKey').value = k; 
+                document.getElementById('inpApiSecret').value = s; 
+                document.getElementById('inpFinnhubKey').value = f; 
+                if (document.getElementById('inpSyncUrl')) document.getElementById('inpSyncUrl').value = u; 
+            })(); 
         } 
     }
     async function saveApiSettings() { 
         const k = document.getElementById('inpApiKey').value.trim(); 
         const s = document.getElementById('inpApiSecret').value.trim(); 
         const f = document.getElementById('inpFinnhubKey').value.trim(); 
+        const u = document.getElementById('inpSyncUrl').value.trim(); 
         if(!k||!s) return document.getElementById('settingsError').innerText = "Alpaca keys required"; 
         try{ 
             const db=await openDB(); 
@@ -542,6 +555,7 @@
             store.put({key:"APCA_API_KEY_ID",value:k}); 
             store.put({key:"APCA_API_SECRET_KEY",value:s}); 
             store.put({key:"FINNHUB_API_KEY",value:f}); 
+            store.put({key:"SYNC_URL",value:u}); 
             tx.oncomplete=()=>window.location.reload(); 
         } catch(e){ document.getElementById('settingsError').innerText = "Error: "+e.message; } 
     }
@@ -732,6 +746,78 @@
         refreshPortfolioTape(); 
     };
 
+    window.syncPositionsFromUrl = async function(isSilent = false) {
+        const errEl = document.getElementById('posError');
+        if (!isSilent && errEl) {
+            errEl.innerText = 'Syncing from URL...';
+            errEl.style.color = '#26a69a';
+        }
+        
+        try {
+            const db = await openDB();
+            const tx = db.transaction("Settings", "readonly");
+            const req = tx.objectStore("Settings").get("SYNC_URL");
+            const url = await new Promise(r => { req.onsuccess = () => r(req.result ? req.result.value : null); req.onerror = () => r(null); });
+            
+            if (!url) {
+                if (!isSilent) throw new Error("No Sync URL configured in Settings.");
+                return;
+            }
+            
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            const data = await res.json();
+            
+            let newPositions = [];
+            
+            // Prioritize the grouped "total" array from our Python server
+            if (data && data.total && Array.isArray(data.total)) {
+                newPositions = data.total;
+            }
+            // Fallback for flat arrays
+            else if (Array.isArray(data)) { 
+                newPositions = data; 
+            } 
+            // Fallback for old dictionary mappings
+            else if (typeof data === 'object') { 
+                newPositions = Object.keys(data).map(k => ({ symbol: k, ...data[k] })); 
+            }
+            
+            const txPos = db.transaction("Positions", "readwrite");
+            const store = txPos.objectStore("Positions");
+            store.clear(); 
+            
+            state.positions = {};
+            newPositions.forEach(p => {
+                const sym = (p.symbol || p.ticker || '').toUpperCase();
+                const qty = parseFloat(p.qty);
+                const avgPrice = parseFloat(p.avgPrice || p.price);
+                if (sym && !isNaN(qty) && !isNaN(avgPrice)) {
+                    store.put({ symbol: sym, tickerSymbol: sym, ticker: sym, id: sym, key: sym, qty: qty, avgPrice: avgPrice });
+                    state.positions[sym] = { qty, avgPrice };
+                }
+            });
+            
+            if (!isSilent) {
+                if (errEl) {
+                    errEl.style.color = '#26a69a';
+                    errEl.innerText = 'Sync complete!';
+                    setTimeout(() => { if(errEl.innerText === 'Sync complete!') errEl.innerText = ''; }, 3000);
+                }
+                renderPositionsList();
+                applyPositionsToCharts();
+                refreshPortfolioTape();
+            }
+        } catch(e) {
+            if (!isSilent && errEl) {
+                errEl.style.color = '#ef5350';
+                errEl.innerText = "Sync Error: " + (e.message || "Unable to fetch JSON");
+            } else {
+                console.warn("Silent sync failed:", e);
+            }
+        }
+    };
+
     function applyPositionsToCharts() {
         state.activeWidgets.forEach(w => {
             if (w.type === 'chart') {
@@ -800,6 +886,7 @@
         try {
             try { await loadSavedState(); } catch(e) { console.warn("State load failed", e); }
             try { await loadPositions(); } catch(e) { console.warn("Positions load failed", e); }
+            try { await syncPositionsFromUrl(true); } catch(e) { console.warn("Auto-sync failed", e); } // Silent auto-sync
             if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
             
             renderAll();
@@ -1001,11 +1088,9 @@
         const volSeries = chart.addHistogramSeries({ 
             color: '#26a69a', 
             priceFormat: { type: 'volume' }, 
-            priceScaleId: 'vol',
-            lastValueVisible: false,
-            priceLineVisible: false
+            priceScaleId: '' 
         });
-        chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 }, visible: false });
+        volSeries.priceScale().applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
         
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
 
@@ -1225,11 +1310,9 @@
         const sentSeries = chart.addHistogramSeries({ 
             color: '#26a69a', 
             priceFormat: { type: 'volume' }, 
-            priceScaleId: 'sent',
-            lastValueVisible: false,
-            priceLineVisible: false
+            priceScaleId: ''
         });
-        chart.priceScale('sent').applyOptions({ scaleMargins: { top: 0.70, bottom: 0 }, visible: false });
+        sentSeries.priceScale().applyOptions({ scaleMargins: { top: 0.70, bottom: 0 } });
         const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
         const wrapper = document.getElementById(`content-${cfg.id}`);
         
