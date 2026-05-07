@@ -249,15 +249,23 @@
     <div class="modal-content" style="width: 650px;">
         <h3 style="margin:0 0 15px 0; color:#d1d4dc;">Portfolio Dashboard</h3>
         
-        <!-- NEW BALANCES BAR -->
-        <div id="balancesDisplay" style="display:flex; justify-content:space-between; margin-bottom: 15px; padding: 10px 15px; background: #161a25; border: 1px solid #2a2e39; border-radius: 4px;">
-            <div style="display:flex; flex-direction:column;">
-                <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Total Cash</span> 
-                <span id="valTotalCash" style="color:#26a69a; font-weight:bold; font-size:16px;">$0.00</span>
+        <!-- NEW EXPANDABLE BALANCES BAR -->
+        <div style="margin-bottom: 15px; background: #161a25; border: 1px solid #2a2e39; border-radius: 4px; overflow: hidden;">
+            <div id="balancesHeader" style="display:flex; justify-content:space-between; padding: 10px 15px; cursor: pointer;" onclick="toggleBalancesBreakdown()">
+                <div style="display:flex; align-items:center; gap: 8px;">
+                    <i id="balancesArrow" class="fas fa-chevron-right" style="color:#787b86; font-size:12px; transition: transform 0.2s;"></i>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Total Cash</span> 
+                        <span id="valTotalCash" style="color:#26a69a; font-weight:bold; font-size:16px;">$0.00</span>
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; text-align:right;">
+                    <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Buying Power</span> 
+                    <span id="valBuyingPower" style="color:#2962ff; font-weight:bold; font-size:16px;">$0.00</span>
+                </div>
             </div>
-            <div style="display:flex; flex-direction:column; text-align:right;">
-                <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Buying Power</span> 
-                <span id="valBuyingPower" style="color:#2962ff; font-weight:bold; font-size:16px;">$0.00</span>
+            <div id="balancesBreakdown" style="display:none; border-top: 1px solid #2a2e39; padding: 10px 15px; background: #131722;">
+                <!-- Filled via JS -->
             </div>
         </div>
 
@@ -357,7 +365,7 @@
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
         newsSymbols: new Set(),
         positions: {},
-        balances: { cash: 0, buyingPower: 0 } // NEW: Tracks live balances in state
+        balances: { total: { cash: 0, buyingPower: 0 } } // UPDATED: Tracks nested live balances
     };
     
     let editingSymbol = null; 
@@ -534,7 +542,20 @@
     };
 
     async function saveState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readwrite"); const s = tx.objectStore("Settings"); s.put({ key: "layoutConfig", value: JSON.stringify({ m: state.chartsConfig, l: state.leftWidgetsConfig, r: state.rightWidgetsConfig, lm: state.layoutMode, lo: state.isLeftOpen, ro: state.isRightOpen, ver: state.layoutVersion }) }); } catch(e) { } }
-    async function loadSavedState() { try { const db = await openDB(); const tx = db.transaction("Settings", "readonly"); const req = tx.objectStore("Settings").get("layoutConfig"); await new Promise(r => { req.onsuccess = () => { if(req.result) { const d = JSON.parse(req.result.value); if(d.ver !== LAYOUT_VERSION) return r(); state.chartsConfig = d.m || state.chartsConfig; state.leftWidgetsConfig = d.l || state.leftWidgetsConfig; state.rightWidgetsConfig = d.r || state.rightWidgetsConfig; state.layoutMode = d.lm || '1x1'; state.isLeftOpen = d.lo; state.isRightOpen = d.ro; } r(); }; req.onerror = r; }); } catch(e) { } }
+    
+    async function loadSavedState() { 
+        try { 
+            const db = await openDB(); 
+            const tx = db.transaction("Settings", "readonly"); 
+            const req = tx.objectStore("Settings").get("layoutConfig"); 
+            await new Promise(r => { req.onsuccess = () => { if(req.result) { const d = JSON.parse(req.result.value); if(d.ver !== LAYOUT_VERSION) return r(); state.chartsConfig = d.m || state.chartsConfig; state.leftWidgetsConfig = d.l || state.leftWidgetsConfig; state.rightWidgetsConfig = d.r || state.rightWidgetsConfig; state.layoutMode = d.lm || '1x1'; state.isLeftOpen = d.lo; state.isRightOpen = d.ro; } r(); }; req.onerror = r; }); 
+            
+            // Instantly load cached balances from the previous session
+            const reqBal = tx.objectStore("Settings").get("CACHED_BALANCES");
+            await new Promise(r => { reqBal.onsuccess = () => { if(reqBal.result) state.balances = reqBal.result.value || {total:{cash:0, buyingPower:0}}; r(); }; reqBal.onerror = r; });
+        } catch(e) { } 
+    }
+    
     async function resetLayout(c=true) { if(!c) { executeReset(); } else { if (document.getElementById('posError')) { document.getElementById('posError').innerText = "Use Settings -> Factory Reset to clear data."; } } function executeReset() { state.chartsConfig = [{ id: 'm0', type: 'chart', ticker: 'AAPL', timeframe: '5Min', linkGroup: 'A' }]; state.leftWidgetsConfig = []; state.rightWidgetsConfig = [{ id: 'w-right-0', type: 'tape', ticker: 'AAPL', linkGroup: 'A' }]; state.layoutMode = '1x1'; state.layoutVersion = LAYOUT_VERSION; state.isLeftOpen = false; state.isRightOpen = true; saveState().then(()=>window.location.reload()); } }
     
     // --- SETTINGS MODAL ---
@@ -585,11 +606,48 @@
             const q = parseFloat(pos.qty);
             const a = parseFloat(pos.avgPrice);
             if (sym && !isNaN(q) && !isNaN(a)) {
-                state.positions[sym] = { qty: q, avgPrice: a };
+                state.positions[sym] = { qty: q, avgPrice: a, breakdown: pos.breakdown || {} };
             }
         });
     }
     
+    let isBalancesExpanded = false;
+    window.toggleBalancesBreakdown = function() {
+        isBalancesExpanded = !isBalancesExpanded;
+        document.getElementById('balancesBreakdown').style.display = isBalancesExpanded ? 'block' : 'none';
+        document.getElementById('balancesArrow').style.transform = isBalancesExpanded ? 'rotate(90deg)' : 'rotate(0deg)';
+    };
+
+    window.renderBalancesUI = function() {
+        const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const b = state.balances || {};
+        const tot = b.total || {cash:0, buyingPower:0};
+        
+        const cashEl = document.getElementById('valTotalCash');
+        const bpEl = document.getElementById('valBuyingPower');
+        if (cashEl) cashEl.innerText = '$' + fmt(tot.cash || 0);
+        if (bpEl) bpEl.innerText = '$' + fmt(tot.buyingPower || 0);
+        
+        let bdHtml = '';
+        if (b.questrade) bdHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:12px;"><span style="color:#787b86;">Questrade</span><span style="color:#d1d4dc;">Cash: $${fmt(b.questrade.cash||0)} &nbsp;|&nbsp; BP: $${fmt(b.questrade.buyingPower||0)}</span></div>`;
+        if (b.ibkr) bdHtml += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#787b86;">IBKR</span><span style="color:#d1d4dc;">Cash: $${fmt(b.ibkr.cash||0)} &nbsp;|&nbsp; BP: $${fmt(b.ibkr.buyingPower||0)}</span></div>`;
+        
+        if(!bdHtml) bdHtml = '<div style="font-size:12px; color:#787b86;">No account breakdown available. Sync required.</div>';
+        const bdEl = document.getElementById('balancesBreakdown');
+        if (bdEl) bdEl.innerHTML = bdHtml;
+    };
+    
+    window.togglePosBreakdown = function(sym) {
+        const rows = document.querySelectorAll(`.pos-bd-${sym}`);
+        const arrow = document.getElementById(`arrow-${sym}`);
+        let isHidden = true;
+        rows.forEach(r => {
+            isHidden = r.style.display === 'none';
+            r.style.display = isHidden ? 'table-row' : 'none';
+        });
+        if(arrow) arrow.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+    };
+
     window.togglePositionsModal = function(show) {
         document.getElementById('positionsModal').style.display = show ? 'flex' : 'none';
         if (show) {
@@ -601,11 +659,7 @@
             document.getElementById('posPrice').value = '';
             document.getElementById('posError').innerText = ''; 
             
-            // Populate balances UI
-            const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('valTotalCash').innerText = '$' + fmt(state.balances.cash || 0);
-            document.getElementById('valBuyingPower').innerText = '$' + fmt(state.balances.buyingPower || 0);
-            
+            renderBalancesUI();
             renderPositionsList();
             refreshPortfolioTape(); 
         }
@@ -656,8 +710,13 @@
             const pnlColor = pnl > 0 ? '#26a69a' : (pnl < 0 ? '#ef5350' : '#787b86');
             const sign = pnl > 0 ? '+' : ''; 
             
-            h += `<tr style="border-bottom:1px solid #1e222d;">
-                    <td style="padding:8px 0; font-weight:bold; color:#d1d4dc;">${sym}</td>
+            // Generate interactive arrow logic if sub-accounts exist
+            const hasBreakdown = p.breakdown && Object.keys(p.breakdown).length > 0;
+            const pointerCss = hasBreakdown ? 'cursor:pointer;' : '';
+            const arrowHtml = hasBreakdown ? `<i class="fas fa-chevron-right" id="arrow-${sym}" style="color:#787b86; font-size:10px; margin-right:6px; transition: transform 0.2s;"></i>` : `<span style="display:inline-block; width:16px;"></span>`;
+            
+            h += `<tr style="border-bottom:1px solid #1e222d; ${pointerCss}" ${hasBreakdown ? `onclick="togglePosBreakdown('${sym}')"` : ''}>
+                    <td style="padding:8px 0; font-weight:bold; color:#d1d4dc;">${arrowHtml}${sym}</td>
                     <td style="text-align:right;">${safeQty}</td>
                     <td style="text-align:right;">$${fmtVal(safePrice)}</td>
                     <td style="text-align:right; color:#d1d4dc;">$${fmtVal(currentPrice)}</td>
@@ -665,10 +724,34 @@
                     <td style="text-align:right; color:${pnlColor}; font-weight:bold;">${sign}$${fmtVal(pnl)}</td>
                     <td style="text-align:right; color:${pnlColor};">${sign}${fmtVal(pnlPct)}%</td>
                     <td style="text-align:right; white-space:nowrap;">
-                        <button class="icon-btn" style="display:inline-flex; width:24px;height:24px;font-size:11px;margin-right:4px;" onclick="editPosition('${sym}')" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="icon-btn" style="display:inline-flex; width:24px;height:24px;font-size:11px;color:#ef5350;" onclick="removePosition('${sym}')" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                        <button class="icon-btn" style="display:inline-flex; width:24px;height:24px;font-size:11px;margin-right:4px;" onclick="event.stopPropagation(); editPosition('${sym}')" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn" style="display:inline-flex; width:24px;height:24px;font-size:11px;color:#ef5350;" onclick="event.stopPropagation(); removePosition('${sym}')" title="Remove"><i class="fas fa-trash-alt"></i></button>
                     </td>
                   </tr>`;
+                  
+            // Inject hidden nested rows for breakdown
+            if (hasBreakdown) {
+                for (const [acc, data] of Object.entries(p.breakdown)) {
+                    const subCostBasis = data.qty * data.avgPrice;
+                    const subValue = data.qty * currentPrice;
+                    const subPnl = subValue - subCostBasis;
+                    const subPnlPct = subCostBasis !== 0 ? (subPnl / Math.abs(subCostBasis)) * 100 : 0;
+                    const subPnlColor = subPnl > 0 ? '#26a69a' : (subPnl < 0 ? '#ef5350' : '#787b86');
+                    const subSign = subPnl > 0 ? '+' : '';
+                    const accName = acc.charAt(0).toUpperCase() + acc.slice(1);
+
+                    h += `<tr class="pos-bd-${sym}" style="display:none; background:#161a25; border-bottom:1px dashed #2a2e39;">
+                            <td style="padding:4px 0 4px 24px; color:#787b86; font-size:11px;">↳ ${accName}</td>
+                            <td style="text-align:right; color:#787b86; font-size:11px;">${data.qty}</td>
+                            <td style="text-align:right; color:#787b86; font-size:11px;">$${fmtVal(data.avgPrice)}</td>
+                            <td style="text-align:right; color:#787b86; font-size:11px;">-</td>
+                            <td style="text-align:right; color:#787b86; font-size:11px;">$${fmtVal(subValue)}</td>
+                            <td style="text-align:right; color:${subPnlColor}; font-size:11px;">${subSign}$${fmtVal(subPnl)}</td>
+                            <td style="text-align:right; color:${subPnlColor}; font-size:11px;">${subSign}${fmtVal(subPnlPct)}%</td>
+                            <td></td>
+                          </tr>`;
+                }
+            }
         }
         
         const totalPnl = totalValue - totalCost;
@@ -737,9 +820,10 @@
             const db = await openDB();
             const tx = db.transaction("Positions", "readwrite");
             
-            tx.objectStore("Positions").put({ symbol: sym, tickerSymbol: sym, ticker: sym, id: sym, key: sym, qty: newQty, avgPrice: newAvg });
+            // Note: Manual overwrites reset the breakdown mapping to maintain logic integrity
+            tx.objectStore("Positions").put({ symbol: sym, tickerSymbol: sym, ticker: sym, id: sym, key: sym, qty: newQty, avgPrice: newAvg, breakdown: {} });
             
-            state.positions[sym] = { qty: newQty, avgPrice: newAvg };
+            state.positions[sym] = { qty: newQty, avgPrice: newAvg, breakdown: {} };
             
             document.getElementById('posSym').value = '';
             document.getElementById('posQty').value = '';
@@ -800,7 +884,19 @@
             
             // Prioritize the grouped "total" array from our Python server
             if (posData && posData.total && Array.isArray(posData.total)) {
-                newPositions = posData.total;
+                newPositions = posData.total.map(p => {
+                    const sym = (p.symbol || p.ticker || '').toUpperCase();
+                    const breakdown = {};
+                    if (posData.questrade) {
+                        const qt = posData.questrade.find(x => (x.symbol || x.ticker || '').toUpperCase() === sym);
+                        if (qt) breakdown.questrade = { qty: parseFloat(qt.qty), avgPrice: parseFloat(qt.avgPrice || qt.price) };
+                    }
+                    if (posData.ibkr) {
+                        const ib = posData.ibkr.find(x => (x.symbol || x.ticker || '').toUpperCase() === sym);
+                        if (ib) breakdown.ibkr = { qty: parseFloat(ib.qty), avgPrice: parseFloat(ib.avgPrice || ib.price) };
+                    }
+                    return { ...p, breakdown };
+                });
             } else if (Array.isArray(posData)) { 
                 newPositions = posData; 
             } else if (typeof posData === 'object') { 
@@ -811,16 +907,15 @@
             if (!balRes.error && balRes.ok) {
                 const balData = await balRes.json();
                 if (balData && balData.total) {
-                    state.balances = {
-                        cash: balData.total.cash || 0,
-                        buyingPower: balData.total.buyingPower || 0
-                    };
-                    // Update UI immediately if modal is open
-                    const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    const cashEl = document.getElementById('valTotalCash');
-                    const bpEl = document.getElementById('valBuyingPower');
-                    if (cashEl) cashEl.innerText = '$' + fmt(state.balances.cash);
-                    if (bpEl) bpEl.innerText = '$' + fmt(state.balances.buyingPower);
+                    state.balances = balData; 
+                    
+                    // Save balances to IndexedDB so they are instantly available next boot
+                    const txSet = db.transaction("Settings", "readwrite");
+                    txSet.objectStore("Settings").put({ key: "CACHED_BALANCES", value: state.balances });
+                    
+                    if (document.getElementById('positionsModal').style.display === 'flex') {
+                        renderBalancesUI();
+                    }
                 }
             }
             
@@ -834,8 +929,8 @@
                 const qty = parseFloat(p.qty);
                 const avgPrice = parseFloat(p.avgPrice || p.price);
                 if (sym && !isNaN(qty) && !isNaN(avgPrice)) {
-                    store.put({ symbol: sym, tickerSymbol: sym, ticker: sym, id: sym, key: sym, qty: qty, avgPrice: avgPrice });
-                    state.positions[sym] = { qty, avgPrice };
+                    store.put({ symbol: sym, tickerSymbol: sym, ticker: sym, id: sym, key: sym, qty: qty, avgPrice: avgPrice, breakdown: p.breakdown || {} });
+                    state.positions[sym] = { qty, avgPrice, breakdown: p.breakdown || {} };
                 }
             });
             
@@ -927,14 +1022,18 @@
         try {
             try { await loadSavedState(); } catch(e) { console.warn("State load failed", e); }
             try { await loadPositions(); } catch(e) { console.warn("Positions load failed", e); }
-            try { await syncPositionsFromUrl(true); } catch(e) { console.warn("Auto-sync failed", e); } // Silent auto-sync
+            
             if(state.layoutVersion !== LAYOUT_VERSION) await resetLayout(false);
             
+            // Render the UI and Charts INSTANTLY using local cache
             renderAll();
             
             try { refreshPortfolioTape(); } catch(e) {}
             try { refreshScreenerTape(); } catch(e) {}
             try { refreshNewsTape(); } catch(e) {}
+            
+            // NEW: Fire the server sync entirely in the background without blocking the UI
+            syncPositionsFromUrl(true).catch(e => console.warn("Background auto-sync failed", e));
             
             pruneFinancials();
             
