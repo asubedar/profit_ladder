@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pro Charting (Final Integrated)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
     <style>
@@ -139,12 +139,17 @@
         #screen-logger { position: absolute; right: 20px; top: 80px; bottom: 20px; width: 300px; background: rgba(0,0,0,0.9); border-left: 1px solid #444; font-family: monospace; font-size: 11px; color: #0f0; padding: 10px; overflow-y: auto; z-index: 9999; display: none; }
         .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; } .log-err { color: #f55; }
         
+        /* NEW: Responsive Modal CSS */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; }
-        .modal-content { background: var(--panel-color); padding: 20px; border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-content { 
+            background: var(--panel-color); padding: 20px; border-radius: 6px; border: 1px solid var(--border-color); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 95%; max-height: 90vh; display: flex; flex-direction: column; box-sizing: border-box; 
+        }
+        
         .form-group { margin-bottom: 15px; } .form-label { display: block; font-size: 12px; color: #787b86; margin-bottom: 5px; }
         .form-input { width: 100%; background: #131722; border: 1px solid #2a2e39; color: #fff; padding: 8px; border-radius: 4px; box-sizing: border-box; outline:none; }
         .form-input:focus { border-color: #2962ff; }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; flex-shrink: 0; }
         .btn-p { background: var(--accent-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-s { background: transparent; color: #d1d4dc; border: 1px solid #444; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
         .btn-danger { background: #d50000; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: auto; }
@@ -166,6 +171,24 @@
         .range-fill { height: 100%; background: linear-gradient(90deg, #ef5350 0%, #2962ff 50%, #26a69a 100%); border-radius: 3px; position: absolute; left: 0; opacity: 0.8; }
         .range-arrow { position: absolute; top: -5px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #fff; transform: translateX(-50%); z-index: 2; transition: left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
         .range-dates { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-top: 6px; }
+
+        /* NEW: MOBILE SPECIFIC FIXES */
+        @media screen and (max-width: 768px) {
+            .app-container { grid-template-rows: 45px 30px 1fr; } /* Taller touch toolbar */
+            .toolbar { padding: 0 5px; gap: 5px; }
+            .icon-btn { width: 34px; height: 34px; font-size: 16px; } /* Apple minimum touch targets */
+            .btn-p, .btn-s, .btn-danger { padding: 12px 14px; font-size: 14px; }
+            .modal-content { padding: 15px; }
+            
+            /* Wrap inputs properly so they don't squish */
+            .pos-inputs { flex-wrap: wrap; }
+            .pos-inputs > input { width: calc(50% - 5px) !important; margin-bottom: 5px; }
+            .pos-inputs > button { width: 100% !important; margin-top: 5px; }
+            
+            /* Allow horizontal scrolling on crushed tables */
+            #positionsList { overflow-x: auto; }
+            #positionsList table { min-width: 500px; }
+        }
     </style>
 </head>
 <body>
@@ -227,60 +250,61 @@
     </div>
 </div>
 
-<!-- API SETTINGS MODAL -->
 <div id="settingsModal" class="modal-overlay">
-    <div class="modal-content" style="width: 450px;">
+    <div class="modal-content" style="max-width: 450px;">
         <h3 style="margin:0 0 15px 0; color:#d1d4dc;">API Configuration</h3>
-        <div class="form-group"><label class="form-label">Alpaca API Key ID</label><input type="text" id="inpApiKey" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input" placeholder="Optional (60 req/min limit)"></div>
-        <div class="form-group"><label class="form-label">Sync Server Base URL</label><input type="text" id="inpSyncUrl" class="form-input" placeholder="https://api.yourdomain.com"></div>
-        <div id="settingsError" style="color:#ef5350; font-size:12px; margin-bottom:15px; height:14px;"></div>
+        <div style="overflow-y:auto; flex-grow:1;">
+            <div class="form-group"><label class="form-label">Alpaca API Key ID</label><input type="text" id="inpApiKey" class="form-input"></div>
+            <div class="form-group"><label class="form-label">Alpaca Secret Key</label><input type="password" id="inpApiSecret" class="form-input"></div>
+            <div class="form-group"><label class="form-label">Finnhub API Key</label><input type="password" id="inpFinnhubKey" class="form-input" placeholder="Optional (60 req/min limit)"></div>
+            <div class="form-group"><label class="form-label">Sync Server Base URL</label><input type="text" id="inpSyncUrl" class="form-input" placeholder="https://api.yourdomain.com"></div>
+            <div id="settingsError" style="color:#ef5350; font-size:12px; margin-bottom:15px; height:14px;"></div>
+        </div>
         <div class="modal-actions">
             <button class="btn-danger" id="btnFactoryReset" onclick="nuclearReset()">Factory Reset</button>
             <button class="btn-s" onclick="toggleSettings(false)">Cancel</button>
-            <button class="btn-p" onclick="saveApiSettings()">Save & Reload</button>
+            <button class="btn-p" onclick="saveApiSettings()">Save</button>
         </div>
     </div>
 </div>
 
-<!-- POSITIONS MODAL (LIVE DASHBOARD) -->
 <div id="positionsModal" class="modal-overlay">
-    <div class="modal-content" style="width: 650px;">
-        <h3 style="margin:0 0 15px 0; color:#d1d4dc;">Portfolio Dashboard</h3>
+    <div class="modal-content" style="max-width: 650px;">
+        <h3 style="margin:0 0 15px 0; color:#d1d4dc; flex-shrink: 0;">Portfolio Dashboard</h3>
         
-        <!-- NEW EXPANDABLE BALANCES BAR -->
-        <div style="margin-bottom: 15px; background: #161a25; border: 1px solid #2a2e39; border-radius: 4px; overflow: hidden;">
-            <div id="balancesHeader" style="display:flex; justify-content:space-between; padding: 10px 15px; cursor: pointer;" onclick="toggleBalancesBreakdown()">
-                <div style="display:flex; align-items:center; gap: 8px;">
-                    <i id="balancesArrow" class="fas fa-chevron-right" style="color:#787b86; font-size:12px; transition: transform 0.2s;"></i>
-                    <div style="display:flex; flex-direction:column;">
-                        <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Total Cash</span> 
-                        <span id="valTotalCash" style="color:#26a69a; font-weight:bold; font-size:16px;">$0.00</span>
+        <div style="overflow-y:auto; flex-grow:1; padding-right:5px;">
+            <div style="margin-bottom: 15px; background: #161a25; border: 1px solid #2a2e39; border-radius: 4px; overflow: hidden;">
+                <div id="balancesHeader" style="display:flex; justify-content:space-between; padding: 10px 15px; cursor: pointer;" onclick="toggleBalancesBreakdown()">
+                    <div style="display:flex; align-items:center; gap: 8px;">
+                        <i id="balancesArrow" class="fas fa-chevron-right" style="color:#787b86; font-size:12px; transition: transform 0.2s;"></i>
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Total Cash</span> 
+                            <span id="valTotalCash" style="color:#26a69a; font-weight:bold; font-size:16px;">$0.00</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; flex-direction:column; text-align:right;">
+                        <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Buying Power</span> 
+                        <span id="valBuyingPower" style="color:#2962ff; font-weight:bold; font-size:16px;">$0.00</span>
                     </div>
                 </div>
-                <div style="display:flex; flex-direction:column; text-align:right;">
-                    <span style="color:#787b86; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Buying Power</span> 
-                    <span id="valBuyingPower" style="color:#2962ff; font-weight:bold; font-size:16px;">$0.00</span>
-                </div>
+                <div id="balancesBreakdown" style="display:none; border-top: 1px solid #2a2e39; padding: 10px 15px; background: #131722;">
+                    </div>
             </div>
-            <div id="balancesBreakdown" style="display:none; border-top: 1px solid #2a2e39; padding: 10px 15px; background: #131722;">
-                <!-- Filled via JS -->
-            </div>
-        </div>
 
-        <div style="display:flex; gap:10px; margin-bottom: 5px;">
-            <input type="text" id="posSym" class="form-input" placeholder="Ticker (AAPL)" style="width: 25%;">
-            <input type="text" inputmode="decimal" id="posQty" class="form-input" placeholder="Qty" style="width: 25%;">
-            <input type="text" inputmode="decimal" id="posPrice" class="form-input" placeholder="Avg Price" style="width: 30%;">
-            <button class="btn-p" onclick="addPosition()" style="width: 20%;">Save</button>
+            <div class="pos-inputs" style="display:flex; gap:10px; margin-bottom: 5px;">
+                <input type="text" id="posSym" class="form-input" placeholder="Ticker (AAPL)" style="width: 25%;">
+                <input type="text" inputmode="decimal" id="posQty" class="form-input" placeholder="Qty" style="width: 25%;">
+                <input type="text" inputmode="decimal" id="posPrice" class="form-input" placeholder="Avg Price" style="width: 30%;">
+                <button class="btn-p" onclick="addPosition()" style="width: 20%;">Save</button>
+            </div>
+            <div id="posError" style="color:#ef5350; font-size:11px; height:14px; margin-bottom:10px;"></div>
+            
+            <div id="positionsList" style="border: 1px solid #2a2e39; border-radius: 4px; padding: 10px; background: #131722; margin-bottom: 5px;">
+                </div>
         </div>
-        <div id="posError" style="color:#ef5350; font-size:11px; height:14px; margin-bottom:10px;"></div>
-        <div id="positionsList" style="max-height: 350px; overflow-y: auto; border: 1px solid #2a2e39; border-radius: 4px; padding: 10px; background: #131722; margin-bottom: 15px;">
-            <!-- Rendered by JS -->
-        </div>
+        
         <div class="modal-actions" style="justify-content: space-between;">
-            <button class="btn-s" style="color:#2962ff; border-color:#2962ff;" onclick="syncPositionsFromUrl()"><i class="fas fa-cloud-download-alt"></i> Sync URL</button>
+            <button class="btn-s" style="color:#2962ff; border-color:#2962ff;" onclick="syncPositionsFromUrl()"><i class="fas fa-cloud-download-alt"></i> Sync</button>
             <button class="btn-s" onclick="togglePositionsModal(false)">Close</button>
         </div>
     </div>
@@ -365,7 +389,7 @@
         portfolioTickers: [], tapeData: { portfolio: '', gainers: '', losers: '', activeVol: '', activeTrd: '', fallback: '' },
         newsSymbols: new Set(),
         positions: {},
-        balances: { total: { cash: 0, buyingPower: 0 } } // UPDATED: Tracks nested live balances
+        balances: { total: { cash: 0, buyingPower: 0 } }
     };
     
     let editingSymbol = null; 
