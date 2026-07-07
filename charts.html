@@ -1597,14 +1597,34 @@
         const visibleBars = Math.ceil(c.chart.timeScale().getVisibleLogicalRange().to - c.chart.timeScale().getVisibleLogicalRange().from); 
         const limit = Math.min(Math.max(visibleBars*2, 500), 10000); 
         const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); 
+        
         let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M' || tf==='M') tf='1Month'; if(tf==='1H') tf='1Hour';
-        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=${getAlpacaFeed()}`; 
+        
+        const sipUrl = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=sip`; 
+        const boatsUrl = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=boats`; 
+        
         try { 
-            const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); 
-            const json = await res.json(); 
-            if(json.bars) { 
-                const oldBars = json.bars.reverse();
-                const data = parseBars(oldBars); 
+            const [sipRes, boatsRes] = await Promise.all([
+                fetch(sipUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }),
+                fetch(boatsUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } })
+            ]);
+            
+            let oldBars = [];
+            
+            if(sipRes.ok) {
+                const sipJson = await sipRes.json();
+                if(sipJson.bars) oldBars = oldBars.concat(sipJson.bars);
+            }
+            if(boatsRes.ok) {
+                const boatsJson = await boatsRes.json();
+                if(boatsJson.bars) oldBars = oldBars.concat(boatsJson.bars);
+            }
+            
+            if(oldBars.length > 0) { 
+                // Sort newest to oldest
+                oldBars.sort((a, b) => new Date(b.t) - new Date(a.t));
+                const data = parseBars(oldBars.reverse()); 
+                
                 c.candleSeries.setData(data.ohlc.concat(c.candleSeries.data())); 
                 c.pnlSeries.setData(data.ohlc.concat(c.pnlSeries.data())); 
                 c.volSeries.setData(data.vol.concat(c.volSeries.data())); 
