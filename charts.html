@@ -427,11 +427,33 @@
                 const start = new Date(Date.now() - (daysBack * 86400000)).toISOString();
 
                 let tf = timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M' || tf==='M') tf='1Month'; if(tf==='1H') tf='1Hour';
-                const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=${getAlpacaFeed()}`; 
+                
+                const sipUrl = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=sip`; 
+                const boatsUrl = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=boats`; 
+                
                 try {
-                    const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
-                    const json = await res.json();
-                    if(json.bars) return parseBars(json.bars.reverse());
+                    // Fetch both day (SIP) and night (BOATS) concurrently
+                    const [sipRes, boatsRes] = await Promise.all([
+                        fetch(sipUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }),
+                        fetch(boatsUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } })
+                    ]);
+                    
+                    let allBars = [];
+                    
+                    if(sipRes.ok) {
+                        const sipJson = await sipRes.json();
+                        if(sipJson.bars) allBars = allBars.concat(sipJson.bars);
+                    }
+                    if(boatsRes.ok) {
+                        const boatsJson = await boatsRes.json();
+                        if(boatsJson.bars) allBars = allBars.concat(boatsJson.bars);
+                    }
+                    
+                    // Sort combined data chronologically (newest first for the parser)
+                    if(allBars.length > 0) {
+                        allBars.sort((a, b) => new Date(b.t) - new Date(a.t));
+                        return parseBars(allBars.reverse());
+                    }
                 } catch(e) { log(`Err loading ${ticker}: ${e.message}`); }
                 return null;
             })();
