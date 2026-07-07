@@ -1731,7 +1731,7 @@
         
         if (t.length) {
             try {
-                const r = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}`, { headers: { "APCA-API-KEY-ID": k.k, "APCA-API-SECRET-KEY": k.s } });
+                const r = await fetch(`https://data.alpaca.markets/v2/stocks/snapshots?symbols=${t.join(',')}&feed=${getAlpacaFeed()}`, { headers: { "APCA-API-KEY-ID": k.k, "APCA-API-SECRET-KEY": k.s } });
                 if (r.ok) {
                     const j = await r.json();
                     
