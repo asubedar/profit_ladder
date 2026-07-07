@@ -1598,7 +1598,7 @@
         const widgets = state.activeWidgets;
         if(widgets.length === 0) return;
         const symbols = [...new Set(widgets.map(w => w.ticker))];
-        const u = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols.join(',')}`;
+        const u = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${symbols.join(',')}&feed=${getAlpacaFeed()}`;
         try {
             const res = await fetch(u, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
             const json = await res.json();
