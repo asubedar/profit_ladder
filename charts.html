@@ -426,27 +426,44 @@
                 const daysBack = timeframesDays[timeframe] || 30;
                 const start = new Date(Date.now() - (daysBack * 86400000)).toISOString();
 
-                let tf = timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M' || tf==='M') tf='1Month'; if(tf==='1H') tf='1Hour';
-                
-                const sipUrl = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=sip`; 
-                const boatsUrl = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=boats`; 
-                
+                // Properly map timeframe syntax for Alpaca
+                let tf = timeframe; 
+                if(tf==='4H') tf='4Hour'; 
+                if(tf==='1D') tf='1Day';
+                if(tf==='1W') tf='1Week'; 
+                if(tf==='1M' || tf==='M') tf='1Month'; 
+                if(tf==='1H') tf='1Hour';
+
+                const isIntraday = !['1Day', '1Week', '1Month'].includes(tf);
+                let allBars = [];
+
                 try {
-                    // Fetch both day (SIP) and night (BOATS) concurrently
-                    const [sipRes, boatsRes] = await Promise.all([
-                        fetch(sipUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }),
-                        fetch(boatsUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } })
-                    ]);
-                    
-                    let allBars = [];
-                    
-                    if(sipRes.ok) {
-                        const sipJson = await sipRes.json();
-                        if(sipJson.bars) allBars = allBars.concat(sipJson.bars);
-                    }
-                    if(boatsRes.ok) {
-                        const boatsJson = await boatsRes.json();
-                        if(boatsJson.bars) allBars = allBars.concat(boatsJson.bars);
+                    if (isIntraday) {
+                        // INTRADAY: Fetch both SIP and BOATS concurrently
+                        const sipUrl = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=sip`; 
+                        const boatsUrl = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=boats`; 
+                        
+                        const [sipRes, boatsRes] = await Promise.all([
+                            fetch(sipUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }),
+                            fetch(boatsUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } })
+                        ]);
+                        
+                        if(sipRes.ok) {
+                            const sipJson = await sipRes.json();
+                            if(sipJson.bars) allBars = allBars.concat(sipJson.bars);
+                        }
+                        if(boatsRes.ok) {
+                            const boatsJson = await boatsRes.json();
+                            if(boatsJson.bars) allBars = allBars.concat(boatsJson.bars);
+                        }
+                    } else {
+                        // MACRO: Single fetch, no feed parameter allowed
+                        const macroUrl = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`;
+                        const res = await fetch(macroUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+                        if (res.ok) {
+                            const json = await res.json();
+                            if(json.bars) allBars = json.bars;
+                        }
                     }
                     
                     // Sort combined data chronologically (newest first for the parser)
@@ -1598,26 +1615,41 @@
         const limit = Math.min(Math.max(visibleBars*2, 500), 10000); 
         const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); 
         
-        let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M' || tf==='M') tf='1Month'; if(tf==='1H') tf='1Hour';
-        
-        const sipUrl = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=sip`; 
-        const boatsUrl = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=boats`; 
+        let tf = c.timeframe; 
+        if(tf==='4H') tf='4Hour'; 
+        if(tf==='1D') tf='1Day';
+        if(tf==='1W') tf='1Week'; 
+        if(tf==='1M' || tf==='M') tf='1Month'; 
+        if(tf==='1H') tf='1Hour';
+
+        const isIntraday = !['1Day', '1Week', '1Month'].includes(tf);
+        let oldBars = [];
         
         try { 
-            const [sipRes, boatsRes] = await Promise.all([
-                fetch(sipUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }),
-                fetch(boatsUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } })
-            ]);
-            
-            let oldBars = [];
-            
-            if(sipRes.ok) {
-                const sipJson = await sipRes.json();
-                if(sipJson.bars) oldBars = oldBars.concat(sipJson.bars);
-            }
-            if(boatsRes.ok) {
-                const boatsJson = await boatsRes.json();
-                if(boatsJson.bars) oldBars = oldBars.concat(boatsJson.bars);
+            if (isIntraday) {
+                const sipUrl = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=sip`; 
+                const boatsUrl = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=boats`; 
+                
+                const [sipRes, boatsRes] = await Promise.all([
+                    fetch(sipUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }),
+                    fetch(boatsUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } })
+                ]);
+                
+                if(sipRes.ok) {
+                    const sipJson = await sipRes.json();
+                    if(sipJson.bars) oldBars = oldBars.concat(sipJson.bars);
+                }
+                if(boatsRes.ok) {
+                    const boatsJson = await boatsRes.json();
+                    if(boatsJson.bars) oldBars = oldBars.concat(boatsJson.bars);
+                }
+            } else {
+                const macroUrl = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`;
+                const res = await fetch(macroUrl, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
+                if (res.ok) {
+                    const json = await res.json();
+                    if(json.bars) oldBars = json.bars;
+                }
             }
             
             if(oldBars.length > 0) { 
@@ -1633,7 +1665,6 @@
             } 
         } catch(e) {} finally { c.isLoading = false; } 
     }
-
     // --- REALTIME ---
     async function updateChartsRealtime() {
         const keys = await getKeys(); if(!keys) return;
