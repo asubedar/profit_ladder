@@ -1408,7 +1408,7 @@
 
         await Promise.all(Object.entries(widgetsByTicker).map(async ([ticker, widgets]) => {
             if (!widgets.some(w => document.getElementById(`tape-list-${w.id}`)?.offsetParent !== null)) return;
-            const u = `https://data.alpaca.markets/v2/stocks/${ticker}/trades?limit=50&sort=desc&feed=sip&start=${start}`;
+            const u = `https://data.alpaca.markets/v2/stocks/${ticker}/trades?limit=50&sort=desc&feed=${getAlpacaFeed()}&start=${start}`;
             try {
                 const res = await fetch(u, { headers: { "APCA-API-KEY-ID": k.k, "APCA-API-SECRET-KEY": k.s } });
                 if(!res.ok) return;
