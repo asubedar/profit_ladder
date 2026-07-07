@@ -320,6 +320,20 @@
         const div = document.createElement('div'); div.className = 'log-line ' + (type === 'error' ? 'log-err' : '');
         div.innerText = `> ${msg}`; logger.appendChild(div); logger.scrollTop = logger.scrollHeight;
     }
+    
+    function getAlpacaFeed() {
+        const now = new Date();
+        // Force the time check into Eastern Time to avoid local timezone bugs
+        const estTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const hours = estTime.getHours();
+        
+        // Between 20:00 (8 PM) and 03:59 AM ET
+        if (hours >= 20 || hours < 4) {
+            return 'boats';
+        }
+        return 'sip';
+    }
+    
     function formatNum(num) { if(!num) return '0'; if(num>=1e9) return (num/1e9).toFixed(2)+'B'; if(num>=1e6) return (num/1e6).toFixed(2)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'k'; return Math.floor(num).toString(); }
     
     function snapTime(t, f) {
@@ -413,7 +427,7 @@
                 const start = new Date(Date.now() - (daysBack * 86400000)).toISOString();
 
                 let tf = timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M' || tf==='M') tf='1Month'; if(tf==='1H') tf='1Hour';
-                const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc`; 
+                const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=${tf}&start=${start}&end=${end}&limit=10000&adjustment=split&sort=desc&feed=${getAlpacaFeed()}`; 
                 try {
                     const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } });
                     const json = await res.json();
@@ -1562,7 +1576,7 @@
         const limit = Math.min(Math.max(visibleBars*2, 500), 10000); 
         const endStr = new Date((c.earliestTime - 1) * 1000).toISOString(); 
         let tf = c.timeframe; if(tf==='4H') tf='4Hour'; if(tf==='1W') tf='1Week'; if(tf==='1M' || tf==='M') tf='1Month'; if(tf==='1H') tf='1Hour';
-        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split`; 
+        const url = `https://data.alpaca.markets/v2/stocks/${c.ticker}/bars?timeframe=${tf}&start=2015-01-01T00:00:00Z&end=${endStr}&limit=${limit}&sort=desc&adjustment=split&feed=${getAlpacaFeed()}`; 
         try { 
             const res = await fetch(url, { headers: { "APCA-API-KEY-ID": keys.k, "APCA-API-SECRET-KEY": keys.s } }); 
             const json = await res.json(); 
