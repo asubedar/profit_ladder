@@ -436,7 +436,7 @@
                 if(tf==='1M' || tf==='M') tf='1Month'; 
                 if(tf==='1H') tf='1Hour';
 
-                const isIntraday = !['1Day', '1Week', '1Month'].includes(tf);
+                const isIntraday = !['4Hour','1Day', '1Week', '1Month'].includes(tf);
                 let allBars = [];
 
                 try {
